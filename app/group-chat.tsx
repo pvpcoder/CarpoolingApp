@@ -1,4 +1,3 @@
-import { notifyGroupMembers } from "../lib/notifications";
 import { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -10,9 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
+import { getValidUser, handleLogout } from "../lib/helpers";
+import { notifyGroupMembers } from "../lib/notifications";
 
 export default function GroupChat() {
   const router = useRouter();
@@ -34,91 +36,142 @@ export default function GroupChat() {
   }, []);
 
   const loadChat = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    setCurrentUserId(user.id);
+    try {
+      const user = await getValidUser();
+      if (!user) {
+        handleLogout(router);
+        return;
+      }
+      setCurrentUserId(user.id);
 
-    // Check if student or parent
-    const { data: student } = await supabase
-      .from("students")
-      .select("id, name")
-      .eq("id", user.id)
-      .single();
-
-    if (student) {
-      setCurrentUserRole("student");
-      setCurrentUserName(student.name);
-    } else {
-      const { data: parent } = await supabase
-        .from("parents")
+      // Check if student or parent
+      const { data: student } = await supabase
+        .from("students")
         .select("id, name")
         .eq("id", user.id)
         .single();
 
-      if (parent) {
-        setCurrentUserRole("parent");
-        setCurrentUserName(parent.name);
-      }
-    }
+      if (student) {
+        setCurrentUserRole("student");
+        setCurrentUserName(student.name);
+      } else {
+        const { data: parent } = await supabase
+          .from("parents")
+          .select("id, name")
+          .eq("id", user.id)
+          .single();
 
-    // Build name map from group members
-    const { data: members } = await supabase
-      .from("group_members")
-      .select(`
+        if (parent) {
+          setCurrentUserRole("parent");
+          setCurrentUserName(parent.name);
+        }
+      }
+
+      // Build name map from group members
+      const { data: members } = await supabase
+        .from("group_members")
+        .select(
+          `
         student_id, parent_id,
         students ( name ),
         parents ( name )
-      `)
-      .eq("group_id", groupId)
-      .eq("status", "active");
+      `
+        )
+        .eq("group_id", groupId)
+        .eq("status", "active");
 
-    const nMap: Record<string, string> = {};
-    (members || []).forEach((m: any) => {
-      if (m.student_id && m.students) nMap[m.student_id] = m.students.name;
-      if (m.parent_id && m.parents) nMap[m.parent_id] = m.parents.name;
-    });
-    setNameMap(nMap);
+      const nMap: Record<string, string> = {};
+      (members || []).forEach((m: any) => {
+        if (m.student_id && m.students) nMap[m.student_id] = m.students.name;
+        if (m.parent_id && m.parents) nMap[m.parent_id] = m.parents.name;
+      });
+      setNameMap(nMap);
 
-    await loadMessages();
-    setLoading(false);
+      await loadMessages();
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again.",
+          [{ text: "Retry", onPress: () => loadChat() }]
+        );
+      } else {
+        Alert.alert("Error", "Couldn't load chat. Please try again.", [
+          { text: "Retry", onPress: () => loadChat() },
+          { text: "Go Back", onPress: () => router.back() },
+        ]);
+      }
+    }
   };
 
   const loadMessages = async () => {
-    const { data } = await supabase
-      .from("group_messages")
-      .select("id, sender_id, sender_role, message, created_at")
-      .eq("group_id", groupId)
-      .order("created_at", { ascending: true })
-      .limit(100);
+    try {
+      const { data } = await supabase
+        .from("group_messages")
+        .select("id, sender_id, sender_role, message, created_at")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: true })
+        .limit(100);
 
-    setMessages(data || []);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
+      setMessages(data || []);
+      setTimeout(
+        () => scrollRef.current?.scrollToEnd({ animated: false }),
+        100
+      );
+    } catch {
+      // Silently fail on polling — don't spam alerts every 5 seconds
+    }
   };
 
   const handleSend = async () => {
     if (!newMessage.trim() || !currentUserId || !currentUserRole) return;
 
     setSending(true);
-    const { error } = await supabase.from("group_messages").insert({
-      group_id: groupId,
-      sender_id: currentUserId,
-      sender_role: currentUserRole,
-      message: newMessage.trim(),
-    });
 
-    setSending(false);
+    try {
+      const { error } = await supabase.from("group_messages").insert({
+        group_id: groupId,
+        sender_id: currentUserId,
+        sender_role: currentUserRole,
+        message: newMessage.trim(),
+      });
 
-    if (error) return;
-    // Notify group members
-    notifyGroupMembers(
-      groupId as string,
-      currentUserId!,
-      `💬 ${currentUserName}`,
-      newMessage.trim()
-    );
+      if (error) {
+        setSending(false);
+        Alert.alert("Error", "Couldn't send message. Please try again.");
+        return;
+      }
 
-    setNewMessage("");
-    await loadMessages();
+      // Notify group members
+      notifyGroupMembers(
+        groupId as string,
+        currentUserId!,
+        `💬 ${currentUserName}`,
+        newMessage.trim()
+      );
+
+      setNewMessage("");
+      await loadMessages();
+      setSending(false);
+    } catch (err: any) {
+      setSending(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again."
+        );
+      } else {
+        Alert.alert("Error", "Couldn't send message. Please try again.");
+      }
+    }
   };
 
   const formatTime = (dateStr: string) => {
@@ -166,13 +219,17 @@ export default function GroupChat() {
         ref={scrollRef}
         style={styles.messageList}
         contentContainerStyle={styles.messageContent}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+        onContentSizeChange={() =>
+          scrollRef.current?.scrollToEnd({ animated: false })
+        }
       >
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>💬</Text>
             <Text style={styles.emptyTitle}>No messages yet</Text>
-            <Text style={styles.emptyText}>Start the conversation with your carpool group!</Text>
+            <Text style={styles.emptyText}>
+              Start the conversation with your carpool group!
+            </Text>
           </View>
         ) : (
           messages.map((msg: any) => {
@@ -180,9 +237,17 @@ export default function GroupChat() {
             return (
               <View
                 key={msg.id}
-                style={[styles.messageBubbleRow, isMe && styles.messageBubbleRowMe]}
+                style={[
+                  styles.messageBubbleRow,
+                  isMe && styles.messageBubbleRowMe,
+                ]}
               >
-                <View style={[styles.messageBubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
+                <View
+                  style={[
+                    styles.messageBubble,
+                    isMe ? styles.bubbleMe : styles.bubbleOther,
+                  ]}
+                >
                   {!isMe && (
                     <Text style={styles.senderName}>
                       {nameMap[msg.sender_id] || "Unknown"}{" "}
@@ -191,10 +256,20 @@ export default function GroupChat() {
                       </Text>
                     </Text>
                   )}
-                  <Text style={[styles.messageText, isMe && styles.messageTextMe]}>
+                  <Text
+                    style={[
+                      styles.messageText,
+                      isMe && styles.messageTextMe,
+                    ]}
+                  >
                     {msg.message}
                   </Text>
-                  <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>
+                  <Text
+                    style={[
+                      styles.messageTime,
+                      isMe && styles.messageTimeMe,
+                    ]}
+                  >
                     {formatTime(msg.created_at)}
                   </Text>
                 </View>
@@ -216,11 +291,16 @@ export default function GroupChat() {
           maxLength={500}
         />
         <TouchableOpacity
-          style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendDisabled]}
+          style={[
+            styles.sendButton,
+            (!newMessage.trim() || sending) && styles.sendDisabled,
+          ]}
           onPress={handleSend}
           disabled={!newMessage.trim() || sending}
         >
-          <Text style={styles.sendText}>Send</Text>
+          <Text style={styles.sendText}>
+            {sending ? "..." : "Send"}
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
