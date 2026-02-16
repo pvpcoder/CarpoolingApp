@@ -23,12 +23,17 @@ export default function WeeklySchedule() {
   const [members, setMembers] = useState<any[]>([]);
   const [parentMap, setParentMap] = useState<Record<string, string>>({});
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [swapRequests, setSwapRequests] = useState<any[]>([]);
 
   useEffect(() => {
     loadSchedule();
   }, []);
 
   const loadSchedule = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setCurrentUserId(user.id);
     const { data: memberData } = await supabase
       .from("group_members")
       .select(`
@@ -72,6 +77,16 @@ export default function WeeklySchedule() {
         .order("day_of_week");
 
       setSlots(slotData || []);
+
+      // Load swap requests for this group's current schedule
+      const slotIds = (slotData || []).map((s: any) => s.id);
+      if (slotIds.length > 0) {
+        const { data: swaps } = await supabase
+          .from("swap_requests")
+          .select("id, slot_id, requesting_parent_id, covering_parent_id, status, message")
+          .in("slot_id", slotIds);
+        setSwapRequests(swaps || []);
+      }
     }
 
     setLoading(false);
@@ -360,6 +375,83 @@ Respond with ONLY valid JSON in this exact format, no other text:
     setAiExplanation("Generated using basic fair-split algorithm.");
     loadSchedule();
   };
+  const handleRequestSwap = async (slotId: string) => {
+    if (!currentUserId) return;
+
+    Alert.alert(
+      "Request Swap",
+      "This will notify other parents that you need someone to cover this slot.",
+      [
+        { text: "Cancel" },
+        {
+          text: "Request Swap",
+          onPress: async () => {
+            const { error } = await supabase.from("swap_requests").insert({
+              slot_id: slotId,
+              requesting_parent_id: currentUserId,
+              status: "open",
+              message: "Can someone cover this slot?",
+            });
+
+            if (error) {
+              Alert.alert("Error", error.message);
+              return;
+            }
+
+            Alert.alert("Swap Requested! 🔄", "Other parents in the group will see your request.");
+            loadSchedule();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCoverSwap = async (swapId: string, slotId: string) => {
+    if (!currentUserId) return;
+
+    Alert.alert(
+      "Cover This Slot",
+      "You'll be assigned as the driver for this slot.",
+      [
+        { text: "Cancel" },
+        {
+          text: "I'll Cover It",
+          onPress: async () => {
+            // Update swap request
+            const { error: swapError } = await supabase
+              .from("swap_requests")
+              .update({
+                covering_parent_id: currentUserId,
+                status: "covered",
+              })
+              .eq("id", swapId);
+
+            if (swapError) {
+              Alert.alert("Error", swapError.message);
+              return;
+            }
+
+            // Update the schedule slot driver
+            const { error: slotError } = await supabase
+              .from("schedule_slots")
+              .update({
+                driver_parent_id: currentUserId,
+                status: "swapped",
+              })
+              .eq("id", slotId);
+
+            if (slotError) {
+              Alert.alert("Error", slotError.message);
+              return;
+            }
+
+            Alert.alert("Thanks! 🙏", "You've been assigned as the driver for this slot.");
+            loadSchedule();
+          },
+        },
+      ]
+    );
+  };
 
   const formatTime = (timeStr: string) => {
     if (!timeStr) return "";
@@ -459,24 +551,68 @@ Respond with ONLY valid JSON in this exact format, no other text:
                   <Text style={styles.noSlots}>No rides scheduled</Text>
                 ) : (
                   daySlots.map((slot: any) => (
-                    <View
-                      key={slot.id}
-                      style={[styles.slotRow, slot.status === "needs_coverage" && styles.slotNeedsCoverage]}
-                    >
-                      <Text style={styles.slotIcon}>{getSlotIcon(slot.slot_type)}</Text>
-                      <View style={styles.slotInfo}>
-                        <Text style={styles.slotLabel}>{getSlotLabel(slot.slot_type)}</Text>
-                        <Text style={styles.slotTime}>{formatTime(slot.departure_time)}</Text>
+                    <View key={slot.id}>
+                      <View
+                        style={[styles.slotRow, slot.status === "needs_coverage" && styles.slotNeedsCoverage]}
+                      >
+                        <Text style={styles.slotIcon}>{getSlotIcon(slot.slot_type)}</Text>
+                        <View style={styles.slotInfo}>
+                          <Text style={styles.slotLabel}>{getSlotLabel(slot.slot_type)}</Text>
+                          <Text style={styles.slotTime}>{formatTime(slot.departure_time)}</Text>
+                        </View>
+                        <View style={styles.slotDriver}>
+                          {slot.driver_parent_id ? (
+                            <Text style={styles.driverName}>
+                              🚗 {parentMap[slot.driver_parent_id] || "Assigned"}
+                            </Text>
+                          ) : (
+                            <Text style={styles.needsCoverage}>❓ Needs driver</Text>
+                          )}
+                        </View>
                       </View>
-                      <View style={styles.slotDriver}>
-                        {slot.driver_parent_id ? (
-                          <Text style={styles.driverName}>
-                            🚗 {parentMap[slot.driver_parent_id] || "Assigned"}
-                          </Text>
-                        ) : (
-                          <Text style={styles.needsCoverage}>❓ Needs driver</Text>
-                        )}
-                      </View>
+                      {/* Swap actions */}
+                      {(() => {
+                        const swap = swapRequests.find((s: any) => s.slot_id === slot.id);
+                        const isMySlot = slot.driver_parent_id === currentUserId;
+
+                        if (swap && swap.status === "open") {
+                          // Open swap request exists
+                          if (swap.requesting_parent_id === currentUserId) {
+                            return (
+                              <View style={styles.swapBanner}>
+                                <Text style={styles.swapBannerText}>🔄 You requested a swap — waiting for coverage</Text>
+                              </View>
+                            );
+                          } else {
+                            return (
+                              <TouchableOpacity
+                                style={styles.coverButton}
+                                onPress={() => handleCoverSwap(swap.id, slot.id)}
+                              >
+                                <Text style={styles.coverButtonText}>🙋 I'll Cover This Slot</Text>
+                              </TouchableOpacity>
+                            );
+                          }
+                        } else if (swap && swap.status === "covered") {
+                          return (
+                            <View style={styles.swapCoveredBanner}>
+                              <Text style={styles.swapCoveredText}>
+                                ✅ Covered by {parentMap[swap.covering_parent_id] || "another parent"}
+                              </Text>
+                            </View>
+                          );
+                        } else if (isMySlot && !swap) {
+                          return (
+                            <TouchableOpacity
+                              style={styles.cantDriveButton}
+                              onPress={() => handleRequestSwap(slot.id)}
+                            >
+                              <Text style={styles.cantDriveText}>Can't drive this slot?</Text>
+                            </TouchableOpacity>
+                          );
+                        }
+                        return null;
+                      })()}
                     </View>
                   ))
                 )}
@@ -682,5 +818,54 @@ const styles = StyleSheet.create({
     color: "#00d4aa",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  cantDriveButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  cantDriveText: {
+    color: "#ff6b6b",
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
+  swapBanner: {
+    backgroundColor: "#3a2a1a",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  swapBannerText: {
+    color: "#ffaa44",
+    fontSize: 13,
+    textAlign: "center",
+  },
+  coverButton: {
+    backgroundColor: "#1a3a4a",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 4,
+    marginBottom: 4,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#4a9eff",
+  },
+  coverButtonText: {
+    color: "#4a9eff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  swapCoveredBanner: {
+    backgroundColor: "#1a3a2a",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  swapCoveredText: {
+    color: "#00d4aa",
+    fontSize: 13,
+    textAlign: "center",
   },
 });
