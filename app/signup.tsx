@@ -27,7 +27,10 @@ export default function SignupScreen() {
   const handleStudentSignup = async () => {
     // Validate @pdsb.net email
     if (!email.trim().toLowerCase().endsWith("@pdsb.net")) {
-      Alert.alert("Invalid Email", "You must use your @pdsb.net school email to sign up.");
+      Alert.alert(
+        "Invalid Email",
+        "You must use your @pdsb.net school email to sign up."
+      );
       return;
     }
 
@@ -36,48 +39,73 @@ export default function SignupScreen() {
       return;
     }
 
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters.");
+      return;
+    }
+
     setLoading(true);
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
+    try {
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-    if (authError) {
+      if (authError) {
+        setLoading(false);
+        if (authError.message.includes("already registered")) {
+          Alert.alert(
+            "Account Exists",
+            "An account with this email already exists. Try logging in instead."
+          );
+        } else {
+          Alert.alert("Signup Failed", authError.message);
+        }
+        return;
+      }
+
+      // Get the school (pilot school for now)
+      const { data: school } = await supabase
+        .from("schools")
+        .select("id")
+        .eq("pdsb_code", "PILOT01")
+        .single();
+
+      // Create student profile
+      const { error: profileError } = await supabase.from("students").insert({
+        id: authData.user?.id,
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        grade: parseInt(grade),
+        school_id: school?.id,
+      });
+
       setLoading(false);
-      Alert.alert("Signup Failed", authError.message);
-      return;
+
+      if (profileError) {
+        Alert.alert("Error", profileError.message);
+        return;
+      }
+
+      Alert.alert("Account Created!", "You can now log in with your email and password.", [
+        { text: "OK", onPress: () => router.replace("/") },
+      ]);
+    } catch (err: any) {
+      setLoading(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again."
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again.");
+      }
     }
-
-    // Get the school (pilot school for now)
-    const { data: school } = await supabase
-      .from("schools")
-      .select("id")
-      .eq("pdsb_code", "PILOT01")
-      .single();
-
-    // Create student profile
-    const { error: profileError } = await supabase.from("students").insert({
-      id: authData.user?.id,
-      email: email.trim().toLowerCase(),
-      name: name.trim(),
-      grade: parseInt(grade),
-      school_id: school?.id,
-    });
-
-    setLoading(false);
-
-    if (profileError) {
-      Alert.alert("Error", profileError.message);
-      return;
-    }
-
-    Alert.alert(
-      "Check Your Email",
-      "We sent a verification link to your @pdsb.net email. Please verify to log in.",
-      [{ text: "OK", onPress: () => router.replace("/") }]
-    );
   };
 
   const handleParentSignup = async () => {
@@ -86,59 +114,87 @@ export default function SignupScreen() {
       return;
     }
 
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters.");
+      return;
+    }
+
     setLoading(true);
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
+    try {
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-    if (authError) {
-      setLoading(false);
-      Alert.alert("Signup Failed", authError.message);
-      return;
-    }
-
-    // Find the linked student if child email was provided
-    let studentId = null;
-    if (childEmail) {
-      const { data: student } = await supabase
-        .from("students")
-        .select("id")
-        .eq("email", childEmail.trim().toLowerCase())
-        .single();
-
-      if (student) {
-        studentId = student.id;
-      } else {
+      if (authError) {
         setLoading(false);
-        Alert.alert("Error", "No student found with that email. Make sure your child signs up first.");
+        if (authError.message.includes("already registered")) {
+          Alert.alert(
+            "Account Exists",
+            "An account with this email already exists. Try logging in instead."
+          );
+        } else {
+          Alert.alert("Signup Failed", authError.message);
+        }
         return;
       }
+
+      // Find the linked student if child email was provided
+      let studentId = null;
+      if (childEmail) {
+        const { data: student } = await supabase
+          .from("students")
+          .select("id")
+          .eq("email", childEmail.trim().toLowerCase())
+          .single();
+
+        if (student) {
+          studentId = student.id;
+        } else {
+          setLoading(false);
+          Alert.alert(
+            "Student Not Found",
+            "No student found with that email. Make sure your child signs up first with their @pdsb.net email."
+          );
+          return;
+        }
+      }
+
+      // Create parent profile
+      const { error: profileError } = await supabase.from("parents").insert({
+        id: authData.user?.id,
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        phone: phone.trim(),
+        student_id: studentId,
+      });
+
+      setLoading(false);
+
+      if (profileError) {
+        Alert.alert("Error", profileError.message);
+        return;
+      }
+
+      Alert.alert("Account Created!", "You can now log in with your email and password.", [
+        { text: "OK", onPress: () => router.replace("/") },
+      ]);
+    } catch (err: any) {
+      setLoading(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again."
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again.");
+      }
     }
-
-    // Create parent profile
-    const { error: profileError } = await supabase.from("parents").insert({
-      id: authData.user?.id,
-      email: email.trim().toLowerCase(),
-      name: name.trim(),
-      phone: phone.trim(),
-      student_id: studentId,
-    });
-
-    setLoading(false);
-
-    if (profileError) {
-      Alert.alert("Error", profileError.message);
-      return;
-    }
-
-    Alert.alert(
-      "Check Your Email",
-      "We sent a verification link. Please verify to log in.",
-      [{ text: "OK", onPress: () => router.replace("/") }]
-    );
   };
 
   // Role selection screen
@@ -155,7 +211,9 @@ export default function SignupScreen() {
           >
             <Text style={styles.roleEmoji}>🎒</Text>
             <Text style={styles.roleTitle}>Student</Text>
-            <Text style={styles.roleDesc}>I need rides to and from school</Text>
+            <Text style={styles.roleDesc}>
+              I need rides to and from school
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -164,11 +222,16 @@ export default function SignupScreen() {
           >
             <Text style={styles.roleEmoji}>🚗</Text>
             <Text style={styles.roleTitle}>Parent / Driver</Text>
-            <Text style={styles.roleDesc}>I can drive students to school</Text>
+            <Text style={styles.roleDesc}>
+              I can drive students to school
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.linkText}>Already have an account? <Text style={styles.link}>Log In</Text></Text>
+            <Text style={styles.linkText}>
+              Already have an account?{" "}
+              <Text style={styles.link}>Log In</Text>
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

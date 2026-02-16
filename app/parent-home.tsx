@@ -1,5 +1,4 @@
-import { useState, useCallback } from "react";
-import { useFocusEffect } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
+import { getValidUser, handleLogout } from "../lib/helpers";
 
 export default function ParentHome() {
   const router = useRouter();
@@ -20,92 +21,105 @@ export default function ParentHome() {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [hasAvailability, setHasAvailability] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
-  );
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.replace("/");
-      return;
-    }
+    try {
+      const user = await getValidUser();
+      if (!user) {
+        handleLogout(router);
+        return;
+      }
 
-    const { data: parent } = await supabase
-      .from("parents")
-      .select("id, student_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!parent) {
-      setLoading(false);
-      return;
-    }
-
-    setParentId(parent.id);
-
-    // Get child's name
-    if (parent.student_id) {
-      const { data: student } = await supabase
-        .from("students")
-        .select("name")
-        .eq("id", parent.student_id)
+      const { data: parent } = await supabase
+        .from("parents")
+        .select("id, student_id")
+        .eq("id", user.id)
         .single();
 
-      setChildName(student?.name || null);
+      if (!parent) {
+        setLoading(false);
+        return;
+      }
 
-      // Find the group the child is in
-      const { data: membership } = await supabase
-        .from("group_members")
-        .select(`
-          group_id,
-          carpool_groups ( id, name, status )
-        `)
-        .eq("student_id", parent.student_id)
-        .eq("status", "active")
-        .limit(1);
+      setParentId(parent.id);
 
-      if (membership && membership.length > 0) {
-        const group = (membership[0] as any).carpool_groups;
-        setMyGroup(group);
-        setGroupId(group.id);
-
-        // Auto-join the group as the parent if not already
-        const { data: existingMember } = await supabase
-          .from("group_members")
-          .select("id")
-          .eq("group_id", group.id)
-          .eq("student_id", parent.student_id)
+      // Get child's name
+      if (parent.student_id) {
+        const { data: student } = await supabase
+          .from("students")
+          .select("name")
+          .eq("id", parent.student_id)
           .single();
 
-        if (existingMember) {
-          // Update the member row to include parent_id
-          await supabase
-            .from("group_members")
-            .update({ parent_id: parent.id })
-            .eq("id", existingMember.id);
-        }
+        setChildName(student?.name || null);
 
-        // Check if parent has set availability
-        const { data: availability } = await supabase
-          .from("parent_availability")
-          .select("id")
-          .eq("parent_id", parent.id)
-          .eq("group_id", group.id)
+        // Find the group the child is in
+        const { data: membership } = await supabase
+          .from("group_members")
+          .select(
+            `
+          group_id,
+          carpool_groups ( id, name, status )
+        `
+          )
+          .eq("student_id", parent.student_id)
+          .eq("status", "active")
           .limit(1);
 
-        setHasAvailability((availability || []).length > 0);
+        if (membership && membership.length > 0) {
+          const group = (membership[0] as any).carpool_groups;
+          setMyGroup(group);
+          setGroupId(group.id);
+
+          // Auto-join the group as the parent if not already
+          const { data: existingMember } = await supabase
+            .from("group_members")
+            .select("id")
+            .eq("group_id", group.id)
+            .eq("student_id", parent.student_id)
+            .single();
+
+          if (existingMember) {
+            // Update the member row to include parent_id
+            await supabase
+              .from("group_members")
+              .update({ parent_id: parent.id })
+              .eq("id", existingMember.id);
+          }
+
+          // Check if parent has set availability
+          const { data: availability } = await supabase
+            .from("parent_availability")
+            .select("id")
+            .eq("parent_id", parent.id)
+            .eq("group_id", group.id)
+            .limit(1);
+
+          setHasAvailability((availability || []).length > 0);
+        }
+      }
+
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again.",
+          [{ text: "Retry", onPress: () => loadData() }]
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong loading your data.", [
+          { text: "Retry", onPress: () => loadData() },
+        ]);
       }
     }
-
-    setLoading(false);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace("/");
   };
 
   if (loading) {
@@ -130,7 +144,8 @@ export default function ParentHome() {
         <View style={styles.warningBox}>
           <Text style={styles.warningTitle}>⚠️ No child linked</Text>
           <Text style={styles.warningText}>
-            Your account isn't linked to a student yet. Make sure your child signs up first with their @pdsb.net email.
+            Your account isn't linked to a student yet. Make sure your child
+            signs up first with their @pdsb.net email.
           </Text>
         </View>
       )}
@@ -154,7 +169,8 @@ export default function ParentHome() {
         <View style={styles.noGroupSection}>
           <Text style={styles.noGroupTitle}>No carpool group yet</Text>
           <Text style={styles.noGroupText}>
-            Your child hasn't joined a carpool group yet. They can create or join one from their app.
+            Your child hasn't joined a carpool group yet. They can create or
+            join one from their app.
           </Text>
         </View>
       ) : null}
@@ -162,11 +178,21 @@ export default function ParentHome() {
       {/* Availability */}
       {myGroup && (
         <TouchableOpacity
-          style={hasAvailability ? styles.secondaryButton : styles.primaryButton}
+          style={
+            hasAvailability ? styles.secondaryButton : styles.primaryButton
+          }
           onPress={() => router.push(`/availability?groupId=${groupId}`)}
         >
-          <Text style={hasAvailability ? styles.secondaryButtonText : styles.buttonText}>
-            {hasAvailability ? "✏️ Edit My Driving Availability" : "🗓️ Set My Driving Availability"}
+          <Text
+            style={
+              hasAvailability
+                ? styles.secondaryButtonText
+                : styles.buttonText
+            }
+          >
+            {hasAvailability
+              ? "✏️ Edit My Driving Availability"
+              : "🗓️ Set My Driving Availability"}
           </Text>
         </TouchableOpacity>
       )}
@@ -174,7 +200,8 @@ export default function ParentHome() {
       {!hasAvailability && myGroup && (
         <View style={styles.nudgeBox}>
           <Text style={styles.nudgeText}>
-            👆 Set your availability so the app can create a fair driving schedule for the group.
+            👆 Set your availability so the app can create a fair driving
+            schedule for the group.
           </Text>
         </View>
       )}
@@ -185,7 +212,9 @@ export default function ParentHome() {
           style={styles.secondaryButton}
           onPress={() => router.push(`/weekly-schedule?groupId=${groupId}`)}
         >
-          <Text style={styles.secondaryButtonText}>📅 View Weekly Schedule</Text>
+          <Text style={styles.secondaryButtonText}>
+            📅 View Weekly Schedule
+          </Text>
         </TouchableOpacity>
       )}
 
@@ -195,19 +224,16 @@ export default function ParentHome() {
           style={styles.secondaryButton}
           onPress={() => router.push(`/my-group?groupId=${myGroup.id}`)}
         >
-          <Text style={styles.secondaryButtonText}>👥 View Group Members</Text>
-        </TouchableOpacity>
-      )}
-      {myGroup && (
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => router.push(`/group-chat?groupId=${myGroup.id}`)}
-        >
-          <Text style={styles.secondaryButtonText}>💬 Group Chat</Text>
+          <Text style={styles.secondaryButtonText}>
+            👥 View Group Members
+          </Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={() => handleLogout(router)}
+      >
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -360,11 +386,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   logoutButton: {
-    backgroundColor: "#2a2a4a",
+    backgroundColor: "#16213e",
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: "#ff6b6b",
   },
   logoutText: {
     color: "#ff6b6b",

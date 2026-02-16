@@ -26,52 +26,137 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    setLoading(false);
 
-    if (error) {
-      Alert.alert("Login Failed", error.message);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        setLoading(false);
+        if (error.message.includes("Invalid login credentials")) {
+          Alert.alert(
+            "Login Failed",
+            "Wrong email or password. Please try again."
+          );
+        } else if (error.message.includes("Email not confirmed")) {
+          Alert.alert(
+            "Email Not Verified",
+            "Please check your email and click the verification link."
+          );
+        } else {
+          Alert.alert("Login Failed", error.message);
+        }
+        return;
+      }
+
+      const userId = data.user?.id;
+      console.log("Logged in user ID:", userId);
+
+      // Register for push notifications (non-blocking)
+      registerForPushNotifications(userId!);
+
+      // Check if user is a student
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      console.log("Student check:", student, "Error:", studentError);
+
+      if (student) {
+        setLoading(false);
+        router.replace("/student-home");
+        return;
+      }
+
+      // Check if user is a parent
+      const { data: parent, error: parentError } = await supabase
+        .from("parents")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      console.log("Parent check:", parent, "Error:", parentError);
+
+      if (parent) {
+        setLoading(false);
+        router.replace("/parent-home");
+        return;
+      }
+
+      setLoading(false);
+      Alert.alert("Error", "Account not found. Please sign up first.");
+    } catch (err: any) {
+      setLoading(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again."
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again.");
+      }
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert(
+        "Enter Email",
+        "Please enter your email address first, then tap Forgot Password."
+      );
       return;
     }
 
-    const userId = data.user?.id;
-    console.log("Logged in user ID:", userId);
+    Alert.alert(
+      "Reset Password",
+      `Send a password reset link to ${email.trim().toLowerCase()}?`,
+      [
+        { text: "Cancel" },
+        {
+          text: "Send",
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.resetPasswordForEmail(
+                email.trim().toLowerCase(),
+                { redirectTo: "ridepool://reset-password" }
+              );
 
-    // Register for push notifications (non-blocking)
-    registerForPushNotifications(userId!);
+              if (error) {
+                Alert.alert("Error", error.message);
+                return;
+              }
 
-    // Check if user is a student
-    const { data: student, error: studentError } = await supabase
-      .from("students")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle();
-
-    console.log("Student check:", student, "Error:", studentError);
-
-    if (student) {
-      router.replace("/student-home");
-      return;
-    }
-
-    // Check if user is a parent
-    const { data: parent, error: parentError } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle();
-
-    console.log("Parent check:", parent, "Error:", parentError);
-
-    if (parent) {
-      router.replace("/parent-home");
-      return;
-    }
-
-    Alert.alert("Error", "Account not found. Please sign up first.");
+              Alert.alert(
+                "Check Your Email",
+                "We sent you a password reset link. Open it to set a new password."
+              );
+            } catch (err: any) {
+              if (
+                err?.message?.includes("Failed to fetch") ||
+                err?.message?.includes("Network request failed")
+              ) {
+                Alert.alert(
+                  "No Internet",
+                  "Please check your internet connection and try again."
+                );
+              } else {
+                Alert.alert(
+                  "Error",
+                  "Something went wrong. Please try again."
+                );
+              }
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -110,6 +195,10 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>
             {loading ? "Logging in..." : "Log In"}
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleForgotPassword}>
+          <Text style={styles.forgotText}>Forgot Password?</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/signup")}>
@@ -170,6 +259,12 @@ const styles = StyleSheet.create({
     color: "#1a1a2e",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  forgotText: {
+    color: "#00d4aa",
+    textAlign: "center",
+    fontSize: 14,
+    marginBottom: 16,
   },
   linkText: {
     color: "#ccc",

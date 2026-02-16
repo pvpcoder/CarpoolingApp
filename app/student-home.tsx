@@ -1,6 +1,4 @@
-import { notifyGroupMembers } from "../lib/notifications";
-import { useState, useCallback } from "react";
-import { useFocusEffect } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
+import { getValidUser, handleLogout } from "../lib/helpers";
 
 export default function StudentHome() {
   const router = useRouter();
@@ -21,110 +20,142 @@ export default function StudentHome() {
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
 
-useFocusEffect(
-    useCallback(() => {
-      checkProfile();
-    }, [])
-  );
+  useEffect(() => {
+    checkProfile();
+  }, []);
 
   const checkProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.replace("/");
-      return;
-    }
+    try {
+      const user = await getValidUser();
+      if (!user) {
+        handleLogout(router);
+        return;
+      }
 
-    const { data: student } = await supabase
-      .from("students")
-      .select("id, saved_pickup_lat, saved_pickup_address")
-      .eq("id", user.id)
-      .single();
+      const { data: student } = await supabase
+        .from("students")
+        .select("id, saved_pickup_lat, saved_pickup_address")
+        .eq("id", user.id)
+        .single();
 
-    if (student && !student.saved_pickup_lat) {
-      router.replace("/setup-location");
-      return;
-    }
+      if (student && !student.saved_pickup_lat) {
+        router.replace("/setup-location");
+        return;
+      }
 
-    setPickupAddress(student?.saved_pickup_address || null);
+      setPickupAddress(student?.saved_pickup_address || null);
 
-    // Check if in a group
-    const { data: membership } = await supabase
-      .from("group_members")
-      .select(`
+      // Check if in a group
+      const { data: membership } = await supabase
+        .from("group_members")
+        .select(
+          `
         group_id, role,
         carpool_groups ( id, name, status )
-      `)
-      .eq("student_id", student?.id)
-      .eq("status", "active")
-      .limit(1);
+      `
+        )
+        .eq("student_id", student?.id)
+        .eq("status", "active")
+        .limit(1);
 
-    if (membership && membership.length > 0) {
-      const group = (membership[0] as any).carpool_groups;
-      setMyGroup(group);
+      if (membership && membership.length > 0) {
+        const group = (membership[0] as any).carpool_groups;
+        setMyGroup(group);
 
-      // Load group members
-      const { data: members } = await supabase
-        .from("group_members")
-        .select(`
+        // Load group members
+        const { data: members } = await supabase
+          .from("group_members")
+          .select(
+            `
           id, role,
           students ( name, grade ),
           parents ( name, phone )
-        `)
-        .eq("group_id", group.id)
-        .eq("status", "active");
+        `
+          )
+          .eq("group_id", group.id)
+          .eq("status", "active");
 
-      setGroupMembers(members || []);
-    }
+        setGroupMembers(members || []);
+      }
 
-    // Check for pending invites TO me
-    const { data: invites } = await supabase
-      .from("group_invites")
-      .select(`
+      // Check for pending invites TO me
+      const { data: invites } = await supabase
+        .from("group_invites")
+        .select(
+          `
         id, group_id, status,
         carpool_groups ( name ),
         invited_by_student:students!group_invites_invited_by_fkey ( name )
-      `)
-      .eq("invited_student_id", student?.id)
-      .eq("status", "pending");
+      `
+        )
+        .eq("invited_student_id", student?.id)
+        .eq("status", "pending");
 
-    setPendingInvites(invites || []);
-    setLoading(false);
-  };
-
-  const handleInviteResponse = async (inviteId: string, groupId: string, accept: boolean) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Update invite status
-    await supabase
-      .from("group_invites")
-      .update({ status: accept ? "accepted" : "declined" })
-      .eq("id", inviteId);
-
-    if (accept) {
-      // Add to group
-      await supabase.from("group_members").insert({
-        group_id: groupId,
-        student_id: user.id,
-        role: "member",
-        status: "active",
-      });
-
-      notifyGroupMembers(
-        groupId,
-        user.id,
-        "👋 New Member!",
-        "A new student joined the carpool group."
-      );
-      Alert.alert("Joined! 🎉", "You're now part of the carpool group.");
+      setPendingInvites(invites || []);
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again.",
+          [{ text: "Retry", onPress: () => checkProfile() }]
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong loading your data.", [
+          { text: "Retry", onPress: () => checkProfile() },
+        ]);
+      }
     }
-
-    checkProfile(); // Refresh
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace("/");
+  const handleInviteResponse = async (
+    inviteId: string,
+    groupId: string,
+    accept: boolean
+  ) => {
+    try {
+      const user = await getValidUser();
+      if (!user) {
+        handleLogout(router);
+        return;
+      }
+
+      // Update invite status
+      await supabase
+        .from("group_invites")
+        .update({ status: accept ? "accepted" : "declined" })
+        .eq("id", inviteId);
+
+      if (accept) {
+        // Add to group
+        await supabase.from("group_members").insert({
+          group_id: groupId,
+          student_id: user.id,
+          role: "member",
+          status: "active",
+        });
+
+        Alert.alert("Joined! 🎉", "You're now part of the carpool group.");
+      }
+
+      checkProfile(); // Refresh
+    } catch (err: any) {
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("Network request failed")
+      ) {
+        Alert.alert(
+          "No Internet",
+          "Please check your internet connection and try again."
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again.");
+      }
+    }
   };
 
   if (loading) {
@@ -157,18 +188,23 @@ useFocusEffect(
                 {invite.carpool_groups?.name || "Carpool Group"}
               </Text>
               <Text style={styles.inviteFrom}>
-                Invited by {(invite.invited_by_student as any)?.name || "a classmate"}
+                Invited by{" "}
+                {(invite.invited_by_student as any)?.name || "a classmate"}
               </Text>
               <View style={styles.inviteActions}>
                 <TouchableOpacity
                   style={styles.acceptButton}
-                  onPress={() => handleInviteResponse(invite.id, invite.group_id, true)}
+                  onPress={() =>
+                    handleInviteResponse(invite.id, invite.group_id, true)
+                  }
                 >
                   <Text style={styles.acceptText}>✅ Join</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.declineButton}
-                  onPress={() => handleInviteResponse(invite.id, invite.group_id, false)}
+                  onPress={() =>
+                    handleInviteResponse(invite.id, invite.group_id, false)
+                  }
                 >
                   <Text style={styles.declineText}>❌ Decline</Text>
                 </TouchableOpacity>
@@ -188,10 +224,13 @@ useFocusEffect(
           >
             <Text style={styles.groupName}>{myGroup.name}</Text>
             <Text style={styles.groupStatus}>
-              {myGroup.status === "forming" ? "🔄 Forming — invite more students" : "✅ Active"}
+              {myGroup.status === "forming"
+                ? "🔄 Forming — invite more students"
+                : "✅ Active"}
             </Text>
             <Text style={styles.groupMembers}>
-              {groupMembers.length} {groupMembers.length === 1 ? "family" : "families"} joined
+              {groupMembers.length}{" "}
+              {groupMembers.length === 1 ? "family" : "families"} joined
             </Text>
             <Text style={styles.tapHint}>Tap to view group →</Text>
           </TouchableOpacity>
@@ -211,7 +250,9 @@ useFocusEffect(
           style={styles.primaryButton}
           onPress={() => router.push("/create-group")}
         >
-          <Text style={styles.primaryButtonText}>✨ Create a Carpool Group</Text>
+          <Text style={styles.primaryButtonText}>
+            ✨ Create a Carpool Group
+          </Text>
         </TouchableOpacity>
       )}
 
@@ -219,27 +260,28 @@ useFocusEffect(
         style={styles.secondaryButton}
         onPress={() => router.push("/discover")}
       >
-        <Text style={styles.primaryButtonText}>🔍 Find Nearby Students</Text>
+        <Text style={styles.primaryButtonText}>
+          🔍 Find Nearby Students
+        </Text>
       </TouchableOpacity>
 
       {myGroup && (
         <TouchableOpacity
           style={styles.secondaryButton}
-          onPress={() => router.push(`/student-schedule?groupId=${myGroup.id}`)}
+          onPress={() =>
+            router.push(`/student-schedule?groupId=${myGroup.id}`)
+          }
         >
-          <Text style={styles.primaryButtonText}>📅 My Schedule & Exceptions</Text>
-        </TouchableOpacity>
-      )}
-      {myGroup && (
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => router.push(`/group-chat?groupId=${myGroup.id}`)}
-        >
-          <Text style={styles.primaryButtonText}>💬 Group Chat</Text>
+          <Text style={styles.primaryButtonText}>
+            📅 My Schedule & Exceptions
+          </Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={() => handleLogout(router)}
+      >
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -411,15 +453,17 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   logoutButton: {
-    backgroundColor: "#2a2a4a",
+    backgroundColor: "#16213e",
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: "#ff6b6b",
   },
   logoutText: {
     color: "#ff6b6b",
     fontSize: 16,
     fontWeight: "bold",
   },
-}); 
+});
