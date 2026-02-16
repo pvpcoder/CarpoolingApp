@@ -110,6 +110,14 @@ export default function ParentHome() {
         <Text style={styles.buttonText}>+ Offer a Ride</Text>
       </TouchableOpacity>
 
+
+    <TouchableOpacity
+        style={styles.requestsButton}
+        onPress={() => router.push("/manage-requests")}
+      >
+        <Text style={styles.buttonText}>📋 View Ride Requests</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
@@ -215,5 +223,14 @@ const styles = StyleSheet.create({
     color: "#ff6b6b",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  requestsButton: {
+    backgroundColor: "#16213e",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#00d4aa",
   },
 });

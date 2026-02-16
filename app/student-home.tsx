@@ -107,10 +107,21 @@ export default function StudentHome() {
         <Text style={styles.buttonText}>+ Request a Ride</Text>
       </TouchableOpacity>
 
+
+      <TouchableOpacity
+        style={styles.findButton}
+        onPress={() => router.push("/find-rides")}
+      >
+        <Text style={styles.buttonText}>🔍 Find Available Rides</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </View>
+
+
+
   );
 }
 
@@ -192,6 +203,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
+
+  findButton: {
+    backgroundColor: "#16213e",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#00d4aa",
+  },
+  
   buttonText: {
     color: "#1a1a2e",
     fontSize: 18,
@@ -208,4 +230,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+
+
+  
 });
