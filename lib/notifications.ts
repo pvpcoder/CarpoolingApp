@@ -13,51 +13,50 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Register for push notifications and save token
 export async function registerForPushNotifications(userId: string) {
-  if (!Device.isDevice) {
-    console.log("Push notifications require a physical device");
-    return null;
-  }
+  try {
+    if (!Device.isDevice) {
+      console.log("Push notifications require a physical device");
+      return null;
+    }
 
-  // Check existing permissions
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  // Request if not granted
-  if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
 
-  if (finalStatus !== "granted") {
-    console.log("Push notification permission not granted");
-    return null;
-  }
+    if (finalStatus !== "granted") {
+      console.log("Push notification permission not granted");
+      return null;
+    }
 
-  // Get the Expo push token
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: undefined, // Uses the projectId from app.json
-  });
-
-  const token = tokenData.data;
-
-  // Save to database (upsert to avoid duplicates)
-  await supabase.from("push_tokens").upsert(
-    { user_id: userId, token },
-    { onConflict: "user_id,token" }
-  );
-
-  // Android needs a notification channel
-  if (Platform.OS === "android") {
-    Notifications.setNotificationChannelAsync("default", {
-      name: "Default",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: undefined,
     });
-  }
 
-  return token;
+    const token = tokenData.data;
+
+    await supabase.from("push_tokens").upsert(
+      { user_id: userId, token },
+      { onConflict: "user_id,token" }
+    );
+
+    if (Platform.OS === "android") {
+      Notifications.setNotificationChannelAsync("default", {
+        name: "Default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
+    return token;
+  } catch (err) {
+    console.log("Push notification setup skipped:", err);
+    return null;
+  }
 }
 
 // Send push notification to specific users

@@ -37,28 +37,34 @@ export default function LoginScreen() {
       return;
     }
 
-    // Check if user is a student or parent and route accordingly
     const userId = data.user?.id;
+    console.log("Logged in user ID:", userId);
 
-    const { data: student } = await supabase
+    // Register for push notifications (non-blocking)
+    registerForPushNotifications(userId!);
+
+    // Check if user is a student
+    const { data: student, error: studentError } = await supabase
       .from("students")
       .select("id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
-    // Register for push notifications
-    registerForPushNotifications(userId);
+    console.log("Student check:", student, "Error:", studentError);
 
     if (student) {
       router.replace("/student-home");
       return;
     }
 
-    const { data: parent } = await supabase
+    // Check if user is a parent
+    const { data: parent, error: parentError } = await supabase
       .from("parents")
       .select("id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
+
+    console.log("Parent check:", parent, "Error:", parentError);
 
     if (parent) {
       router.replace("/parent-home");

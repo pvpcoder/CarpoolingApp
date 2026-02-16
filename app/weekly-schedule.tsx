@@ -183,22 +183,24 @@ Respond with ONLY valid JSON in this exact format, no other text:
 }`;
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": process.env.EXPO_PUBLIC_CLAUDE_API_KEY || "",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
+      const response = await supabase.functions.invoke(
+        "generate-schedule",
+        { body: { prompt } }
+      );
 
-      const data = await response.json();
+      console.log("Full response:", JSON.stringify(response));
+
+      if (response.error) {
+        // Try to read the error body
+        const errorContext = response.error?.context;
+        if (errorContext && errorContext.json) {
+          const body = await errorContext.json();
+          console.log("Error body:", JSON.stringify(body));
+        }
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
 
       if (data.error) {
         throw new Error(data.error.message || "API error");
