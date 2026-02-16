@@ -1,3 +1,4 @@
+import { notifyGroupMembers } from "../lib/notifications";
 import { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -108,6 +109,13 @@ export default function GroupChat() {
     setSending(false);
 
     if (error) return;
+    // Notify group members
+    notifyGroupMembers(
+      groupId as string,
+      currentUserId!,
+      `💬 ${currentUserName}`,
+      newMessage.trim()
+    );
 
     setNewMessage("");
     await loadMessages();

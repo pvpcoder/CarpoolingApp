@@ -1,3 +1,4 @@
+import { registerForPushNotifications } from "../lib/notifications";
 import { useState } from "react";
 import {
   View,
@@ -44,6 +45,9 @@ export default function LoginScreen() {
       .select("id")
       .eq("id", userId)
       .single();
+
+    // Register for push notifications
+    registerForPushNotifications(userId);
 
     if (student) {
       router.replace("/student-home");

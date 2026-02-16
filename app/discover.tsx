@@ -1,3 +1,4 @@
+import { sendPushNotification } from "../lib/notifications";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -138,6 +139,12 @@ export default function Discover() {
       Alert.alert("Error", error.message);
       return;
     }
+    // Notify the invited student
+    sendPushNotification(
+      [studentId],
+      "🎉 Carpool Invite!",
+      `${myData.name} invited you to join their carpool group.`
+    );
 
     Alert.alert("Invite Sent!", "They'll see your invite when they open the app.");
     loadData();

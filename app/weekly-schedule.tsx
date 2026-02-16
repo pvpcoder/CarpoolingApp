@@ -1,3 +1,4 @@
+import { notifyGroupMembers } from "../lib/notifications";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -397,7 +398,12 @@ Respond with ONLY valid JSON in this exact format, no other text:
               Alert.alert("Error", error.message);
               return;
             }
-
+            notifyGroupMembers(
+              groupId as string,
+              currentUserId!,
+              "🔄 Swap Request",
+              `${parentMap[currentUserId!] || "A parent"} needs someone to cover a driving slot.`
+            );
             Alert.alert("Swap Requested! 🔄", "Other parents in the group will see your request.");
             loadSchedule();
           },
@@ -444,6 +450,12 @@ Respond with ONLY valid JSON in this exact format, no other text:
               Alert.alert("Error", slotError.message);
               return;
             }
+            notifyGroupMembers(
+              groupId as string,
+              currentUserId!,
+              "✅ Swap Covered",
+              `${parentMap[currentUserId!] || "A parent"} is covering the slot.`
+            );
 
             Alert.alert("Thanks! 🙏", "You've been assigned as the driver for this slot.");
             loadSchedule();

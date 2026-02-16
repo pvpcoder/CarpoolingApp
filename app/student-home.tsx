@@ -1,3 +1,4 @@
+import { notifyGroupMembers } from "../lib/notifications";
 import { useState, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
 import {
@@ -109,6 +110,12 @@ useFocusEffect(
         status: "active",
       });
 
+      notifyGroupMembers(
+        groupId,
+        user.id,
+        "👋 New Member!",
+        "A new student joined the carpool group."
+      );
       Alert.alert("Joined! 🎉", "You're now part of the carpool group.");
     }
 
