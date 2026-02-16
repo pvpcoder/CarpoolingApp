@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -13,16 +16,18 @@ export default function StudentHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [pickupAddress, setPickupAddress] = useState<string | null>(null);
-  const [activeRequests, setActiveRequests] = useState<any[]>([])
-  const [carpoolGroups, setCarpoolGroups] = useState<any[]>([]);
+  const [myGroup, setMyGroup] = useState<any>(null);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
 
-  useEffect(() => {
-    checkProfile();
-  }, []);
+useFocusEffect(
+    useCallback(() => {
+      checkProfile();
+    }, [])
+  );
 
   const checkProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-
     if (!user) {
       router.replace("/");
       return;
@@ -41,32 +46,73 @@ export default function StudentHome() {
 
     setPickupAddress(student?.saved_pickup_address || null);
 
-    // Load active ride requests
-    const { data: requests } = await supabase
-      .from("ride_requests")
-      .select("*")
-      .eq("student_id", student?.id)
-      .eq("status", "active");
-
-    setActiveRequests(requests || []);
-    // Load carpool groups
-    const { data: memberships } = await supabase
-      .from("carpool_members")
+    // Check if in a group
+    const { data: membership } = await supabase
+      .from("group_members")
       .select(`
-        carpool_group_id,
-        carpool_groups (
-          id, name, status,
-          ride_offers ( direction, departure_time, recurring_days )
-        )
+        group_id, role,
+        carpool_groups ( id, name, status )
       `)
-      .eq("student_id", student?.id);
-8
-    const activeGroups = (memberships || [])
-      .filter((m: any) => m.carpool_groups?.status === "active")
-      .map((m: any) => m.carpool_groups);
+      .eq("student_id", student?.id)
+      .eq("status", "active")
+      .limit(1);
 
-    setCarpoolGroups(activeGroups);
+    if (membership && membership.length > 0) {
+      const group = (membership[0] as any).carpool_groups;
+      setMyGroup(group);
+
+      // Load group members
+      const { data: members } = await supabase
+        .from("group_members")
+        .select(`
+          id, role,
+          students ( name, grade ),
+          parents ( name, phone )
+        `)
+        .eq("group_id", group.id)
+        .eq("status", "active");
+
+      setGroupMembers(members || []);
+    }
+
+    // Check for pending invites TO me
+    const { data: invites } = await supabase
+      .from("group_invites")
+      .select(`
+        id, group_id, status,
+        carpool_groups ( name ),
+        invited_by_student:students!group_invites_invited_by_fkey ( name )
+      `)
+      .eq("invited_student_id", student?.id)
+      .eq("status", "pending");
+
+    setPendingInvites(invites || []);
     setLoading(false);
+  };
+
+  const handleInviteResponse = async (inviteId: string, groupId: string, accept: boolean) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Update invite status
+    await supabase
+      .from("group_invites")
+      .update({ status: accept ? "accepted" : "declined" })
+      .eq("id", inviteId);
+
+    if (accept) {
+      // Add to group
+      await supabase.from("group_members").insert({
+        group_id: groupId,
+        student_id: user.id,
+        role: "member",
+        status: "active",
+      });
+
+      Alert.alert("Joined! 🎉", "You're now part of the carpool group.");
+    }
+
+    checkProfile(); // Refresh
   };
 
   const handleLogout = async () => {
@@ -74,96 +120,114 @@ export default function StudentHome() {
     router.replace("/");
   };
 
-  const formatTime = (timeStr: string) => {
-    const [h, m] = timeStr.split(":");
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    return `${displayHour}:${m} ${ampm}`;
-  };
-
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#00d4aa" />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🎒 Student Home</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>🎒 RidePool</Text>
 
+      {/* Pickup Location */}
       {pickupAddress && (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>📍 Your pickup spot</Text>
-          <Text style={styles.infoText}>{pickupAddress}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>📍 Your pickup spot</Text>
+          <Text style={styles.cardText}>{pickupAddress}</Text>
         </View>
       )}
 
-      {carpoolGroups.length > 0 && (
+      {/* Pending Invites */}
+      {pendingInvites.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Carpool Groups</Text>
-          {carpoolGroups.map((group: any) => (
-            <TouchableOpacity
-              key={group.id}
-              style={styles.rideCard}
-              onPress={() => router.push(`/carpool-group?groupId=${group.id}`)}
-            >
-              <Text style={styles.rideDirection}>
-                {group.ride_offers?.direction === "to_school" ? "🏫 To School" : "🏠 From School"}
+          <Text style={styles.sectionTitle}>Group Invites</Text>
+          {pendingInvites.map((invite: any) => (
+            <View key={invite.id} style={styles.inviteCard}>
+              <Text style={styles.inviteName}>
+                {invite.carpool_groups?.name || "Carpool Group"}
               </Text>
-              <Text style={styles.rideTime}>
-                {formatTime(group.ride_offers?.departure_time)}
+              <Text style={styles.inviteFrom}>
+                Invited by {(invite.invited_by_student as any)?.name || "a classmate"}
               </Text>
-              <Text style={styles.rideDays}>
-                {group.ride_offers?.recurring_days?.join(", ")}
-              </Text>
-              <Text style={styles.tapHint}>Tap to manage group →</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {activeRequests.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Active Ride Requests</Text>
-          {activeRequests.map((req) => (
-            <View key={req.id} style={styles.rideCard}>
-              <Text style={styles.rideDirection}>
-                {req.direction === "to_school" ? "🏫 To School" : "🏠 From School"}
-              </Text>
-              <Text style={styles.rideTime}>{formatTime(req.target_time)}</Text>
-              <Text style={styles.rideDays}>{req.recurring_days.join(", ")}</Text>
+              <View style={styles.inviteActions}>
+                <TouchableOpacity
+                  style={styles.acceptButton}
+                  onPress={() => handleInviteResponse(invite.id, invite.group_id, true)}
+                >
+                  <Text style={styles.acceptText}>✅ Join</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.declineButton}
+                  onPress={() => handleInviteResponse(invite.id, invite.group_id, false)}
+                >
+                  <Text style={styles.declineText}>❌ Decline</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
         </View>
+      )}
+
+      {/* My Group */}
+      {myGroup ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>My Carpool Group</Text>
+          <TouchableOpacity
+            style={styles.groupCard}
+            onPress={() => router.push(`/my-group?groupId=${myGroup.id}`)}
+          >
+            <Text style={styles.groupName}>{myGroup.name}</Text>
+            <Text style={styles.groupStatus}>
+              {myGroup.status === "forming" ? "🔄 Forming — invite more students" : "✅ Active"}
+            </Text>
+            <Text style={styles.groupMembers}>
+              {groupMembers.length} {groupMembers.length === 1 ? "family" : "families"} joined
+            </Text>
+            <Text style={styles.tapHint}>Tap to view group →</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <Text style={styles.emptyText}>No active ride requests yet.</Text>
+        <View style={styles.noGroupSection}>
+          <Text style={styles.noGroupTitle}>No carpool group yet</Text>
+          <Text style={styles.noGroupText}>
+            Create a group or find nearby students to carpool with.
+          </Text>
+        </View>
+      )}
+
+      {/* Action Buttons */}
+      {!myGroup && (
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => router.push("/create-group")}
+        >
+          <Text style={styles.primaryButtonText}>✨ Create a Carpool Group</Text>
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/request-ride")}
+        style={styles.secondaryButton}
+        onPress={() => router.push("/discover")}
       >
-        <Text style={styles.buttonText}>+ Request a Ride</Text>
+        <Text style={styles.primaryButtonText}>🔍 Find Nearby Students</Text>
       </TouchableOpacity>
 
-
-      <TouchableOpacity
-        style={styles.findButton}
-        onPress={() => router.push("/find-rides")}
-      >
-        <Text style={styles.buttonText}>🔍 Find Available Rides</Text>
-      </TouchableOpacity>
+      {myGroup && (
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => router.push(`/student-schedule?groupId=${myGroup.id}`)}
+        >
+          <Text style={styles.primaryButtonText}>📅 My Schedule & Exceptions</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
-    </View>
-
-
-
+    </ScrollView>
   );
 }
 
@@ -171,8 +235,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#1a1a2e",
+  },
+  content: {
     padding: 24,
     paddingTop: 60,
+    paddingBottom: 48,
+  },
+  centerContainer: {
+    flex: 1,
+    backgroundColor: "#1a1a2e",
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
@@ -180,21 +253,21 @@ const styles = StyleSheet.create({
     color: "#00d4aa",
     marginBottom: 20,
   },
-  infoBox: {
+  card: {
     backgroundColor: "#16213e",
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#2a2a4a",
   },
-  infoLabel: {
+  cardLabel: {
     color: "#00d4aa",
     fontSize: 14,
     fontWeight: "bold",
     marginBottom: 4,
   },
-  infoText: {
+  cardText: {
     color: "#fff",
     fontSize: 15,
   },
@@ -207,58 +280,119 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 12,
   },
-  rideCard: {
+  inviteCard: {
     backgroundColor: "#16213e",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#2a2a4a",
+    borderColor: "#00d4aa",
   },
-  rideDirection: {
+  inviteName: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  rideTime: {
-    color: "#00d4aa",
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 4,
   },
-  rideDays: {
-    color: "#999",
+  inviteFrom: {
+    color: "#ccc",
     fontSize: 14,
+    marginBottom: 14,
   },
-  emptyText: {
-    color: "#999",
+  inviteActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  acceptButton: {
+    flex: 1,
+    backgroundColor: "#1a4a3a",
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#00d4aa",
+  },
+  declineButton: {
+    flex: 1,
+    backgroundColor: "#4a1a1a",
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ff6b6b",
+  },
+  acceptText: {
+    color: "#00d4aa",
     fontSize: 15,
-    textAlign: "center",
-    marginBottom: 20,
+    fontWeight: "bold",
+  },
+  declineText: {
+    color: "#ff6b6b",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+  groupCard: {
+    backgroundColor: "#16213e",
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#2a2a4a",
+  },
+  groupName: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 6,
+  },
+  groupStatus: {
+    color: "#00d4aa",
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  groupMembers: {
+    color: "#ccc",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  tapHint: {
+    color: "#00d4aa",
+    fontSize: 13,
+  },
+  noGroupSection: {
+    alignItems: "center",
+    marginBottom: 24,
     marginTop: 12,
   },
-  button: {
+  noGroupTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  noGroupText: {
+    color: "#999",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  primaryButton: {
     backgroundColor: "#00d4aa",
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
-
-  findButton: {
+  secondaryButton: {
     backgroundColor: "#16213e",
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#00d4aa",
   },
-
-  buttonText: {
+  primaryButtonText: {
     color: "#1a1a2e",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
   },
   logoutButton: {
@@ -266,17 +400,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
+    marginTop: 8,
   },
   logoutText: {
     color: "#ff6b6b",
     fontSize: 16,
     fontWeight: "bold",
   },
-tapHint: {
-    color: "#00d4aa", 
-    fontSize: 13,
-    marginTop: 8,
-  },
-
-  
-});
+}); 
