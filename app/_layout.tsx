@@ -12,6 +12,7 @@ export default function RootLayout() {
       <Stack.Screen name="availability" />
       <Stack.Screen name="student-schedule" />
       <Stack.Screen name="weekly-schedule" />
+      <Stack.Screen name="group-chat" />
       <Stack.Screen name="student-home" />
       <Stack.Screen name="parent-home" />
     </Stack>

@@ -198,6 +198,14 @@ export default function ParentHome() {
           <Text style={styles.secondaryButtonText}>👥 View Group Members</Text>
         </TouchableOpacity>
       )}
+      {myGroup && (
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => router.push(`/group-chat?groupId=${myGroup.id}`)}
+        >
+          <Text style={styles.secondaryButtonText}>💬 Group Chat</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Log Out</Text>

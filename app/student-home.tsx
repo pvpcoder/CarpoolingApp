@@ -223,6 +223,14 @@ useFocusEffect(
           <Text style={styles.primaryButtonText}>📅 My Schedule & Exceptions</Text>
         </TouchableOpacity>
       )}
+      {myGroup && (
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => router.push(`/group-chat?groupId=${myGroup.id}`)}
+        >
+          <Text style={styles.primaryButtonText}>💬 Group Chat</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Log Out</Text>
