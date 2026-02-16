@@ -10,6 +10,7 @@ export default function RootLayout() {
       <Stack.Screen name="offer-ride" />
       <Stack.Screen name="find-rides" />
       <Stack.Screen name="manage-requests" />
+      <Stack.Screen name="carpool-group" />
       <Stack.Screen name="student-home" />
       <Stack.Screen name="parent-home" />
     </Stack>

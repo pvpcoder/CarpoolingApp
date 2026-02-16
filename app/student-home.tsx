@@ -13,7 +13,8 @@ export default function StudentHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [pickupAddress, setPickupAddress] = useState<string | null>(null);
-  const [activeRequests, setActiveRequests] = useState<any[]>([]);
+  const [activeRequests, setActiveRequests] = useState<any[]>([])
+  const [carpoolGroups, setCarpoolGroups] = useState<any[]>([]);
 
   useEffect(() => {
     checkProfile();
@@ -48,6 +49,23 @@ export default function StudentHome() {
       .eq("status", "active");
 
     setActiveRequests(requests || []);
+    // Load carpool groups
+    const { data: memberships } = await supabase
+      .from("carpool_members")
+      .select(`
+        carpool_group_id,
+        carpool_groups (
+          id, name, status,
+          ride_offers ( direction, departure_time, recurring_days )
+        )
+      `)
+      .eq("student_id", student?.id);
+8
+    const activeGroups = (memberships || [])
+      .filter((m: any) => m.carpool_groups?.status === "active")
+      .map((m: any) => m.carpool_groups);
+
+    setCarpoolGroups(activeGroups);
     setLoading(false);
   };
 
@@ -80,6 +98,30 @@ export default function StudentHome() {
         <View style={styles.infoBox}>
           <Text style={styles.infoLabel}>📍 Your pickup spot</Text>
           <Text style={styles.infoText}>{pickupAddress}</Text>
+        </View>
+      )}
+
+      {carpoolGroups.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Carpool Groups</Text>
+          {carpoolGroups.map((group: any) => (
+            <TouchableOpacity
+              key={group.id}
+              style={styles.rideCard}
+              onPress={() => router.push(`/carpool-group?groupId=${group.id}`)}
+            >
+              <Text style={styles.rideDirection}>
+                {group.ride_offers?.direction === "to_school" ? "🏫 To School" : "🏠 From School"}
+              </Text>
+              <Text style={styles.rideTime}>
+                {formatTime(group.ride_offers?.departure_time)}
+              </Text>
+              <Text style={styles.rideDays}>
+                {group.ride_offers?.recurring_days?.join(", ")}
+              </Text>
+              <Text style={styles.tapHint}>Tap to manage group →</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -213,7 +255,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#00d4aa",
   },
-  
+
   buttonText: {
     color: "#1a1a2e",
     fontSize: 18,
@@ -230,7 +272,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-
+tapHint: {
+    color: "#00d4aa", 
+    fontSize: 13,
+    marginTop: 8,
+  },
 
   
 });

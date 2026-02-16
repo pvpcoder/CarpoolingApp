@@ -56,7 +56,7 @@ export default function ManageRequests() {
     setLoading(false);
   };
 
-  const handleResponse = async (matchId: string, status: "accepted" | "declined") => {
+const handleResponse = async (matchId: string, status: "accepted" | "declined", offerId: string) => {
     setProcessing(matchId);
 
     const { error } = await supabase
@@ -67,17 +67,76 @@ export default function ManageRequests() {
       })
       .eq("id", matchId);
 
-    setProcessing(null);
-
     if (error) {
+      setProcessing(null);
       Alert.alert("Error", error.message);
       return;
     }
 
+    // If accepted, add student to carpool group (create group if it doesn't exist)
+    if (status === "accepted") {
+      // Check if a carpool group already exists for this offer
+      let { data: group } = await supabase
+        .from("carpool_groups")
+        .select("id")
+        .eq("ride_offer_id", offerId)
+        .eq("status", "active")
+        .single();
+
+      // Create group if it doesn't exist
+      if (!group) {
+        const { data: newGroup, error: groupError } = await supabase
+          .from("carpool_groups")
+          .insert({
+            ride_offer_id: offerId,
+            name: "Carpool Group",
+            status: "active",
+            semester: "2025-26",
+          })
+          .select("id")
+          .single();
+
+        if (groupError) {
+          setProcessing(null);
+          Alert.alert("Error", groupError.message);
+          return;
+        }
+        group = newGroup;
+      }
+
+      // Get the student id from the match
+      const { data: match } = await supabase
+        .from("ride_matches")
+        .select("ride_requests ( student_id )")
+        .eq("id", matchId)
+        .single();
+
+      const studentId = (match?.ride_requests as any)?.student_id;
+
+      if (studentId && group) {
+        // Check if student is already in the group
+        const { data: existing } = await supabase
+          .from("carpool_members")
+          .select("id")
+          .eq("carpool_group_id", group.id)
+          .eq("student_id", studentId)
+          .single();
+
+        if (!existing) {
+          await supabase.from("carpool_members").insert({
+            carpool_group_id: group.id,
+            student_id: studentId,
+          });
+        }
+      }
+    }
+
+    setProcessing(null);
+
     Alert.alert(
       status === "accepted" ? "Accepted!" : "Declined",
       status === "accepted"
-        ? "The student has been added to your carpool."
+        ? "The student has been added to your carpool group."
         : "The request has been declined."
     );
 
@@ -148,14 +207,14 @@ export default function ManageRequests() {
                   <View style={styles.actionRow}>
                     <TouchableOpacity
                       style={[styles.acceptButton, processing === req.id && styles.buttonDisabled]}
-                      onPress={() => handleResponse(req.id, "accepted")}
+                      onPress={() => handleResponse(req.id, "accepted", req.ride_offer_id)}
                       disabled={processing === req.id}
                     >
                       <Text style={styles.acceptText}>✅ Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.declineButton, processing === req.id && styles.buttonDisabled]}
-                      onPress={() => handleResponse(req.id, "declined")}
+                    onPress={() => handleResponse(req.id, "declined", req.ride_offer_id)}
                       disabled={processing === req.id}
                     >
                       <Text style={styles.declineText}>❌ Decline</Text>

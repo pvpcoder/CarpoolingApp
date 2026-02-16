@@ -14,6 +14,7 @@ export default function ParentHome() {
   const [loading, setLoading] = useState(true);
   const [activeOffers, setActiveOffers] = useState<any[]>([]);
   const [childName, setChildName] = useState<string | null>(null);
+  const [carpoolGroups, setCarpoolGroups] = useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -50,6 +51,17 @@ export default function ParentHome() {
       .eq("status", "active");
 
     setActiveOffers(offers || []);
+    // Load carpool groups
+    const { data: groups } = await supabase
+      .from("carpool_groups")
+      .select(`
+        id, name, status,
+        ride_offers ( direction, departure_time, recurring_days )
+      `)
+      .eq("status", "active")
+      .in("ride_offer_id", (offers || []).map((o: any) => o.id));
+
+    setCarpoolGroups(groups || []);
     setLoading(false);
   };
 
@@ -101,6 +113,29 @@ export default function ParentHome() {
         </View>
       ) : (
         <Text style={styles.emptyText}>No active ride offers yet.</Text>
+      )}
+    {carpoolGroups.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Carpool Groups</Text>
+          {carpoolGroups.map((group: any) => (
+            <TouchableOpacity
+              key={group.id}
+              style={styles.rideCard}
+              onPress={() => router.push(`/carpool-group?groupId=${group.id}`)}
+            >
+              <Text style={styles.rideDirection}>
+                {group.ride_offers?.direction === "to_school" ? "🏫 To School" : "🏠 From School"}
+              </Text>
+              <Text style={styles.rideTime}>
+                {formatTime(group.ride_offers?.departure_time)}
+              </Text>
+              <Text style={styles.rideDays}>
+                {group.ride_offers?.recurring_days?.join(", ")}
+              </Text>
+              <Text style={styles.tapHint}>Tap to manage group →</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       )}
 
       <TouchableOpacity
@@ -232,5 +267,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "#00d4aa",
+  },
+
+
+  tapHint: {
+    color: "#00d4aa",
+    fontSize: 13,
+    marginTop: 8,
   },
 });
