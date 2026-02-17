@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -12,6 +11,14 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
+import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import {
+  PrimaryButton,
+  PressableScale,
+  FadeIn,
+  ScaleIn,
+  BackButton,
+} from "../components/UI";
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -25,29 +32,21 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleStudentSignup = async () => {
-    // Validate @pdsb.net email
     if (!email.trim().toLowerCase().endsWith("@pdsb.net")) {
-      Alert.alert(
-        "Invalid Email",
-        "You must use your @pdsb.net school email to sign up."
-      );
+      Alert.alert("Invalid Email", "You must use your @pdsb.net school email to sign up.");
       return;
     }
-
     if (!name || !password || !grade) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
-
     if (password.length < 6) {
       Alert.alert("Error", "Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
-
     try {
-      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -56,24 +55,19 @@ export default function SignupScreen() {
       if (authError) {
         setLoading(false);
         if (authError.message.includes("already registered")) {
-          Alert.alert(
-            "Account Exists",
-            "An account with this email already exists. Try logging in instead."
-          );
+          Alert.alert("Account Exists", "An account with this email already exists. Try logging in instead.");
         } else {
           Alert.alert("Signup Failed", authError.message);
         }
         return;
       }
 
-      // Get the school (pilot school for now)
       const { data: school } = await supabase
         .from("schools")
         .select("id")
         .eq("pdsb_code", "PILOT01")
         .single();
 
-      // Create student profile
       const { error: profileError } = await supabase.from("students").insert({
         id: authData.user?.id,
         email: email.trim().toLowerCase(),
@@ -83,7 +77,6 @@ export default function SignupScreen() {
       });
 
       setLoading(false);
-
       if (profileError) {
         Alert.alert("Error", profileError.message);
         return;
@@ -94,14 +87,8 @@ export default function SignupScreen() {
       ]);
     } catch (err: any) {
       setLoading(false);
-      if (
-        err?.message?.includes("Failed to fetch") ||
-        err?.message?.includes("Network request failed")
-      ) {
-        Alert.alert(
-          "No Internet",
-          "Please check your internet connection and try again."
-        );
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
+        Alert.alert("No Internet", "Please check your internet connection and try again.");
       } else {
         Alert.alert("Error", "Something went wrong. Please try again.");
       }
@@ -113,16 +100,13 @@ export default function SignupScreen() {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
-
     if (password.length < 6) {
       Alert.alert("Error", "Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
-
     try {
-      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -131,17 +115,13 @@ export default function SignupScreen() {
       if (authError) {
         setLoading(false);
         if (authError.message.includes("already registered")) {
-          Alert.alert(
-            "Account Exists",
-            "An account with this email already exists. Try logging in instead."
-          );
+          Alert.alert("Account Exists", "An account with this email already exists. Try logging in instead.");
         } else {
           Alert.alert("Signup Failed", authError.message);
         }
         return;
       }
 
-      // Find the linked student if child email was provided
       let studentId = null;
       if (childEmail) {
         const { data: student } = await supabase
@@ -154,15 +134,11 @@ export default function SignupScreen() {
           studentId = student.id;
         } else {
           setLoading(false);
-          Alert.alert(
-            "Student Not Found",
-            "No student found with that email. Make sure your child signs up first with their @pdsb.net email."
-          );
+          Alert.alert("Student Not Found", "No student found with that email. Make sure your child signs up first with their @pdsb.net email.");
           return;
         }
       }
 
-      // Create parent profile
       const { error: profileError } = await supabase.from("parents").insert({
         id: authData.user?.id,
         email: email.trim().toLowerCase(),
@@ -172,7 +148,6 @@ export default function SignupScreen() {
       });
 
       setLoading(false);
-
       if (profileError) {
         Alert.alert("Error", profileError.message);
         return;
@@ -183,62 +158,64 @@ export default function SignupScreen() {
       ]);
     } catch (err: any) {
       setLoading(false);
-      if (
-        err?.message?.includes("Failed to fetch") ||
-        err?.message?.includes("Network request failed")
-      ) {
-        Alert.alert(
-          "No Internet",
-          "Please check your internet connection and try again."
-        );
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
+        Alert.alert("No Internet", "Please check your internet connection and try again.");
       } else {
         Alert.alert("Error", "Something went wrong. Please try again.");
       }
     }
   };
 
-  // Role selection screen
+  // ─── Role Selection ───────────────────────────────────────
   if (!role) {
     return (
       <View style={styles.container}>
         <View style={styles.inner}>
-          <Text style={styles.title}>Join RidePool</Text>
-          <Text style={styles.subtitle}>I am a...</Text>
+          <ScaleIn>
+            <Text style={styles.title}>Join RidePool</Text>
+            <Text style={styles.subtitle}>I am a...</Text>
+          </ScaleIn>
 
-          <TouchableOpacity
-            style={styles.roleButton}
-            onPress={() => setRole("student")}
-          >
-            <Text style={styles.roleEmoji}>🎒</Text>
-            <Text style={styles.roleTitle}>Student</Text>
-            <Text style={styles.roleDesc}>
-              I need rides to and from school
-            </Text>
-          </TouchableOpacity>
+          <FadeIn delay={200}>
+            <PressableScale onPress={() => setRole("student")} style={styles.roleCard}>
+              <View style={styles.roleIconWrap}>
+                <Text style={styles.roleEmoji}>🎒</Text>
+              </View>
+              <View style={styles.roleTextWrap}>
+                <Text style={styles.roleTitle}>Student</Text>
+                <Text style={styles.roleDesc}>I need rides to and from school</Text>
+              </View>
+              <Text style={styles.roleArrow}>→</Text>
+            </PressableScale>
+          </FadeIn>
 
-          <TouchableOpacity
-            style={styles.roleButton}
-            onPress={() => setRole("parent")}
-          >
-            <Text style={styles.roleEmoji}>🚗</Text>
-            <Text style={styles.roleTitle}>Parent / Driver</Text>
-            <Text style={styles.roleDesc}>
-              I can drive students to school
-            </Text>
-          </TouchableOpacity>
+          <FadeIn delay={350}>
+            <PressableScale onPress={() => setRole("parent")} style={styles.roleCard}>
+              <View style={styles.roleIconWrap}>
+                <Text style={styles.roleEmoji}>🚗</Text>
+              </View>
+              <View style={styles.roleTextWrap}>
+                <Text style={styles.roleTitle}>Parent / Driver</Text>
+                <Text style={styles.roleDesc}>I can drive students to school</Text>
+              </View>
+              <Text style={styles.roleArrow}>→</Text>
+            </PressableScale>
+          </FadeIn>
 
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.linkText}>
-              Already have an account?{" "}
-              <Text style={styles.link}>Log In</Text>
-            </Text>
-          </TouchableOpacity>
+          <FadeIn delay={500}>
+            <PressableScale onPress={() => router.back()} style={styles.loginLink}>
+              <Text style={styles.linkText}>
+                Already have an account?{" "}
+                <Text style={styles.link}>Log In</Text>
+              </Text>
+            </PressableScale>
+          </FadeIn>
         </View>
       </View>
     );
   }
 
-  // Student signup form
+  // ─── Student Form ─────────────────────────────────────────
   if (role === "student") {
     return (
       <KeyboardAvoidingView
@@ -246,132 +223,75 @@ export default function SignupScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.scrollInner}>
-          <TouchableOpacity onPress={() => setRole(null)}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => setRole(null)} />
 
-          <Text style={styles.title}>Student Sign Up</Text>
-          <Text style={styles.subtitle}>Use your @pdsb.net school email</Text>
+          <FadeIn>
+            <Text style={styles.formTitle}>Student Sign Up</Text>
+            <Text style={styles.formSubtitle}>Use your @pdsb.net school email</Text>
+          </FadeIn>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Full Name"
-            placeholderTextColor="#999"
-            value={name}
-            onChangeText={setName}
-          />
+          <FadeIn delay={100}>
+            <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} />
+          </FadeIn>
+          <FadeIn delay={150}>
+            <TextInput style={styles.input} placeholder="School Email (@pdsb.net)" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          </FadeIn>
+          <FadeIn delay={200}>
+            <TextInput style={styles.input} placeholder="Grade (9-12)" placeholderTextColor={Colors.textTertiary} value={grade} onChangeText={setGrade} keyboardType="number-pad" />
+          </FadeIn>
+          <FadeIn delay={250}>
+            <TextInput style={styles.input} placeholder="Password" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry />
+          </FadeIn>
 
-          <TextInput
-            style={styles.input}
-            placeholder="School Email (@pdsb.net)"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Grade (9-12)"
-            placeholderTextColor="#999"
-            value={grade}
-            onChangeText={setGrade}
-            keyboardType="number-pad"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleStudentSignup}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? "Creating Account..." : "Sign Up"}
-            </Text>
-          </TouchableOpacity>
+          <FadeIn delay={300}>
+            <PrimaryButton
+              title={loading ? "Creating Account..." : "Sign Up"}
+              onPress={handleStudentSignup}
+              loading={loading}
+            />
+          </FadeIn>
         </ScrollView>
       </KeyboardAvoidingView>
     );
   }
 
-  // Parent signup form
+  // ─── Parent Form ──────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.scrollInner}>
-        <TouchableOpacity onPress={() => setRole(null)}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => setRole(null)} />
 
-        <Text style={styles.title}>Parent Sign Up</Text>
-        <Text style={styles.subtitle}>Link to your child's account</Text>
+        <FadeIn>
+          <Text style={styles.formTitle}>Parent Sign Up</Text>
+          <Text style={styles.formSubtitle}>Link to your child's account</Text>
+        </FadeIn>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          placeholderTextColor="#999"
-          value={name}
-          onChangeText={setName}
-        />
+        <FadeIn delay={100}>
+          <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} />
+        </FadeIn>
+        <FadeIn delay={150}>
+          <TextInput style={styles.input} placeholder="Your Email" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        </FadeIn>
+        <FadeIn delay={200}>
+          <TextInput style={styles.input} placeholder="Phone Number" placeholderTextColor={Colors.textTertiary} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        </FadeIn>
+        <FadeIn delay={250}>
+          <TextInput style={styles.input} placeholder="Child's School Email (@pdsb.net)" placeholderTextColor={Colors.textTertiary} value={childEmail} onChangeText={setChildEmail} keyboardType="email-address" autoCapitalize="none" />
+        </FadeIn>
+        <FadeIn delay={300}>
+          <TextInput style={styles.input} placeholder="Password" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry />
+        </FadeIn>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Your Email"
-          placeholderTextColor="#999"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Phone Number"
-          placeholderTextColor="#999"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Child's School Email (@pdsb.net)"
-          placeholderTextColor="#999"
-          value={childEmail}
-          onChangeText={setChildEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleParentSignup}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? "Creating Account..." : "Sign Up"}
-          </Text>
-        </TouchableOpacity>
+        <FadeIn delay={350}>
+          <PrimaryButton
+            title={loading ? "Creating Account..." : "Sign Up"}
+            onPress={handleParentSignup}
+            loading={loading}
+          />
+        </FadeIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -380,93 +300,105 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: Colors.bg,
   },
   inner: {
     flex: 1,
     justifyContent: "center",
-    padding: 24,
+    padding: Spacing.xl,
   },
   scrollInner: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
+    padding: Spacing.xl,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#00d4aa",
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
     textAlign: "center",
-    marginBottom: 8,
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#ccc",
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
     textAlign: "center",
     marginBottom: 36,
   },
-  roleButton: {
-    backgroundColor: "#16213e",
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 16,
+  roleCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: "#2a2a4a",
+    borderColor: Colors.border,
+    flexDirection: "row",
     alignItems: "center",
+  },
+  roleIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primaryFaded,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.base,
   },
   roleEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
+    fontSize: 26,
+  },
+  roleTextWrap: {
+    flex: 1,
   },
   roleTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 4,
+    fontSize: FontSizes.lg,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginBottom: 2,
   },
   roleDesc: {
-    fontSize: 14,
-    color: "#999",
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
   },
-  input: {
-    backgroundColor: "#16213e",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: "#fff",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#2a2a4a",
+  roleArrow: {
+    fontSize: 20,
+    color: Colors.primary,
+    fontWeight: "600",
   },
-  button: {
-    backgroundColor: "#00d4aa",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: "#1a1a2e",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  backText: {
-    color: "#00d4aa",
-    fontSize: 16,
-    marginBottom: 24,
+  loginLink: {
+    alignSelf: "center",
+    paddingVertical: Spacing.base,
+    marginTop: Spacing.sm,
   },
   linkText: {
-    color: "#ccc",
-    textAlign: "center",
-    fontSize: 14,
-    marginTop: 16,
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
   },
   link: {
-    color: "#00d4aa",
-    fontWeight: "bold",
+    color: Colors.primary,
+    fontWeight: "700",
+  },
+  formTitle: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  formSubtitle: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    marginBottom: 28,
+  },
+  input: {
+    backgroundColor: Colors.bgInput,
+    borderRadius: Radius.md,
+    padding: 16,
+    fontSize: FontSizes.base,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
 });

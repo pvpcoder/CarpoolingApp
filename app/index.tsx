@@ -1,23 +1,62 @@
 import { registerForPushNotifications } from "../lib/notifications";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
+import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { PrimaryButton, PressableScale, FadeIn, ScaleIn } from "../components/UI";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Entrance animations
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    // Staggered entrance
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 8,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formTranslateY, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -52,19 +91,13 @@ export default function LoginScreen() {
       }
 
       const userId = data.user?.id;
-      console.log("Logged in user ID:", userId);
-
-      // Register for push notifications (non-blocking)
       registerForPushNotifications(userId!);
 
-      // Check if user is a student
-      const { data: student, error: studentError } = await supabase
+      const { data: student } = await supabase
         .from("students")
         .select("id")
         .eq("id", userId)
         .maybeSingle();
-
-      console.log("Student check:", student, "Error:", studentError);
 
       if (student) {
         setLoading(false);
@@ -72,14 +105,11 @@ export default function LoginScreen() {
         return;
       }
 
-      // Check if user is a parent
-      const { data: parent, error: parentError } = await supabase
+      const { data: parent } = await supabase
         .from("parents")
         .select("id")
         .eq("id", userId)
         .maybeSingle();
-
-      console.log("Parent check:", parent, "Error:", parentError);
 
       if (parent) {
         setLoading(false);
@@ -127,12 +157,10 @@ export default function LoginScreen() {
                 email.trim().toLowerCase(),
                 { redirectTo: "ridepool://reset-password" }
               );
-
               if (error) {
                 Alert.alert("Error", error.message);
                 return;
               }
-
               Alert.alert(
                 "Check Your Email",
                 "We sent you a password reset link. Open it to set a new password."
@@ -147,10 +175,7 @@ export default function LoginScreen() {
                   "Please check your internet connection and try again."
                 );
               } else {
-                Alert.alert(
-                  "Error",
-                  "Something went wrong. Please try again."
-                );
+                Alert.alert("Error", "Something went wrong. Please try again.");
               }
             }
           },
@@ -165,47 +190,65 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.inner}>
-        <Text style={styles.title}>RidePool</Text>
-        <Text style={styles.subtitle}>Carpooling for your school</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#999"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
+        {/* Logo */}
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            { opacity: logoOpacity, transform: [{ scale: logoScale }] },
+          ]}
         >
-          <Text style={styles.buttonText}>
-            {loading ? "Logging in..." : "Log In"}
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.logoIcon}>
+            <Text style={styles.logoIconText}>R</Text>
+          </View>
+          <Text style={styles.title}>RidePool</Text>
+          <Text style={styles.subtitle}>Carpooling for your school</Text>
+        </Animated.View>
 
-        <TouchableOpacity onPress={handleForgotPassword}>
-          <Text style={styles.forgotText}>Forgot Password?</Text>
-        </TouchableOpacity>
+        {/* Form */}
+        <Animated.View
+          style={{
+            opacity: formOpacity,
+            transform: [{ translateY: formTranslateY }],
+          }}
+        >
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={Colors.textTertiary}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-        <TouchableOpacity onPress={() => router.push("/signup")}>
-          <Text style={styles.linkText}>
-            Don't have an account? <Text style={styles.link}>Sign Up</Text>
-          </Text>
-        </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={Colors.textTertiary}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <PrimaryButton
+            title={loading ? "Logging in..." : "Log In"}
+            onPress={handleLogin}
+            loading={loading}
+            disabled={loading}
+            style={{ marginTop: Spacing.sm, marginBottom: Spacing.xl }}
+          />
+
+          <PressableScale onPress={handleForgotPassword} style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </PressableScale>
+
+          <PressableScale onPress={() => router.push("/signup")} style={styles.signupBtn}>
+            <Text style={styles.linkText}>
+              Don't have an account?{" "}
+              <Text style={styles.link}>Sign Up</Text>
+            </Text>
+          </PressableScale>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -214,65 +257,71 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: Colors.bg,
   },
   inner: {
     flex: 1,
     justifyContent: "center",
-    padding: 24,
+    padding: Spacing.xl,
   },
-  title: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#00d4aa",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#ccc",
-    textAlign: "center",
+  logoContainer: {
+    alignItems: "center",
     marginBottom: 48,
   },
-  input: {
-    backgroundColor: "#16213e",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: "#fff",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#2a2a4a",
-  },
-  button: {
-    backgroundColor: "#00d4aa",
-    borderRadius: 12,
-    padding: 16,
+  logoIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: Colors.primary,
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 24,
+    justifyContent: "center",
+    marginBottom: Spacing.base,
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  logoIconText: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: Colors.bg,
   },
-  buttonText: {
-    color: "#1a1a2e",
-    fontSize: 18,
-    fontWeight: "bold",
+  title: {
+    fontSize: FontSizes.hero,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -1,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+  },
+  input: {
+    backgroundColor: Colors.bgInput,
+    borderRadius: Radius.md,
+    padding: 16,
+    fontSize: FontSizes.base,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  forgotBtn: {
+    alignSelf: "center",
+    paddingVertical: Spacing.sm,
   },
   forgotText: {
-    color: "#00d4aa",
-    textAlign: "center",
-    fontSize: 14,
-    marginBottom: 16,
+    color: Colors.primary,
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+  },
+  signupBtn: {
+    alignSelf: "center",
+    paddingVertical: Spacing.md,
   },
   linkText: {
-    color: "#ccc",
-    textAlign: "center",
-    fontSize: 14,
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
   },
   link: {
-    color: "#00d4aa",
-    fontWeight: "bold",
+    color: Colors.primary,
+    fontWeight: "700",
   },
 });
