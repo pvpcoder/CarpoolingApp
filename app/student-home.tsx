@@ -190,7 +190,7 @@ export default function StudentHome() {
       {/* Header */}
       <ScaleIn>
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
+          <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.name}>{studentName || "Student"}</Text>
           </View>
@@ -198,7 +198,7 @@ export default function StudentHome() {
             onPress={() => router.push("/settings")}
             style={styles.settingsBtn}
           >
-            <Text style={{ fontSize: 18 }}>⚙️</Text>
+            <Text style={styles.settingsIcon}>S</Text>
           </PressableScale>
         </View>
       </ScaleIn>
@@ -208,36 +208,36 @@ export default function StudentHome() {
         pendingInvites.map((invite: any, i: number) => (
           <FadeIn key={invite.id} delay={80 + i * 60}>
             <View style={styles.inviteCard}>
-              <View style={styles.inviteBadge}>
-                <Text style={{ fontSize: 16 }}>✉️</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inviteLabel}>GROUP INVITE</Text>
-                <Text style={styles.inviteName}>
-                  {invite.carpool_groups?.name || "Carpool Group"}
-                </Text>
-                <Text style={styles.inviteFrom}>
-                  from{" "}
-                  {(invite.invited_by_student as any)?.name || "a classmate"}
-                </Text>
-              </View>
-              <View style={styles.inviteBtns}>
-                <PressableScale
-                  onPress={() =>
-                    handleInviteResponse(invite.id, invite.group_id, true)
-                  }
-                  style={styles.joinBtn}
-                >
-                  <Text style={styles.joinText}>Join</Text>
-                </PressableScale>
-                <PressableScale
-                  onPress={() =>
-                    handleInviteResponse(invite.id, invite.group_id, false)
-                  }
-                  style={styles.skipBtn}
-                >
-                  <Text style={styles.skipText}>Decline</Text>
-                </PressableScale>
+              <View style={styles.inviteAccent} />
+              <View style={styles.inviteBody}>
+                <View style={styles.inviteContent}>
+                  <Text style={styles.inviteLabel}>Invite</Text>
+                  <Text style={styles.inviteName}>
+                    {invite.carpool_groups?.name || "Carpool Group"}
+                  </Text>
+                  <Text style={styles.inviteFrom}>
+                    from{" "}
+                    {(invite.invited_by_student as any)?.name || "a classmate"}
+                  </Text>
+                </View>
+                <View style={styles.inviteBtns}>
+                  <PressableScale
+                    onPress={() =>
+                      handleInviteResponse(invite.id, invite.group_id, true)
+                    }
+                    style={styles.joinBtn}
+                  >
+                    <Text style={styles.joinText}>Join</Text>
+                  </PressableScale>
+                  <PressableScale
+                    onPress={() =>
+                      handleInviteResponse(invite.id, invite.group_id, false)
+                    }
+                    style={styles.declineBtn}
+                  >
+                    <Text style={styles.declineText}>Decline</Text>
+                  </PressableScale>
+                </View>
               </View>
             </View>
           </FadeIn>
@@ -248,102 +248,130 @@ export default function StudentHome() {
         groups.map((g, idx) => (
           <FadeIn key={g.id} delay={140 + idx * 80}>
             <View style={styles.groupCard}>
-              <PressableScale
-                onPress={() => router.push(`/my-group?groupId=${g.id}`)}
-                style={styles.groupCardInner}
-              >
-                <View style={styles.groupRow}>
-                  <View style={styles.groupIcon}>
-                    <Text style={{ fontSize: 20 }}>👥</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.groupName}>{g.name}</Text>
-                    <Text style={styles.groupSub}>
-                      {g.memberCount}{" "}
-                      {g.memberCount === 1 ? "family" : "families"} ·{" "}
-                      {g.parentsJoined} parent
-                      {g.parentsJoined !== 1 ? "s" : ""}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.pill,
-                      g.status === "active" ? styles.pillActive : {},
-                    ]}
-                  >
-                    <Text
+              <View
+                style={[
+                  styles.groupAccent,
+                  {
+                    backgroundColor:
+                      g.status === "active"
+                        ? Colors.primary
+                        : Colors.warm,
+                  },
+                ]}
+              />
+              <View style={styles.groupBody}>
+                <PressableScale
+                  onPress={() => router.push(`/my-group?groupId=${g.id}`)}
+                  style={styles.groupCardInner}
+                >
+                  <View style={styles.groupRow}>
+                    <View style={styles.groupMeta}>
+                      <Text style={styles.groupName}>{g.name}</Text>
+                      <Text style={styles.groupSub}>
+                        {g.memberCount}{" "}
+                        {g.memberCount === 1 ? "family" : "families"}
+                        {"  "}
+                        <Text style={styles.groupSubDivider}>/</Text>
+                        {"  "}
+                        {g.parentsJoined} parent
+                        {g.parentsJoined !== 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                    <View
                       style={[
-                        styles.pillText,
-                        g.status === "active" ? styles.pillActiveText : {},
+                        styles.statusBadge,
+                        g.status === "active"
+                          ? styles.statusBadgeActive
+                          : styles.statusBadgeForming,
                       ]}
                     >
-                      {g.status === "forming" ? "Forming" : "Active"}
-                    </Text>
+                      <View
+                        style={[
+                          styles.statusDot,
+                          {
+                            backgroundColor:
+                              g.status === "active"
+                                ? Colors.primary
+                                : Colors.warm,
+                          },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          {
+                            color:
+                              g.status === "active"
+                                ? Colors.primary
+                                : Colors.warm,
+                          },
+                        ]}
+                      >
+                        {g.status === "forming" ? "Forming" : "Active"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                {/* School destination */}
-                <View style={styles.schoolStrip}>
-                  <Text style={{ fontSize: 13 }}>🏫</Text>
-                  <Text style={styles.schoolText}>{SCHOOL.name}</Text>
-                </View>
-
-                {pickupAddress && idx === 0 && (
-                  <View style={styles.pickupStrip}>
-                    <Text style={{ fontSize: 13 }}>📍</Text>
-                    <Text style={styles.pickupText} numberOfLines={1}>
-                      {pickupAddress}
-                    </Text>
-                    <PressableScale
-                      onPress={() => router.push("/setup-location")}
-                      style={{}}
-                    >
-                      <Text style={styles.pickupEdit}>Edit</Text>
-                    </PressableScale>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Destination</Text>
+                    <Text style={styles.detailValue}>{SCHOOL.name}</Text>
                   </View>
-                )}
-              </PressableScale>
 
-              {/* Inline actions */}
-              <View style={styles.groupActions}>
-                <PressableScale
-                  onPress={() =>
-                    router.push(`/group-chat?groupId=${g.id}`)
-                  }
-                  style={styles.groupActionBtn}
-                >
-                  <Text style={{ fontSize: 14 }}>💬</Text>
-                  <Text style={styles.groupActionText}>Chat</Text>
+                  {pickupAddress && idx === 0 && (
+                    <View style={styles.pickupRow}>
+                      <View style={styles.pickupInfo}>
+                        <Text style={styles.detailLabel}>Pickup</Text>
+                        <Text style={styles.pickupValue} numberOfLines={1}>
+                          {pickupAddress}
+                        </Text>
+                      </View>
+                      <PressableScale
+                        onPress={() => router.push("/setup-location")}
+                        style={styles.pickupEditBtn}
+                      >
+                        <Text style={styles.pickupEditText}>Edit</Text>
+                      </PressableScale>
+                    </View>
+                  )}
                 </PressableScale>
-                <PressableScale
-                  onPress={() =>
-                    router.push(`/student-schedule?groupId=${g.id}`)
-                  }
-                  style={styles.groupActionBtn}
-                >
-                  <Text style={{ fontSize: 14 }}>📅</Text>
-                  <Text style={styles.groupActionText}>Schedule</Text>
-                </PressableScale>
-                {g.status === "active" && (
+
+                {/* Inline actions */}
+                <View style={styles.groupActions}>
                   <PressableScale
                     onPress={() =>
-                      router.push(`/weekly-schedule?groupId=${g.id}`)
+                      router.push(`/group-chat?groupId=${g.id}`)
                     }
-                    style={styles.groupActionBtn}
+                    style={styles.actionPill}
                   >
-                    <Text style={{ fontSize: 14 }}>🗓️</Text>
-                    <Text style={styles.groupActionText}>This Week</Text>
+                    <Text style={styles.actionPillText}>Chat</Text>
                   </PressableScale>
-                )}
-                <PressableScale
-                  onPress={() =>
-                    router.push(`/my-group?groupId=${g.id}`)
-                  }
-                  style={styles.groupActionBtn}
-                >
-                  <Text style={{ fontSize: 14 }}>👥</Text>
-                  <Text style={styles.groupActionText}>Members</Text>
-                </PressableScale>
+                  <PressableScale
+                    onPress={() =>
+                      router.push(`/student-schedule?groupId=${g.id}`)
+                    }
+                    style={styles.actionPill}
+                  >
+                    <Text style={styles.actionPillText}>Schedule</Text>
+                  </PressableScale>
+                  {g.status === "active" && (
+                    <PressableScale
+                      onPress={() =>
+                        router.push(`/weekly-schedule?groupId=${g.id}`)
+                      }
+                      style={styles.actionPill}
+                    >
+                      <Text style={styles.actionPillText}>This Week</Text>
+                    </PressableScale>
+                  )}
+                  <PressableScale
+                    onPress={() =>
+                      router.push(`/my-group?groupId=${g.id}`)
+                    }
+                    style={styles.actionPill}
+                  >
+                    <Text style={styles.actionPillText}>Members</Text>
+                  </PressableScale>
+                </View>
               </View>
             </View>
           </FadeIn>
@@ -351,9 +379,6 @@ export default function StudentHome() {
       ) : (
         <FadeIn delay={140}>
           <View style={styles.emptyCard}>
-            <View style={styles.emptyIcon}>
-              <Text style={{ fontSize: 28 }}>🚗</Text>
-            </View>
             <Text style={styles.emptyTitle}>No carpool group yet</Text>
             <Text style={styles.emptyText}>
               Create a group and invite nearby students, or wait for an invite.
@@ -370,15 +395,12 @@ export default function StudentHome() {
 
       {/* Quick Actions */}
       <FadeIn delay={hasGroups ? 220 + groups.length * 80 : 220}>
-        <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
+        <Text style={styles.sectionLabel}>Quick actions</Text>
         <View style={styles.grid}>
           <PressableScale
             onPress={() => router.push("/create-group")}
             style={[styles.tile, !hasGroups ? styles.tilePrimary : {}]}
           >
-            <View style={styles.tileIconWrap}>
-              <Text style={{ fontSize: 22 }}>✨</Text>
-            </View>
             <Text
               style={[
                 styles.tileTitle,
@@ -401,9 +423,6 @@ export default function StudentHome() {
             onPress={() => router.push("/discover")}
             style={styles.tile}
           >
-            <View style={styles.tileIconWrap}>
-              <Text style={{ fontSize: 22 }}>🔍</Text>
-            </View>
             <Text style={styles.tileTitle}>Discover</Text>
             <Text style={styles.tileSub}>Nearby students</Text>
           </PressableScale>
@@ -414,8 +433,8 @@ export default function StudentHome() {
       {hasGroups && groups.some((g) => g.parentsJoined < g.memberCount) && (
         <FadeIn delay={320}>
           <View style={styles.nudge}>
-            <Text style={{ fontSize: 16, marginRight: Spacing.md }}>📢</Text>
-            <View style={{ flex: 1 }}>
+            <View style={styles.nudgeDot} />
+            <View style={styles.nudgeContent}>
               <Text style={styles.nudgeTitle}>Waiting on parents</Text>
               <Text style={styles.nudgeText}>
                 Some families still need a parent to join. Remind them to
@@ -429,7 +448,7 @@ export default function StudentHome() {
       {/* How it works (no groups) */}
       {!hasGroups && (
         <FadeIn delay={320}>
-          <Text style={styles.sectionLabel}>HOW RIDEPOOL WORKS</Text>
+          <Text style={styles.sectionLabel}>How RidePool works</Text>
           <View style={styles.stepsCard}>
             {[
               {
@@ -452,7 +471,7 @@ export default function StudentHome() {
                 <View style={styles.stepNum}>
                   <Text style={styles.stepNumText}>{i + 1}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
                   <Text style={styles.stepSub}>{step.sub}</Text>
                 </View>
@@ -465,10 +484,9 @@ export default function StudentHome() {
       {/* Tip */}
       <FadeIn delay={380}>
         <View style={styles.tipCard}>
-          <Text style={{ fontSize: 16, marginRight: Spacing.md }}>💡</Text>
           <Text style={styles.tipText}>
             {hasGroups
-              ? "Pull down to refresh. You can be in multiple groups — each one gets its own schedule."
+              ? "Pull down to refresh. You can be in multiple groups -- each one gets its own schedule."
               : "Pull down to refresh. Once you create or join a group, more options appear here."}
           </Text>
         </View>
@@ -480,196 +498,272 @@ export default function StudentHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 40 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
 
+  /* ---- Header ---- */
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.xxl,
+  },
+  headerLeft: {
+    flex: 1,
   },
   greeting: {
     fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: "600",
-    marginBottom: 2,
+    color: Colors.textTertiary,
+    fontWeight: "500",
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
   name: {
     fontSize: FontSizes.xxl,
-    fontWeight: "800",
+    fontWeight: "700",
     color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
+  settingsIcon: {
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+    color: Colors.textTertiary,
+  },
 
+  /* ---- Invites ---- */
   inviteCard: {
+    flexDirection: "row",
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
+    overflow: "hidden",
+  },
+  inviteAccent: {
+    width: 3,
+    backgroundColor: Colors.primary,
+  },
+  inviteBody: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    padding: Spacing.base,
+    paddingLeft: Spacing.lg,
   },
-  inviteBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
+  inviteContent: {
+    flex: 1,
   },
   inviteLabel: {
     fontSize: FontSizes.xs,
     color: Colors.primary,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    marginBottom: 1,
+    fontWeight: "600",
+    letterSpacing: 0.4,
+    marginBottom: 3,
+    textTransform: "uppercase",
   },
   inviteName: {
-    fontSize: FontSizes.base,
-    fontWeight: "700",
+    fontSize: FontSizes.md,
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 1,
+    marginBottom: 2,
   },
-  inviteFrom: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  inviteBtns: { flexDirection: "column", gap: 6, marginLeft: Spacing.md },
+  inviteFrom: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+  },
+  inviteBtns: {
+    flexDirection: "column",
+    gap: 6,
+    marginLeft: Spacing.base,
+  },
   joinBtn: {
     backgroundColor: Colors.primary,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 20,
     alignItems: "center",
   },
-  joinText: { color: Colors.bg, fontSize: FontSizes.sm, fontWeight: "700" },
-  skipBtn: { paddingVertical: 4, alignItems: "center" },
-  skipText: {
-    color: Colors.textTertiary,
+  joinText: {
+    color: Colors.bg,
     fontSize: FontSizes.sm,
     fontWeight: "600",
   },
+  declineBtn: {
+    paddingVertical: 4,
+    alignItems: "center",
+  },
+  declineText: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    fontWeight: "500",
+  },
 
+  /* ---- Group Cards ---- */
   groupCard: {
+    flexDirection: "row",
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: "hidden",
   },
-  groupCardInner: { padding: Spacing.lg },
-  groupRow: { flexDirection: "row", alignItems: "center" },
-  groupIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
+  groupAccent: {
+    width: 3,
+    backgroundColor: Colors.primary,
+  },
+  groupBody: {
+    flex: 1,
+  },
+  groupCardInner: {
+    padding: Spacing.base,
+    paddingBottom: Spacing.md,
+  },
+  groupRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  groupMeta: {
+    flex: 1,
     marginRight: Spacing.md,
   },
   groupName: {
     fontSize: FontSizes.lg,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  groupSub: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  pill: {
-    backgroundColor: Colors.warmFaded,
+  groupSub: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+  },
+  groupSubDivider: {
+    color: Colors.textTertiary,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: Radius.pill,
     paddingVertical: 4,
     paddingHorizontal: 10,
+    gap: 6,
   },
-  pillActive: { backgroundColor: Colors.successFaded },
-  pillText: { color: Colors.warm, fontSize: FontSizes.xs, fontWeight: "700" },
-  pillActiveText: { color: Colors.success },
-  schoolStrip: {
+  statusBadgeActive: {
+    backgroundColor: Colors.primaryFaded,
+  },
+  statusBadgeForming: {
+    backgroundColor: Colors.warmFaded,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
+  },
+  detailRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: Spacing.md,
-    gap: 8,
+    gap: Spacing.sm,
   },
-  schoolText: {
-    fontSize: FontSizes.sm,
+  detailLabel: {
+    fontSize: FontSizes.xs,
     color: Colors.textTertiary,
     fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    width: 80,
   },
-  pickupStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.bgElevated,
-    borderRadius: 10,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  pickupText: {
+  detailValue: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
+    fontWeight: "500",
     flex: 1,
-    marginLeft: 8,
   },
-  pickupEdit: {
+  pickupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  pickupInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: Spacing.sm,
+  },
+  pickupValue: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+    flex: 1,
+  },
+  pickupEditBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  pickupEditText: {
     fontSize: FontSizes.sm,
     color: Colors.primary,
     fontWeight: "600",
   },
+
+  /* ---- Group Actions ---- */
   groupActions: {
     flexDirection: "row",
-    padding: Spacing.md,
-    paddingTop: 0,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: Spacing.md,
     gap: Spacing.sm,
     flexWrap: "wrap",
   },
-  groupActionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+  actionPill: {
     backgroundColor: Colors.bgElevated,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 6,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
-  groupActionText: {
+  actionPillText: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: "500",
   },
 
+  /* ---- Empty State ---- */
   emptyCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.xxl,
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
   },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
-  },
   emptyTitle: {
     fontSize: FontSizes.lg,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: FontSizes.sm,
@@ -680,78 +774,96 @@ const styles = StyleSheet.create({
   },
   emptyBtn: {
     backgroundColor: Colors.primary,
-    borderRadius: 10,
+    borderRadius: Radius.pill,
     paddingVertical: 12,
     paddingHorizontal: 28,
   },
   emptyBtnText: {
     color: Colors.bg,
     fontSize: FontSizes.md,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 
+  /* ---- Section Labels ---- */
   sectionLabel: {
     fontSize: FontSizes.xs,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textTertiary,
-    letterSpacing: 1,
+    letterSpacing: 0.3,
     marginBottom: Spacing.md,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.lg,
+    textTransform: "uppercase",
   },
+
+  /* ---- Quick Action Tiles ---- */
   grid: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: Spacing.md,
     marginBottom: Spacing.xl,
   },
   tile: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     width: TILE_W,
-    minHeight: 130,
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
+    minHeight: 100,
   },
   tilePrimary: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  tileIconWrap: { marginBottom: Spacing.md },
   tileTitle: {
     fontSize: FontSizes.md,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
     marginBottom: 3,
   },
-  tileSub: { fontSize: FontSizes.xs, color: Colors.textTertiary },
+  tileSub: {
+    fontSize: FontSizes.xs,
+    color: Colors.textTertiary,
+  },
 
+  /* ---- Nudge ---- */
   nudge: {
     backgroundColor: Colors.warmFaded,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    borderRadius: Radius.md,
+    padding: Spacing.base,
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: "rgba(255,170,68,0.25)",
+    borderColor: Colors.warmBorder,
+  },
+  nudgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.warm,
+    marginTop: 5,
+    marginRight: Spacing.md,
+  },
+  nudgeContent: {
+    flex: 1,
   },
   nudgeTitle: {
     fontSize: FontSizes.sm,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.warm,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   nudgeText: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 
+  /* ---- Steps ---- */
   stepsCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -763,9 +875,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   stepNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Colors.primaryFaded,
     alignItems: "center",
     justifyContent: "center",
@@ -773,28 +885,31 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   stepNumText: {
-    fontSize: FontSizes.sm,
-    fontWeight: "700",
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
     color: Colors.primary,
+  },
+  stepContent: {
+    flex: 1,
   },
   stepTitle: {
     fontSize: FontSizes.md,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   stepSub: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 
+  /* ---- Tip ---- */
   tipCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    flexDirection: "row",
-    alignItems: "flex-start",
+    borderRadius: Radius.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
     borderWidth: 1,
     borderColor: Colors.border,
     marginTop: Spacing.sm,
@@ -802,7 +917,6 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
-    flex: 1,
     lineHeight: 19,
   },
 });

@@ -29,16 +29,43 @@ export default function ResetPassword() {
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>Enter your new password below.</Text>
         </FadeIn>
+
         <FadeIn delay={100}>
-          <TextInput style={styles.input} placeholder="New Password" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry />
+          <Text style={styles.inputLabel}>NEW PASSWORD</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="New Password"
+            placeholderTextColor={Colors.textTertiary}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
         </FadeIn>
+
         <FadeIn delay={150}>
-          <TextInput style={styles.input} placeholder="Confirm New Password" placeholderTextColor={Colors.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+          <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm New Password"
+            placeholderTextColor={Colors.textTertiary}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
         </FadeIn>
+
         <FadeIn delay={200}>
-          <PrimaryButton title={loading ? "Updating..." : "Update Password"} onPress={handleReset} loading={loading} style={{ marginBottom: Spacing.xl }} />
-          <PressableScale onPress={() => router.replace("/")} style={{ alignSelf: "center", padding: Spacing.sm }}>
-            <Text style={{ color: Colors.primary, fontSize: FontSizes.sm, fontWeight: "600" }}>← Back to Login</Text>
+          <PrimaryButton
+            title={loading ? "Updating..." : "Update Password"}
+            onPress={handleReset}
+            loading={loading}
+            style={{ marginBottom: Spacing.xxl }}
+          />
+          <PressableScale
+            onPress={() => router.replace("/")}
+            style={styles.backLink}
+          >
+            <Text style={styles.backLinkText}>Back to Login</Text>
           </PressableScale>
         </FadeIn>
       </View>
@@ -47,9 +74,54 @@ export default function ResetPassword() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  inner: { flex: 1, justifyContent: "center", padding: Spacing.xl },
-  title: { fontSize: FontSizes.xxl, fontWeight: "800", color: Colors.textPrimary, textAlign: "center", letterSpacing: -0.5, marginBottom: 8 },
-  subtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, textAlign: "center", marginBottom: Spacing.xxl },
-  input: { backgroundColor: Colors.bgInput, borderRadius: Radius.md, padding: 16, fontSize: FontSizes.base, color: Colors.textPrimary, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  inner: {
+    flex: 1,
+    justifyContent: "center",
+    padding: Spacing.xl,
+  },
+  title: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    textAlign: "center",
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginBottom: Spacing.xxl,
+  },
+  inputLabel: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.xs,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: Colors.bgInput,
+    borderRadius: Radius.md,
+    padding: 16,
+    fontSize: FontSizes.base,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  backLink: {
+    alignSelf: "center",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+  },
+  backLinkText: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+  },
 });

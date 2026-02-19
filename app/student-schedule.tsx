@@ -59,56 +59,197 @@ export default function StudentSchedule() {
       <BackButton onPress={() => router.back()} />
       <FadeIn>
         <Text style={styles.title}>My Weekly Schedule</Text>
-        <Text style={styles.subtitle}>Mark days where you have clubs, sports, or don't need a ride.</Text>
+        <Text style={styles.subtitle}>
+          Mark days where you have clubs, sports, or don't need a ride.
+        </Text>
       </FadeIn>
 
       {DAYS.map((day, i) => (
         <FadeIn key={day} delay={150 + i * 60}>
-          <Card>
+          <View style={styles.dayCard}>
             <Text style={styles.dayTitle}>{day}</Text>
-            <View style={styles.optionRow}>
-              <TouchableOpacity style={[styles.optionBtn, exceptions[day].type === "late_pickup" && styles.optionActive]} onPress={() => setDayType(day, "late_pickup")} activeOpacity={0.7}>
-                <Text style={styles.optionEmoji}>🕐</Text>
-                <Text style={[styles.optionText, exceptions[day].type === "late_pickup" && { color: Colors.info }]}>Late Pickup</Text>
+
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.togglePill,
+                  exceptions[day].type === "late_pickup" && styles.togglePillLate,
+                ]}
+                onPress={() => setDayType(day, "late_pickup")}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.togglePillText,
+                    exceptions[day].type === "late_pickup" && styles.togglePillTextLate,
+                  ]}
+                >
+                  Late Pickup
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.optionBtn, exceptions[day].type === "no_ride" && styles.optionNoRide]} onPress={() => setDayType(day, "no_ride")} activeOpacity={0.7}>
-                <Text style={styles.optionEmoji}>🚫</Text>
-                <Text style={[styles.optionText, exceptions[day].type === "no_ride" && { color: Colors.accent }]}>No Ride</Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.togglePill,
+                  exceptions[day].type === "no_ride" && styles.togglePillNoRide,
+                ]}
+                onPress={() => setDayType(day, "no_ride")}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.togglePillText,
+                    exceptions[day].type === "no_ride" && styles.togglePillTextNoRide,
+                  ]}
+                >
+                  No Ride
+                </Text>
               </TouchableOpacity>
             </View>
+
             {exceptions[day].type === "late_pickup" && (
-              <View style={{ gap: 8, marginTop: 8 }}>
-                <TextInput style={styles.detailInput} placeholder="Pickup time (e.g. 16:30)" placeholderTextColor={Colors.textTertiary} value={exceptions[day].time} onChangeText={(t) => setDayTime(day, t)} keyboardType="numbers-and-punctuation" />
-                <TextInput style={styles.detailInput} placeholder="Reason (e.g. Robotics club)" placeholderTextColor={Colors.textTertiary} value={exceptions[day].reason} onChangeText={(r) => setDayReason(day, r)} />
+              <View style={styles.detailGroup}>
+                <TextInput
+                  style={styles.detailInput}
+                  placeholder="Pickup time (e.g. 16:30)"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={exceptions[day].time}
+                  onChangeText={(t) => setDayTime(day, t)}
+                  keyboardType="numbers-and-punctuation"
+                />
+                <TextInput
+                  style={styles.detailInput}
+                  placeholder="Reason (e.g. Robotics club)"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={exceptions[day].reason}
+                  onChangeText={(r) => setDayReason(day, r)}
+                />
               </View>
             )}
+
             {exceptions[day].type === "no_ride" && (
-              <TextInput style={[styles.detailInput, { marginTop: 8 }]} placeholder="Reason (optional)" placeholderTextColor={Colors.textTertiary} value={exceptions[day].reason} onChangeText={(r) => setDayReason(day, r)} />
+              <TextInput
+                style={[styles.detailInput, { marginTop: 10 }]}
+                placeholder="Reason (optional)"
+                placeholderTextColor={Colors.textTertiary}
+                value={exceptions[day].reason}
+                onChangeText={(r) => setDayReason(day, r)}
+              />
             )}
-            {exceptions[day].type === "none" && <Text style={styles.normalText}>Normal schedule</Text>}
-          </Card>
+
+            {exceptions[day].type === "none" && (
+              <Text style={styles.normalText}>Normal schedule</Text>
+            )}
+          </View>
         </FadeIn>
       ))}
 
       <FadeIn delay={550}>
-        <PrimaryButton title={saving ? "Saving..." : "Save Schedule"} onPress={handleSave} loading={saving} style={{ marginTop: Spacing.sm }} />
+        <PrimaryButton
+          title={saving ? "Saving..." : "Save Schedule"}
+          onPress={handleSave}
+          loading={saving}
+          style={{ marginTop: Spacing.sm }}
+        />
       </FadeIn>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 48 },
-  title: { fontSize: FontSizes.xxl, fontWeight: "800", color: Colors.textPrimary, letterSpacing: -0.5, marginBottom: 8 },
-  subtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, lineHeight: 20, marginBottom: Spacing.xl },
-  dayTitle: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontWeight: "700", marginBottom: 12 },
-  optionRow: { flexDirection: "row", gap: 10, marginBottom: 8 },
-  optionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: Colors.bgInput, borderRadius: Radius.sm, padding: 12, borderWidth: 1, borderColor: Colors.border, gap: 6 },
-  optionActive: { backgroundColor: Colors.infoFaded, borderColor: Colors.infoBorder },
-  optionNoRide: { backgroundColor: Colors.accentFaded, borderColor: Colors.accentBorder },
-  optionEmoji: { fontSize: 16 },
-  optionText: { color: Colors.textTertiary, fontSize: FontSizes.sm, fontWeight: "700" },
-  detailInput: { backgroundColor: Colors.bgInput, borderRadius: Radius.sm, padding: 12, color: Colors.textPrimary, fontSize: FontSizes.sm, borderWidth: 1, borderColor: Colors.border },
-  normalText: { color: Colors.primary, fontSize: FontSizes.sm, fontWeight: "600" },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 48,
+  },
+  title: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
+  },
+
+  // Day cards
+  dayCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  dayTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.lg,
+    fontWeight: "700",
+    marginBottom: Spacing.md,
+  },
+
+  // Toggle pills
+  toggleRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  togglePill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.bgElevated,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  togglePillLate: {
+    backgroundColor: Colors.infoFaded,
+    borderColor: Colors.infoBorder,
+  },
+  togglePillNoRide: {
+    backgroundColor: Colors.accentFaded,
+    borderColor: Colors.accentBorder,
+  },
+  togglePillText: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    fontWeight: "700",
+  },
+  togglePillTextLate: {
+    color: Colors.info,
+  },
+  togglePillTextNoRide: {
+    color: Colors.accent,
+  },
+
+  // Detail inputs
+  detailGroup: {
+    gap: 8,
+    marginTop: 10,
+  },
+  detailInput: {
+    backgroundColor: Colors.bgInput,
+    borderRadius: Radius.sm,
+    padding: 12,
+    color: Colors.textPrimary,
+    fontSize: FontSizes.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+
+  // Normal text
+  normalText: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    marginTop: 4,
+  },
 });

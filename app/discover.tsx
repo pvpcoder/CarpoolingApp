@@ -182,7 +182,7 @@ export default function Discover() {
     const mins = student.drive_mins;
     let distText = km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)} km`;
     if (mins !== null) {
-      return `🚗 ${distText} · ${mins} min drive`;
+      return `${distText} · ${mins} min`;
     }
     return `${distText} away`;
   };
@@ -190,22 +190,34 @@ export default function Discover() {
   if (loading) return <LoadingScreen message="Finding students near you..." />;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <BackButton onPress={() => router.back()} />
       <FadeIn>
         <Text style={styles.title}>Nearby Students</Text>
-        <Text style={styles.subtitle}>Students at your school sorted by driving distance</Text>
+        <Text style={styles.subtitle}>
+          Sorted by distance from your pickup location
+        </Text>
       </FadeIn>
 
       {!myGroupId && (
         <FadeIn delay={100}>
-          <PressableScale onPress={() => router.push("/create-group")} style={styles.banner}>
-            <View style={styles.bannerIcon}><Text style={{ fontSize: 22 }}>✨</Text></View>
-            <View style={{ flex: 1 }}>
+          <PressableScale
+            onPress={() => router.push("/create-group")}
+            style={styles.banner}
+          >
+            <View style={styles.bannerContent}>
               <Text style={styles.bannerTitle}>Start a Carpool Group</Text>
-              <Text style={styles.bannerDesc}>Create a group, then invite students below</Text>
+              <Text style={styles.bannerDesc}>
+                Create a group, then invite students below
+              </Text>
             </View>
-            <Text style={{ color: Colors.primary, fontSize: 18 }}>→</Text>
+            <View style={styles.bannerArrow}>
+              <Text style={styles.bannerArrowText}>›</Text>
+            </View>
           </PressableScale>
         </FadeIn>
       )}
@@ -213,72 +225,268 @@ export default function Discover() {
       {nearbyStudents.length === 0 ? (
         <FadeIn delay={200}>
           <View style={styles.emptyState}>
-            <Text style={{ fontSize: 48, marginBottom: 16 }}>🔍</Text>
+            <View style={styles.emptyIcon}>
+              <Text style={styles.emptyIconText}>?</Text>
+            </View>
             <Text style={styles.emptyTitle}>No students nearby yet</Text>
-            <Text style={styles.emptyText}>You're one of the first from your school! Share the app with classmates to get started.</Text>
+            <Text style={styles.emptyText}>
+              You're one of the first from your school. Share the app with
+              classmates to get started.
+            </Text>
           </View>
         </FadeIn>
       ) : (
         nearbyStudents.map((student, i) => (
           <FadeIn key={student.id} delay={150 + i * 60}>
             <View style={styles.studentCard}>
-              <View style={styles.studentInfo}>
-                <Text style={styles.studentName}>{student.name}</Text>
-                <Text style={styles.studentGrade}>Grade {student.grade}</Text>
-                <Text style={[styles.studentDistance, student.drive_mins !== null && styles.drivingDistance]}>
+              <View style={styles.studentTop}>
+                <View style={styles.studentMeta}>
+                  <Text style={styles.studentName}>{student.name}</Text>
+                  <View style={styles.gradePill}>
+                    <Text style={styles.gradePillText}>
+                      Grade {student.grade}
+                    </Text>
+                  </View>
+                </View>
+
+                {student.invite_status === "pending" ? (
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>Invited</Text>
+                  </View>
+                ) : student.invite_status === "accepted" ? (
+                  <View style={[styles.statusBadge, styles.statusBadgeSuccess]}>
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        { color: Colors.primary },
+                      ]}
+                    >
+                      In Group
+                    </Text>
+                  </View>
+                ) : (
+                  <PressableScale
+                    onPress={() => handleInvite(student.id)}
+                    disabled={inviting === student.id}
+                    style={styles.inviteBtn}
+                  >
+                    <Text style={styles.inviteBtnText}>
+                      {inviting === student.id ? "..." : "Invite"}
+                    </Text>
+                  </PressableScale>
+                )}
+              </View>
+
+              <View style={styles.studentDetails}>
+                <Text
+                  style={[
+                    styles.studentDistance,
+                    student.drive_mins !== null && styles.drivingDistance,
+                  ]}
+                >
                   {formatDistance(student)}
                 </Text>
                 {student.saved_pickup_address && (
-                  <Text style={styles.studentArea}>📍 {student.saved_pickup_address}</Text>
+                  <Text style={styles.studentArea} numberOfLines={1}>
+                    <Text style={styles.dotPrefix}>·  </Text>
+                    {student.saved_pickup_address}
+                  </Text>
                 )}
               </View>
-              {student.invite_status === "pending" ? (
-                <View style={styles.badge}><Text style={styles.badgeText}>Invited</Text></View>
-              ) : student.invite_status === "accepted" ? (
-                <View style={[styles.badge, styles.badgeSuccess]}><Text style={[styles.badgeText, { color: Colors.success }]}>In Group</Text></View>
-              ) : (
-                <PressableScale onPress={() => handleInvite(student.id)} disabled={inviting === student.id} style={styles.inviteBtn}>
-                  <Text style={styles.inviteBtnText}>{inviting === student.id ? "..." : "Invite"}</Text>
-                </PressableScale>
-              )}
             </View>
           </FadeIn>
         ))
       )}
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 48 },
-  title: { fontSize: FontSizes.xxl, fontWeight: "800", color: Colors.textPrimary, letterSpacing: -0.5, marginBottom: 6 },
-  subtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginBottom: Spacing.xl },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 48,
+  },
+
+  /* Title */
+  title: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.xl,
+  },
+
+  /* Banner */
   banner: {
-    backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.lg,
-    marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.primaryBorder,
-    flexDirection: "row", alignItems: "center",
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.base,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  bannerIcon: { width: 44, height: 44, borderRadius: Radius.sm, backgroundColor: Colors.primaryFaded, alignItems: "center", justifyContent: "center", marginRight: Spacing.md },
-  bannerTitle: { color: Colors.primary, fontSize: FontSizes.md, fontWeight: "700", marginBottom: 2 },
-  bannerDesc: { color: Colors.textTertiary, fontSize: FontSizes.sm },
-  emptyState: { alignItems: "center", marginTop: 48 },
-  emptyTitle: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontWeight: "700", marginBottom: 8 },
-  emptyText: { color: Colors.textSecondary, fontSize: FontSizes.md, textAlign: "center", lineHeight: 22 },
+  bannerContent: { flex: 1 },
+  bannerTitle: {
+    color: Colors.primary,
+    fontSize: FontSizes.md,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  bannerDesc: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+  },
+  bannerArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryFaded,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: Spacing.md,
+  },
+  bannerArrowText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: -1,
+  },
+
+  /* Empty */
+  emptyState: {
+    alignItems: "center",
+    marginTop: 56,
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
+  },
+  emptyIconText: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: Colors.textTertiary,
+  },
+  emptyTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.lg,
+    fontWeight: "700",
+    marginBottom: Spacing.sm,
+  },
+  emptyText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.md,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  /* Student Card */
   studentCard: {
-    backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.lg,
-    marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border,
-    flexDirection: "row", alignItems: "center",
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
+    padding: Spacing.base,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  studentInfo: { flex: 1 },
-  studentName: { color: Colors.textPrimary, fontSize: FontSizes.base, fontWeight: "700", marginBottom: 4 },
-  studentGrade: { color: Colors.primary, fontSize: FontSizes.sm, fontWeight: "600", marginBottom: 4 },
-  studentDistance: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginBottom: 2 },
-  drivingDistance: { color: Colors.textPrimary, fontWeight: "600" },
-  studentArea: { color: Colors.textTertiary, fontSize: FontSizes.xs, marginTop: 2 },
-  inviteBtn: { backgroundColor: Colors.primary, borderRadius: Radius.sm, paddingVertical: 10, paddingHorizontal: 18 },
-  inviteBtnText: { color: Colors.bg, fontSize: FontSizes.sm, fontWeight: "700" },
-  badge: { backgroundColor: Colors.bgElevated, borderRadius: Radius.sm, paddingVertical: 10, paddingHorizontal: 14 },
-  badgeText: { color: Colors.textSecondary, fontSize: FontSizes.sm, fontWeight: "700" },
-  badgeSuccess: { backgroundColor: Colors.successFaded },
+  studentTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
+  },
+  studentMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  studentName: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.base,
+    fontWeight: "700",
+    marginRight: Spacing.sm,
+  },
+  gradePill: {
+    backgroundColor: Colors.primaryFaded,
+    borderRadius: Radius.xs,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+  },
+  gradePillText: {
+    color: Colors.primary,
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
+  },
+
+  /* Details row */
+  studentDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  studentDistance: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+  },
+  drivingDistance: {
+    color: Colors.textPrimary,
+    fontWeight: "600",
+  },
+  studentArea: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    flex: 1,
+    marginLeft: Spacing.sm,
+  },
+  dotPrefix: {
+    color: Colors.textMuted,
+  },
+
+  /* Invite button */
+  inviteBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+  },
+  inviteBtnText: {
+    color: Colors.bg,
+    fontSize: FontSizes.sm,
+    fontWeight: "700",
+  },
+
+  /* Status badge */
+  statusBadge: {
+    backgroundColor: Colors.bgElevated,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  statusBadgeText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.xs,
+    fontWeight: "700",
+  },
+  statusBadgeSuccess: {
+    backgroundColor: Colors.primaryFaded,
+  },
 });

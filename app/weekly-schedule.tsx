@@ -153,7 +153,7 @@ PARENT DRIVING AVAILABILITY:
 ${availabilityInfo.map((a) => `- ${a.parent_name} (${a.parent_id}): ${a.day} — Morning: ${a.can_morning ? "YES" : "NO"}, Afternoon: ${a.can_afternoon ? "YES" : "NO"}`).join("\n")}
 
 STUDENT SCHEDULE EXCEPTIONS:
-${exceptionInfo.length > 0 
+${exceptionInfo.length > 0
   ? exceptionInfo.map((e) => `- ${e.student_name}: ${e.day} — ${e.type}${e.pickup_time ? ` at ${e.pickup_time}` : ""}${e.reason ? ` (${e.reason})` : ""}`).join("\n")
   : "None"}
 
@@ -209,7 +209,7 @@ Respond with ONLY valid JSON in this exact format, no other text:
       }
 
       const text = data.content?.[0]?.text || "";
-      
+
       // Parse JSON from response (handle possible markdown fences)
       const cleaned = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
@@ -496,6 +496,24 @@ Respond with ONLY valid JSON in this exact format, no other text:
     }
   };
 
+  const getSlotTag = (type: string) => {
+    switch (type) {
+      case "morning": return "AM";
+      case "afternoon": return "PM";
+      case "late_afternoon": return "Late";
+      default: return type;
+    }
+  };
+
+  const getSlotAccentColor = (type: string) => {
+    switch (type) {
+      case "morning": return Colors.primary;
+      case "afternoon": return Colors.info;
+      case "late_afternoon": return Colors.warm;
+      default: return Colors.textTertiary;
+    }
+  };
+
   const driverCounts: Record<string, number> = {};
   slots.forEach((s: any) => {
     if (s.driver_parent_id) {
@@ -504,147 +522,167 @@ Respond with ONLY valid JSON in this exact format, no other text:
   });
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00d4aa" />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => router.back()} />
 
-      <Text style={styles.title}>Weekly Schedule</Text>
+      <FadeIn>
+        <Text style={styles.title}>Weekly Schedule</Text>
+      </FadeIn>
 
       {!schedule ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📅</Text>
-          <Text style={styles.emptyTitle}>No schedule yet</Text>
-          <Text style={styles.emptyText}>
-            Claude AI will analyze everyone's availability and create a fair driving rotation.
-          </Text>
-          <TouchableOpacity
-            style={[styles.generateButton, generating && styles.buttonDisabled]}
-            onPress={generateSchedule}
-            disabled={generating}
-          >
-            <Text style={styles.generateButtonText}>
-              {generating ? "🤖 Claude is thinking..." : "🤖 Generate with AI"}
+        <FadeIn delay={150}>
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconWrap}>
+              <Text style={styles.emptyIconText}>S</Text>
+            </View>
+            <Text style={styles.emptyTitle}>No schedule yet</Text>
+            <Text style={styles.emptyText}>
+              AI will analyze everyone's availability and create a fair driving rotation.
             </Text>
-          </TouchableOpacity>
-        </View>
+            <PrimaryButton
+              title={generating ? "Generating..." : "Generate with AI"}
+              onPress={generateSchedule}
+              loading={generating}
+              disabled={generating}
+            />
+          </View>
+        </FadeIn>
       ) : (
         <>
           {/* AI Explanation */}
           {aiExplanation && (
-            <View style={styles.aiCard}>
-              <Text style={styles.aiTitle}>🤖 Claude's Reasoning</Text>
-              <Text style={styles.aiText}>{aiExplanation}</Text>
-            </View>
+            <FadeIn delay={100}>
+              <View style={styles.aiCard}>
+                <View style={styles.aiHeader}>
+                  <View style={styles.aiDot} />
+                  <Text style={styles.aiTitle}>AI Reasoning</Text>
+                </View>
+                <Text style={styles.aiText}>{aiExplanation}</Text>
+              </View>
+            </FadeIn>
           )}
 
           {/* Fairness Summary */}
-          <View style={styles.fairnessCard}>
-            <Text style={styles.fairnessTitle}>⚖️ Driving Split</Text>
-            {Object.entries(driverCounts).map(([parentId, count]) => (
-              <View key={parentId} style={styles.fairnessRow}>
-                <Text style={styles.fairnessName}>{parentMap[parentId] || "Parent"}</Text>
-                <Text style={styles.fairnessCount}>{count} {count === 1 ? "slot" : "slots"}</Text>
-              </View>
-            ))}
-          </View>
+          <FadeIn delay={150}>
+            <View style={styles.fairnessCard}>
+              <Text style={styles.fairnessTitle}>Driving Split</Text>
+              <View style={styles.fairnessDivider} />
+              {Object.entries(driverCounts).map(([parentId, count]) => (
+                <View key={parentId} style={styles.fairnessRow}>
+                  <Text style={styles.fairnessName}>{parentMap[parentId] || "Parent"}</Text>
+                  <View style={styles.fairnessCountBadge}>
+                    <Text style={styles.fairnessCount}>{count}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </FadeIn>
 
           {/* Day-by-day */}
-          {DAYS.map((day) => {
+          {DAYS.map((day, i) => {
             const daySlots = slots.filter((s: any) => s.day_of_week === day);
             return (
-              <View key={day} style={styles.dayCard}>
-                <Text style={styles.dayTitle}>{day}</Text>
-                {daySlots.length === 0 ? (
-                  <Text style={styles.noSlots}>No rides scheduled</Text>
-                ) : (
-                  daySlots.map((slot: any) => (
-                    <View key={slot.id}>
-                      <View
-                        style={[styles.slotRow, slot.status === "needs_coverage" && styles.slotNeedsCoverage]}
-                      >
-                        <Text style={styles.slotIcon}>{getSlotIcon(slot.slot_type)}</Text>
-                        <View style={styles.slotInfo}>
-                          <Text style={styles.slotLabel}>{getSlotLabel(slot.slot_type)}</Text>
-                          <Text style={styles.slotTime}>{formatTime(slot.departure_time)}</Text>
+              <FadeIn key={day} delay={200 + i * 60}>
+                <View style={styles.dayCard}>
+                  <Text style={styles.dayTitle}>{day}</Text>
+                  {daySlots.length === 0 ? (
+                    <Text style={styles.noSlots}>No rides scheduled</Text>
+                  ) : (
+                    daySlots.map((slot: any) => (
+                      <View key={slot.id}>
+                        <View
+                          style={[
+                            styles.slotRow,
+                            slot.status === "needs_coverage" && styles.slotNeedsCoverage,
+                          ]}
+                        >
+                          {/* Left accent bar */}
+                          <View style={[styles.slotAccent, { backgroundColor: getSlotAccentColor(slot.slot_type) }]} />
+                          <View style={styles.slotContent}>
+                            <View style={styles.slotTop}>
+                              <View style={styles.slotLabelRow}>
+                                <Text style={styles.slotTag}>{getSlotTag(slot.slot_type)}</Text>
+                                <Text style={styles.slotLabel}>{getSlotLabel(slot.slot_type)}</Text>
+                              </View>
+                              <Text style={styles.slotTime}>{formatTime(slot.departure_time)}</Text>
+                            </View>
+                            <View style={styles.slotBottom}>
+                              {slot.driver_parent_id ? (
+                                <Text style={styles.driverName}>
+                                  {parentMap[slot.driver_parent_id] || "Assigned"}
+                                </Text>
+                              ) : (
+                                <Text style={styles.needsCoverage}>Needs driver</Text>
+                              )}
+                            </View>
+                          </View>
                         </View>
-                        <View style={styles.slotDriver}>
-                          {slot.driver_parent_id ? (
-                            <Text style={styles.driverName}>
-                              🚗 {parentMap[slot.driver_parent_id] || "Assigned"}
-                            </Text>
-                          ) : (
-                            <Text style={styles.needsCoverage}>❓ Needs driver</Text>
-                          )}
-                        </View>
-                      </View>
-                      {/* Swap actions */}
-                      {(() => {
-                        const swap = swapRequests.find((s: any) => s.slot_id === slot.id);
-                        const isMySlot = slot.driver_parent_id === currentUserId;
 
-                        if (swap && swap.status === "open") {
-                          // Open swap request exists
-                          if (swap.requesting_parent_id === currentUserId) {
+                        {/* Swap actions */}
+                        {(() => {
+                          const swap = swapRequests.find((s: any) => s.slot_id === slot.id);
+                          const isMySlot = slot.driver_parent_id === currentUserId;
+
+                          if (swap && swap.status === "open") {
+                            if (swap.requesting_parent_id === currentUserId) {
+                              return (
+                                <View style={styles.swapBanner}>
+                                  <Text style={styles.swapBannerText}>Swap requested -- waiting for coverage</Text>
+                                </View>
+                              );
+                            } else {
+                              return (
+                                <TouchableOpacity
+                                  style={styles.coverButton}
+                                  onPress={() => handleCoverSwap(swap.id, slot.id)}
+                                  activeOpacity={0.7}
+                                >
+                                  <Text style={styles.coverButtonText}>I'll Cover This Slot</Text>
+                                </TouchableOpacity>
+                              );
+                            }
+                          } else if (swap && swap.status === "covered") {
                             return (
-                              <View style={styles.swapBanner}>
-                                <Text style={styles.swapBannerText}>🔄 You requested a swap — waiting for coverage</Text>
+                              <View style={styles.swapCoveredBanner}>
+                                <Text style={styles.swapCoveredText}>
+                                  Covered by {parentMap[swap.covering_parent_id] || "another parent"}
+                                </Text>
                               </View>
                             );
-                          } else {
+                          } else if (isMySlot && !swap) {
                             return (
                               <TouchableOpacity
-                                style={styles.coverButton}
-                                onPress={() => handleCoverSwap(swap.id, slot.id)}
+                                style={styles.cantDriveButton}
+                                onPress={() => handleRequestSwap(slot.id)}
+                                activeOpacity={0.7}
                               >
-                                <Text style={styles.coverButtonText}>🙋 I'll Cover This Slot</Text>
+                                <Text style={styles.cantDriveText}>Can't drive this slot?</Text>
                               </TouchableOpacity>
                             );
                           }
-                        } else if (swap && swap.status === "covered") {
-                          return (
-                            <View style={styles.swapCoveredBanner}>
-                              <Text style={styles.swapCoveredText}>
-                                ✅ Covered by {parentMap[swap.covering_parent_id] || "another parent"}
-                              </Text>
-                            </View>
-                          );
-                        } else if (isMySlot && !swap) {
-                          return (
-                            <TouchableOpacity
-                              style={styles.cantDriveButton}
-                              onPress={() => handleRequestSwap(slot.id)}
-                            >
-                              <Text style={styles.cantDriveText}>Can't drive this slot?</Text>
-                            </TouchableOpacity>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </View>
-                  ))
-                )}
-              </View>
+                          return null;
+                        })()}
+                      </View>
+                    ))
+                  )}
+                </View>
+              </FadeIn>
             );
           })}
 
-          <TouchableOpacity
-            style={[styles.regenerateButton, generating && styles.buttonDisabled]}
-            onPress={generateSchedule}
-            disabled={generating}
-          >
-            <Text style={styles.regenerateText}>
-              {generating ? "🤖 Claude is thinking..." : "🔄 Regenerate with AI"}
-            </Text>
-          </TouchableOpacity>
+          <FadeIn delay={550}>
+            <SecondaryButton
+              title={generating ? "Generating..." : "Regenerate with AI"}
+              onPress={generateSchedule}
+              loading={generating}
+              disabled={generating}
+              style={{ marginTop: Spacing.sm }}
+            />
+          </FadeIn>
         </>
       )}
     </ScrollView>
@@ -652,46 +690,273 @@ Respond with ONLY valid JSON in this exact format, no other text:
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 48 },
-  loadingContainer: { flex: 1, backgroundColor: Colors.bg, justifyContent: "center", alignItems: "center" },
-  backText: { color: Colors.primary, fontSize: FontSizes.base, fontWeight: "600", marginBottom: Spacing.lg },
-  title: { fontSize: FontSizes.xxl, fontWeight: "800", color: Colors.textPrimary, letterSpacing: -0.5, marginBottom: Spacing.xl },
-  emptyContainer: { alignItems: "center", marginTop: 32 },
-  emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontWeight: "700", marginBottom: 8 },
-  emptyText: { color: Colors.textSecondary, fontSize: FontSizes.md, textAlign: "center", lineHeight: 22, marginBottom: Spacing.xl },
-  generateButton: { backgroundColor: Colors.primary, borderRadius: Radius.md, padding: 16, paddingHorizontal: 32, alignItems: "center" },
-  generateButtonText: { color: Colors.bg, fontSize: FontSizes.lg, fontWeight: "700" },
-  buttonDisabled: { opacity: 0.5 },
-  aiCard: { backgroundColor: Colors.infoFaded, borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.infoBorder },
-  aiTitle: { color: Colors.info, fontSize: FontSizes.md, fontWeight: "700", marginBottom: 8 },
-  aiText: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
-  fairnessCard: { backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.primaryBorder },
-  fairnessTitle: { color: Colors.primary, fontSize: FontSizes.md, fontWeight: "700", marginBottom: 12 },
-  fairnessRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
-  fairnessName: { color: Colors.textPrimary, fontSize: FontSizes.md },
-  fairnessCount: { color: Colors.primary, fontSize: FontSizes.md, fontWeight: "700" },
-  dayCard: { backgroundColor: Colors.bgCard, borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  dayTitle: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontWeight: "700", marginBottom: 12 },
-  noSlots: { color: Colors.textTertiary, fontSize: FontSizes.sm },
-  slotRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  slotNeedsCoverage: { backgroundColor: Colors.accentFaded, borderRadius: Radius.sm, paddingHorizontal: 10, marginBottom: 4 },
-  slotIcon: { fontSize: 20, marginRight: 12 },
-  slotInfo: { flex: 1 },
-  slotLabel: { color: Colors.textPrimary, fontSize: FontSizes.md, fontWeight: "700" },
-  slotTime: { color: Colors.textTertiary, fontSize: FontSizes.sm },
-  slotDriver: { alignItems: "flex-end" },
-  driverName: { color: Colors.primary, fontSize: FontSizes.sm, fontWeight: "700" },
-  needsCoverage: { color: Colors.accent, fontSize: FontSizes.sm, fontWeight: "700" },
-  regenerateButton: { backgroundColor: Colors.primaryFaded, borderRadius: Radius.md, padding: 16, alignItems: "center", marginTop: 8, borderWidth: 1, borderColor: Colors.primaryBorder },
-  regenerateText: { color: Colors.primary, fontSize: FontSizes.base, fontWeight: "700" },
-  cantDriveButton: { paddingVertical: 8, paddingHorizontal: 12, alignItems: "center" },
-  cantDriveText: { color: Colors.accent, fontSize: FontSizes.sm, textDecorationLine: "underline" },
-  swapBanner: { backgroundColor: Colors.warmFaded, borderRadius: 8, padding: 10, marginTop: 4, marginBottom: 4 },
-  swapBannerText: { color: Colors.warm, fontSize: FontSizes.sm, textAlign: "center" },
-  coverButton: { backgroundColor: Colors.infoFaded, borderRadius: 8, padding: 10, marginTop: 4, marginBottom: 4, alignItems: "center", borderWidth: 1, borderColor: Colors.infoBorder },
-  coverButtonText: { color: Colors.info, fontSize: FontSizes.sm, fontWeight: "700" },
-  swapCoveredBanner: { backgroundColor: Colors.successFaded, borderRadius: 8, padding: 10, marginTop: 4, marginBottom: 4 },
-  swapCoveredText: { color: Colors.success, fontSize: FontSizes.sm, textAlign: "center" },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 48,
+  },
+  title: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: Spacing.xl,
+  },
+
+  // Empty state
+  emptyContainer: {
+    alignItems: "center",
+    marginTop: 40,
+  },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
+  },
+  emptyIconText: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: Colors.textTertiary,
+  },
+  emptyTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.lg,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.md,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.xl,
+  },
+
+  // AI Card
+  aiCard: {
+    backgroundColor: Colors.infoFaded,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.infoBorder,
+  },
+  aiHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  aiDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.info,
+    marginRight: 8,
+  },
+  aiTitle: {
+    color: Colors.info,
+    fontSize: FontSizes.md,
+    fontWeight: "700",
+  },
+  aiText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+  },
+
+  // Fairness Card
+  fairnessCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  fairnessTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.md,
+    fontWeight: "700",
+  },
+  fairnessDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.md,
+  },
+  fairnessRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  fairnessName: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.md,
+  },
+  fairnessCountBadge: {
+    backgroundColor: Colors.primaryFaded,
+    borderRadius: Radius.xs,
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+  },
+  fairnessCount: {
+    color: Colors.primary,
+    fontSize: FontSizes.md,
+    fontWeight: "700",
+  },
+
+  // Day cards
+  dayCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  dayTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.lg,
+    fontWeight: "700",
+    marginBottom: Spacing.md,
+  },
+  noSlots: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+  },
+
+  // Slot rows
+  slotRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginBottom: 8,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.bgElevated,
+    overflow: "hidden",
+  },
+  slotNeedsCoverage: {
+    backgroundColor: Colors.accentFaded,
+  },
+  slotAccent: {
+    width: 3,
+  },
+  slotContent: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  slotTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  slotLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  slotTag: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.xs,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xs,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    overflow: "hidden",
+  },
+  slotLabel: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.md,
+    fontWeight: "600",
+  },
+  slotTime: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+  },
+  slotBottom: {
+    marginTop: 2,
+  },
+  driverName: {
+    color: Colors.primary,
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+  },
+  needsCoverage: {
+    color: Colors.accent,
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+  },
+
+  // Swap UI
+  cantDriveButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  cantDriveText: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    textDecorationLine: "underline",
+  },
+  swapBanner: {
+    backgroundColor: Colors.warmFaded,
+    borderRadius: Radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.warmBorder,
+  },
+  swapBannerText: {
+    color: Colors.warm,
+    fontSize: FontSizes.sm,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  coverButton: {
+    backgroundColor: Colors.infoFaded,
+    borderRadius: Radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.infoBorder,
+  },
+  coverButtonText: {
+    color: Colors.info,
+    fontSize: FontSizes.sm,
+    fontWeight: "700",
+  },
+  swapCoveredBanner: {
+    backgroundColor: Colors.successFaded,
+    borderRadius: Radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+  },
+  swapCoveredText: {
+    color: Colors.success,
+    fontSize: FontSizes.sm,
+    textAlign: "center",
+    fontWeight: "500",
+  },
 });

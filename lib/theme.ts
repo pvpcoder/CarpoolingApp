@@ -1,49 +1,54 @@
 /**
  * RidePool Design System
- * Friendly, professional, minimal.
+ * Clean, confident, human.
  */
 
+import { Platform } from 'react-native';
+
 export const Colors = {
-  // Backgrounds
-  bg: '#0F1120',
-  bgCard: '#171B2E',
-  bgElevated: '#1E2240',
-  bgInput: '#141728',
+  // Backgrounds – warm-neutral dark palette
+  bg: '#111214',
+  bgCard: '#1A1B1F',
+  bgElevated: '#222328',
+  bgInput: '#1A1B1F',
+  bgSurface: '#16171B',
 
-  // Primary accent — warm teal
-  primary: '#00D4AA',
-  primaryDark: '#00B892',
-  primaryFaded: 'rgba(0, 212, 170, 0.12)',
-  primaryBorder: 'rgba(0, 212, 170, 0.3)',
+  // Primary – soft green
+  primary: '#34D399',
+  primaryDark: '#10B981',
+  primaryFaded: 'rgba(52, 211, 153, 0.10)',
+  primaryBorder: 'rgba(52, 211, 153, 0.22)',
+  primaryGlow: 'rgba(52, 211, 153, 0.06)',
 
-  // Secondary / warning
-  accent: '#FF6B6B',
-  accentFaded: 'rgba(255, 107, 107, 0.12)',
-  accentBorder: 'rgba(255, 107, 107, 0.3)',
+  // Danger / destructive
+  accent: '#F87171',
+  accentFaded: 'rgba(248, 113, 113, 0.10)',
+  accentBorder: 'rgba(248, 113, 113, 0.22)',
 
-  // Info blue
-  info: '#4A9EFF',
-  infoFaded: 'rgba(74, 158, 255, 0.12)',
-  infoBorder: 'rgba(74, 158, 255, 0.3)',
+  // Info
+  info: '#60A5FA',
+  infoFaded: 'rgba(96, 165, 250, 0.10)',
+  infoBorder: 'rgba(96, 165, 250, 0.22)',
 
-  // Warm amber
-  warm: '#FFAA44',
-  warmFaded: 'rgba(255, 170, 68, 0.12)',
+  // Warm / warning
+  warm: '#FBBF24',
+  warmFaded: 'rgba(251, 191, 36, 0.10)',
+  warmBorder: 'rgba(251, 191, 36, 0.22)',
 
-  // Text
-  textPrimary: '#FFFFFF',
-  textSecondary: '#A0A6C0',
-  textTertiary: '#6B7194',
-  textMuted: '#4A4F6A',
+  // Text – high contrast hierarchy
+  textPrimary: '#F9FAFB',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
+  textMuted: '#4B5563',
 
   // Borders
-  border: '#252A42',
-  borderLight: '#1E2240',
+  border: '#27282E',
+  borderLight: '#222328',
 
   // Misc
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  success: '#22C55E',
-  successFaded: 'rgba(34, 197, 94, 0.12)',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  success: '#34D399',
+  successFaded: 'rgba(52, 211, 153, 0.10)',
 };
 
 export const Spacing = {
@@ -58,9 +63,10 @@ export const Spacing = {
 };
 
 export const Radius = {
+  xs: 6,
   sm: 10,
   md: 14,
-  lg: 18,
+  lg: 20,
   xl: 24,
   pill: 999,
 };
@@ -73,5 +79,33 @@ export const FontSizes = {
   lg: 18,
   xl: 22,
   xxl: 28,
-  hero: 34,
+  hero: 36,
 };
+
+export const Shadows = Platform.select({
+  ios: {
+    sm: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+    },
+    md: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+    },
+    lg: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.16,
+      shadowRadius: 24,
+    },
+  },
+  default: {
+    sm: { elevation: 2 },
+    md: { elevation: 6 },
+    lg: { elevation: 12 },
+  },
+});

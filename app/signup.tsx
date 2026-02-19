@@ -173,40 +173,40 @@ export default function SignupScreen() {
         <View style={styles.inner}>
           <ScaleIn>
             <Text style={styles.title}>Join RidePool</Text>
-            <Text style={styles.subtitle}>I am a...</Text>
+            <Text style={styles.subtitle}>Select your account type</Text>
           </ScaleIn>
 
           <FadeIn delay={200}>
             <PressableScale onPress={() => setRole("student")} style={styles.roleCard}>
-              <View style={styles.roleIconWrap}>
-                <Text style={styles.roleEmoji}>🎒</Text>
-              </View>
-              <View style={styles.roleTextWrap}>
+              <View style={styles.roleAccent} />
+              <View style={styles.roleContent}>
                 <Text style={styles.roleTitle}>Student</Text>
                 <Text style={styles.roleDesc}>I need rides to and from school</Text>
               </View>
-              <Text style={styles.roleArrow}>→</Text>
+              <Text style={styles.roleChevron}>{"\u203A"}</Text>
             </PressableScale>
           </FadeIn>
 
           <FadeIn delay={350}>
             <PressableScale onPress={() => setRole("parent")} style={styles.roleCard}>
-              <View style={styles.roleIconWrap}>
-                <Text style={styles.roleEmoji}>🚗</Text>
-              </View>
-              <View style={styles.roleTextWrap}>
+              <View style={[styles.roleAccent, styles.roleAccentWarm]} />
+              <View style={styles.roleContent}>
                 <Text style={styles.roleTitle}>Parent / Driver</Text>
                 <Text style={styles.roleDesc}>I can drive students to school</Text>
               </View>
-              <Text style={styles.roleArrow}>→</Text>
+              <Text style={styles.roleChevron}>{"\u203A"}</Text>
             </PressableScale>
           </FadeIn>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+          </View>
 
           <FadeIn delay={500}>
             <PressableScale onPress={() => router.back()} style={styles.loginLink}>
               <Text style={styles.linkText}>
-                Already have an account?{" "}
-                <Text style={styles.link}>Log In</Text>
+                Already have an account?{"  "}
+                <Text style={styles.link}>Sign in</Text>
               </Text>
             </PressableScale>
           </FadeIn>
@@ -222,32 +222,79 @@ export default function SignupScreen() {
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView contentContainerStyle={styles.scrollInner}>
+        <ScrollView contentContainerStyle={styles.scrollInner} keyboardShouldPersistTaps="handled">
           <BackButton onPress={() => setRole(null)} />
 
           <FadeIn>
-            <Text style={styles.formTitle}>Student Sign Up</Text>
+            <Text style={styles.formTitle}>Student Account</Text>
             <Text style={styles.formSubtitle}>Use your @pdsb.net school email</Text>
           </FadeIn>
 
-          <FadeIn delay={100}>
-            <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} />
-          </FadeIn>
-          <FadeIn delay={150}>
-            <TextInput style={styles.input} placeholder="School Email (@pdsb.net)" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-          </FadeIn>
-          <FadeIn delay={200}>
-            <TextInput style={styles.input} placeholder="Grade (9-12)" placeholderTextColor={Colors.textTertiary} value={grade} onChangeText={setGrade} keyboardType="number-pad" />
-          </FadeIn>
-          <FadeIn delay={250}>
-            <TextInput style={styles.input} placeholder="Password" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry />
-          </FadeIn>
+          <View style={styles.formSection}>
+            <FadeIn delay={100}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Your full name"
+                  placeholderTextColor={Colors.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
+            </FadeIn>
+
+            <FadeIn delay={150}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>School Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="you@pdsb.net"
+                  placeholderTextColor={Colors.textMuted}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </FadeIn>
+
+            <FadeIn delay={200}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Grade</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="9 - 12"
+                  placeholderTextColor={Colors.textMuted}
+                  value={grade}
+                  onChangeText={setGrade}
+                  keyboardType="number-pad"
+                />
+              </View>
+            </FadeIn>
+
+            <FadeIn delay={250}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Min. 6 characters"
+                  placeholderTextColor={Colors.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+            </FadeIn>
+          </View>
 
           <FadeIn delay={300}>
             <PrimaryButton
-              title={loading ? "Creating Account..." : "Sign Up"}
+              title="Create Account"
               onPress={handleStudentSignup}
               loading={loading}
+              disabled={loading}
+              style={styles.ctaButton}
             />
           </FadeIn>
         </ScrollView>
@@ -261,35 +308,94 @@ export default function SignupScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollInner}>
+      <ScrollView contentContainerStyle={styles.scrollInner} keyboardShouldPersistTaps="handled">
         <BackButton onPress={() => setRole(null)} />
 
         <FadeIn>
-          <Text style={styles.formTitle}>Parent Sign Up</Text>
-          <Text style={styles.formSubtitle}>Link to your child's account</Text>
+          <Text style={styles.formTitle}>Parent Account</Text>
+          <Text style={styles.formSubtitle}>Link to your child's student account</Text>
         </FadeIn>
 
-        <FadeIn delay={100}>
-          <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} />
-        </FadeIn>
-        <FadeIn delay={150}>
-          <TextInput style={styles.input} placeholder="Your Email" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        </FadeIn>
-        <FadeIn delay={200}>
-          <TextInput style={styles.input} placeholder="Phone Number" placeholderTextColor={Colors.textTertiary} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        </FadeIn>
-        <FadeIn delay={250}>
-          <TextInput style={styles.input} placeholder="Child's School Email (@pdsb.net)" placeholderTextColor={Colors.textTertiary} value={childEmail} onChangeText={setChildEmail} keyboardType="email-address" autoCapitalize="none" />
-        </FadeIn>
-        <FadeIn delay={300}>
-          <TextInput style={styles.input} placeholder="Password" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry />
-        </FadeIn>
+        <View style={styles.formSection}>
+          <FadeIn delay={100}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your full name"
+                placeholderTextColor={Colors.textMuted}
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+          </FadeIn>
+
+          <FadeIn delay={150}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@email.com"
+                placeholderTextColor={Colors.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+          </FadeIn>
+
+          <FadeIn delay={200}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="(123) 456-7890"
+                placeholderTextColor={Colors.textMuted}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </FadeIn>
+
+          <FadeIn delay={250}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Child's School Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="child@pdsb.net (optional)"
+                placeholderTextColor={Colors.textMuted}
+                value={childEmail}
+                onChangeText={setChildEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+          </FadeIn>
+
+          <FadeIn delay={300}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Min. 6 characters"
+                placeholderTextColor={Colors.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+          </FadeIn>
+        </View>
 
         <FadeIn delay={350}>
           <PrimaryButton
-            title={loading ? "Creating Account..." : "Sign Up"}
+            title="Create Account"
             onPress={handleParentSignup}
             loading={loading}
+            disabled={loading}
+            style={styles.ctaButton}
           />
         </FadeIn>
       </ScrollView>
@@ -305,100 +411,149 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     justifyContent: "center",
-    padding: Spacing.xl,
+    paddingHorizontal: 28,
   },
   scrollInner: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: Spacing.xl,
+    paddingHorizontal: 28,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
+
+  // ─── Role selection header
   title: {
-    fontSize: FontSizes.xxl,
+    fontSize: 32,
     fontWeight: "800",
     color: Colors.textPrimary,
-    textAlign: "center",
-    letterSpacing: -0.5,
+    letterSpacing: -1,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-    textAlign: "center",
+    color: Colors.textTertiary,
     marginBottom: 36,
   },
+
+  // ─── Role cards
   roleCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    borderRadius: Radius.md,
+    paddingVertical: 20,
+    paddingRight: 20,
+    paddingLeft: 0,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
     flexDirection: "row",
     alignItems: "center",
+    overflow: "hidden",
   },
-  roleIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.base,
+  roleAccent: {
+    width: 3,
+    height: 32,
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
+    marginLeft: 16,
+    marginRight: 16,
   },
-  roleEmoji: {
-    fontSize: 26,
+  roleAccentWarm: {
+    backgroundColor: Colors.info,
   },
-  roleTextWrap: {
+  roleContent: {
     flex: 1,
   },
   roleTitle: {
     fontSize: FontSizes.lg,
     fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   roleDesc: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    color: Colors.textTertiary,
+    lineHeight: 18,
   },
-  roleArrow: {
-    fontSize: 20,
-    color: Colors.primary,
-    fontWeight: "600",
+  roleChevron: {
+    fontSize: 24,
+    color: Colors.textMuted,
+    fontWeight: "300",
+    marginLeft: Spacing.sm,
   },
+
+  // ─── Divider
+  divider: {
+    alignItems: "center",
+    marginVertical: 24,
+  },
+  dividerLine: {
+    width: 40,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+
+  // ─── Login link
   loginLink: {
     alignSelf: "center",
-    paddingVertical: Spacing.base,
-    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   linkText: {
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     fontSize: FontSizes.sm,
+    fontWeight: "400",
   },
   link: {
-    color: Colors.primary,
-    fontWeight: "700",
+    color: Colors.textSecondary,
+    fontWeight: "600",
   },
+
+  // ─── Form headers
   formTitle: {
-    fontSize: FontSizes.xxl,
+    fontSize: 28,
     fontWeight: "800",
     color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     marginBottom: 6,
   },
   formSubtitle: {
     fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-    marginBottom: 28,
+    color: Colors.textTertiary,
+    marginBottom: 8,
+  },
+
+  // ─── Form section
+  formSection: {
+    marginTop: 24,
+    marginBottom: 8,
+  },
+
+  // ─── Inputs
+  inputGroup: {
+    marginBottom: Spacing.base,
+  },
+  inputLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
+    color: Colors.textTertiary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginLeft: 2,
+    textTransform: "uppercase",
   },
   input: {
     backgroundColor: Colors.bgInput,
-    borderRadius: Radius.md,
-    padding: 16,
+    borderRadius: Radius.sm,
+    height: 52,
+    paddingHorizontal: 16,
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+
+  // ─── CTA
+  ctaButton: {
+    marginTop: Spacing.sm,
+    height: 54,
+    borderRadius: Radius.sm,
   },
 });

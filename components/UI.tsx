@@ -14,7 +14,7 @@ import { Colors, Spacing, Radius, FontSizes } from '../lib/theme';
 // ─── Fade-in on mount ─────────────────────────────────────────
 export function FadeIn({
   delay = 0,
-  duration = 400,
+  duration = 500,
   children,
   style,
 }: {
@@ -24,7 +24,7 @@ export function FadeIn({
   style?: ViewStyle;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(18)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -60,7 +60,7 @@ export function ScaleIn({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
-  const scale = useRef(new Animated.Value(0.85)).current;
+  const scale = useRef(new Animated.Value(0.92)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -68,13 +68,13 @@ export function ScaleIn({
       Animated.spring(scale, {
         toValue: 1,
         delay,
-        friction: 8,
-        tension: 100,
+        friction: 10,
+        tension: 80,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 300,
+        duration: 400,
         delay,
         useNativeDriver: true,
       }),
@@ -108,7 +108,7 @@ export function PressableScale({
 
   const handlePressIn = () => {
     Animated.spring(scale, {
-      toValue: 0.96,
+      toValue: 0.97,
       friction: 8,
       useNativeDriver: true,
     }).start();
@@ -124,7 +124,7 @@ export function PressableScale({
 
   return (
     <AnimatedTouchable
-      activeOpacity={0.8}
+      activeOpacity={0.85}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
@@ -241,7 +241,7 @@ export function Card({
     ? highlight === 'primary' ? Colors.primaryBorder
       : highlight === 'accent' ? Colors.accentBorder
       : highlight === 'info' ? Colors.infoBorder
-      : Colors.warm
+      : Colors.warmBorder
     : Colors.border;
 
   return (
@@ -267,8 +267,8 @@ export function Banner({
 }) {
   const variantStyles = {
     info: { bg: Colors.infoFaded, border: Colors.infoBorder, text: Colors.info },
-    warning: { bg: Colors.warmFaded, border: Colors.warm, text: Colors.warm },
-    success: { bg: Colors.successFaded, border: Colors.success, text: Colors.success },
+    warning: { bg: Colors.warmFaded, border: Colors.warmBorder, text: Colors.warm },
+    success: { bg: Colors.successFaded, border: Colors.primaryBorder, text: Colors.success },
     error: { bg: Colors.accentFaded, border: Colors.accentBorder, text: Colors.accent },
   };
   const v = variantStyles[variant];
@@ -292,7 +292,9 @@ export function SectionHeader({ title, style }: { title: string; style?: TextSty
 export function BackButton({ onPress }: { onPress: () => void }) {
   return (
     <TouchableOpacity onPress={onPress} style={s.backBtn} activeOpacity={0.6}>
-      <Text style={s.backBtnText}>← Back</Text>
+      <View style={s.backBtnCircle}>
+        <Text style={s.backBtnArrow}>{'<'}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -302,9 +304,14 @@ export function LoadingScreen({ message }: { message?: string }) {
   return (
     <View style={s.loadingScreen}>
       <ScaleIn>
-        <Text style={s.loadingLogo}>RidePool</Text>
+        <View style={s.loadingLogoWrap}>
+          <Text style={s.loadingLogoIcon}>R</Text>
+        </View>
       </ScaleIn>
-      <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 24 }} />
+      <FadeIn delay={200}>
+        <Text style={s.loadingLogo}>RidePool</Text>
+      </FadeIn>
+      <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
       {message && <Text style={s.loadingMessage}>{message}</Text>}
     </View>
   );
@@ -328,24 +335,24 @@ const s = StyleSheet.create({
     color: Colors.bg,
     fontSize: FontSizes.base,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   secondaryBtn: {
-    backgroundColor: Colors.primaryFaded,
+    backgroundColor: 'transparent',
     borderRadius: Radius.md,
     paddingVertical: 16,
     paddingHorizontal: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     minHeight: 54,
   },
   secondaryBtnText: {
-    color: Colors.primary,
+    color: Colors.textPrimary,
     fontSize: FontSizes.base,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   dangerBtn: {
     backgroundColor: Colors.accentFaded,
@@ -360,10 +367,10 @@ const s = StyleSheet.create({
   dangerBtnText: {
     color: Colors.accent,
     fontSize: FontSizes.base,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   btnDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
   card: {
     backgroundColor: Colors.bgCard,
@@ -394,18 +401,27 @@ const s = StyleSheet.create({
     fontSize: FontSizes.lg,
     fontWeight: '700',
     marginBottom: Spacing.md,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   backBtn: {
     alignSelf: 'flex-start',
-    paddingVertical: Spacing.sm,
-    paddingRight: Spacing.base,
     marginBottom: Spacing.lg,
   },
-  backBtnText: {
-    color: Colors.primary,
-    fontSize: FontSizes.base,
+  backBtnCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnArrow: {
+    color: Colors.textSecondary,
+    fontSize: 16,
     fontWeight: '600',
+    marginLeft: -1,
   },
   loadingScreen: {
     flex: 1,
@@ -413,15 +429,30 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingLogo: {
-    fontSize: 32,
+  loadingLogoWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.base,
+  },
+  loadingLogoIcon: {
+    fontSize: 26,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.bg,
+  },
+  loadingLogo: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     letterSpacing: -0.5,
+    textAlign: 'center',
   },
   loadingMessage: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.md,
-    marginTop: Spacing.base,
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    marginTop: Spacing.md,
   },
 });

@@ -258,6 +258,7 @@ export default function MyGroup() {
     >
       <BackButton onPress={() => router.back()} />
 
+      {/* Title & metadata */}
       <FadeIn>
         <Text style={styles.title}>{group?.name}</Text>
         <View style={styles.meta}>
@@ -276,13 +277,15 @@ export default function MyGroup() {
               {group?.status === "forming" ? "Forming" : "Active"}
             </Text>
           </View>
+          <View style={styles.metaDot} />
           <Text style={styles.memberCount}>
-            {members.length} / {group?.max_members} families
+            {members.length}/{group?.max_members} families
           </Text>
           {isAdmin && (
-            <View style={styles.adminSelfBadge}>
-              <Text style={styles.adminSelfText}>You're Admin</Text>
-            </View>
+            <>
+              <View style={styles.metaDot} />
+              <Text style={styles.adminSelfText}>Admin</Text>
+            </>
           )}
         </View>
       </FadeIn>
@@ -290,24 +293,16 @@ export default function MyGroup() {
       {/* School Destination */}
       <FadeIn delay={80}>
         <View style={styles.schoolCard}>
-          <View style={styles.schoolRow}>
-            <View style={styles.schoolIcon}>
-              <Text style={{ fontSize: 18 }}>🏫</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.schoolLabel}>SCHOOL DESTINATION</Text>
-              <Text style={styles.schoolName}>{SCHOOL.name}</Text>
-              <Text style={styles.schoolAddr}>{SCHOOL.address}</Text>
-            </View>
-          </View>
+          <Text style={styles.schoolLabel}>SCHOOL</Text>
+          <Text style={styles.schoolName}>{SCHOOL.name}</Text>
+          <Text style={styles.schoolAddr}>{SCHOOL.address}</Text>
           <PressableScale
             onPress={() =>
               openDirections(SCHOOL.address, SCHOOL.lat, SCHOOL.lng)
             }
             style={styles.directionsBtn}
           >
-            <Text style={{ fontSize: 14 }}>🧭</Text>
-            <Text style={styles.directionsBtnText}>Get Directions to School</Text>
+            <Text style={styles.directionsBtnText}>Get Directions</Text>
           </PressableScale>
         </View>
       </FadeIn>
@@ -319,44 +314,49 @@ export default function MyGroup() {
             onPress={handleGetAllDirections}
             style={styles.routeAllBtn}
           >
-            <Text style={{ fontSize: 16 }}>🗺️</Text>
-            <View style={{ flex: 1, marginLeft: Spacing.md }}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.routeAllTitle}>
                 Route to All Students
               </Text>
               <Text style={styles.routeAllSub}>
-                Opens maps with multi-stop directions
+                Multi-stop directions in maps
               </Text>
             </View>
-            <Text style={{ color: Colors.bg, fontWeight: "700", fontSize: 16 }}>
-              →
-            </Text>
+            <View style={styles.routeAllArrow}>
+              <Text style={styles.routeAllArrowText}>{">"}</Text>
+            </View>
           </PressableScale>
         </FadeIn>
       )}
 
+      {/* Families */}
       <FadeIn delay={150}>
         <SectionHeader title="Families" />
         {members.map((member: any, i: number) => (
           <FadeIn key={member.id} delay={200 + i * 60}>
-            <Card>
+            <View style={styles.memberCard}>
+              {/* Student info */}
               <View style={styles.memberHeader}>
-                <Text style={styles.memberName}>
-                  🎒 {member.students?.name || "Student"}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.memberName}>
+                    {member.students?.name || "Student"}
+                  </Text>
+                  <Text style={styles.memberGrade}>
+                    Grade {member.students?.grade}
+                  </Text>
+                </View>
                 {member.role === "admin" && (
                   <View style={styles.adminBadge}>
                     <Text style={styles.adminText}>Admin</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.memberGrade}>
-                Grade {member.students?.grade}
-              </Text>
+
+              {/* Address */}
               {member.students?.saved_pickup_address && (
                 <View style={styles.addrRow}>
-                  <Text style={styles.memberAddr}>
-                    📍 {member.students.saved_pickup_address}
+                  <Text style={styles.memberAddr} numberOfLines={2}>
+                    {member.students.saved_pickup_address}
                   </Text>
                   {userRole === "parent" && (
                     <PressableScale
@@ -374,20 +374,24 @@ export default function MyGroup() {
                   )}
                 </View>
               )}
+
+              {/* Parent info */}
               {member.parents ? (
                 <View style={styles.parentBox}>
+                  <Text style={styles.parentLabel}>Parent</Text>
                   <Text style={styles.parentName}>
-                    🚗 {member.parents.name}
+                    {member.parents.name}
                   </Text>
                   {userRole === "parent" && (
-                    <>
+                    <View style={styles.parentContactRow}>
                       <Text style={styles.parentContact}>
-                        📞 {member.parents.phone}
+                        {member.parents.phone}
                       </Text>
+                      <View style={styles.contactDot} />
                       <Text style={styles.parentContact}>
-                        ✉️ {member.parents.email}
+                        {member.parents.email}
                       </Text>
-                    </>
+                    </View>
                   )}
                 </View>
               ) : (
@@ -395,15 +399,15 @@ export default function MyGroup() {
                   Parent hasn't joined yet
                 </Text>
               )}
-            </Card>
+            </View>
           </FadeIn>
         ))}
       </FadeIn>
 
+      {/* Banners */}
       {familiesWithoutParents.length > 0 && (
         <FadeIn delay={400}>
           <Banner
-            icon="⚠️"
             title="Waiting on parents"
             message={`${familiesWithoutParents.length} ${
               familiesWithoutParents.length === 1
@@ -418,25 +422,23 @@ export default function MyGroup() {
       {familiesWithParents.length >= 2 && group?.status === "forming" && (
         <FadeIn delay={450}>
           <Banner
-            icon="🎉"
-            title="Almost ready!"
+            title="Almost ready"
             message={`You have ${familiesWithParents.length} families with parents. Once parents set their availability, the app can generate a schedule.`}
             variant="success"
           />
         </FadeIn>
       )}
 
+      {/* Actions */}
       <FadeIn delay={500}>
         <PrimaryButton
           title="Invite More Students"
-          icon="🔍"
           onPress={() => router.push("/discover")}
           style={{ marginBottom: Spacing.md }}
         />
         {group?.status === "active" && (
           <SecondaryButton
             title="View Weekly Schedule"
-            icon="📅"
             onPress={() =>
               router.push(`/weekly-schedule?groupId=${groupId}`)
             }
@@ -449,16 +451,15 @@ export default function MyGroup() {
       {isAdmin && (
         <FadeIn delay={600}>
           <View style={styles.dangerSection}>
-            <Text style={styles.dangerLabel}>ADMIN</Text>
-            <DangerButton
-              title={deleting ? "Deleting..." : "Delete This Group"}
-              onPress={confirmDeleteGroup}
-              style={{ marginTop: Spacing.sm }}
-            />
+            <Text style={styles.dangerLabel}>DANGER ZONE</Text>
             <Text style={styles.dangerHint}>
-              Permanently removes the group, all members, messages, and
-              schedules. This cannot be undone.
+              Permanently removes the group and all associated data. This cannot be undone.
             </Text>
+            <DangerButton
+              title={deleting ? "Deleting..." : "Delete Group"}
+              onPress={confirmDeleteGroup}
+              style={{ marginTop: Spacing.md }}
+            />
           </View>
         </FadeIn>
       )}
@@ -469,47 +470,58 @@ export default function MyGroup() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 48 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 48,
+  },
+
+  /* Title area */
   title: {
     fontSize: FontSizes.xxl,
     fontWeight: "800",
     color: Colors.textPrimary,
     letterSpacing: -0.5,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   meta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
     marginBottom: Spacing.xl,
-    flexWrap: "wrap",
+  },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.textTertiary,
+    marginHorizontal: 10,
   },
   statusPill: {
     backgroundColor: Colors.warmFaded,
     borderRadius: Radius.pill,
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 10,
   },
-  statusActive: { backgroundColor: Colors.successFaded },
+  statusActive: {
+    backgroundColor: Colors.successFaded,
+  },
   statusText: {
     color: Colors.warm,
     fontSize: FontSizes.xs,
-    fontWeight: "700",
+    fontWeight: "600",
   },
-  memberCount: { color: Colors.textSecondary, fontSize: FontSizes.sm },
-  adminSelfBadge: {
-    backgroundColor: Colors.primaryFaded,
-    borderRadius: Radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+  memberCount: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
   },
   adminSelfText: {
     color: Colors.primary,
-    fontSize: FontSizes.xs,
-    fontWeight: "700",
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
   },
 
   /* School card */
@@ -517,30 +529,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  schoolRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.md,
-  },
-  schoolIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: Colors.infoFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
-  },
   schoolLabel: {
     fontSize: FontSizes.xs,
-    color: Colors.info,
-    fontWeight: "700",
+    color: Colors.textTertiary,
+    fontWeight: "600",
     letterSpacing: 0.8,
-    marginBottom: 2,
+    marginBottom: 6,
   },
   schoolName: {
     fontSize: FontSizes.base,
@@ -551,27 +549,28 @@ const styles = StyleSheet.create({
   schoolAddr: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
+    marginBottom: Spacing.base,
+    lineHeight: 18,
   },
   directionsBtn: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: Colors.bgElevated,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.md,
-    gap: 8,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.lg,
+    alignSelf: "flex-start",
   },
   directionsBtnText: {
     fontSize: FontSizes.sm,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.primary,
   },
 
   /* Route all button */
   routeAllBtn: {
     backgroundColor: Colors.primary,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.base,
+    paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.xl,
     flexDirection: "row",
     alignItems: "center",
@@ -584,15 +583,37 @@ const styles = StyleSheet.create({
   },
   routeAllSub: {
     fontSize: FontSizes.sm,
-    color: "rgba(15,17,32,0.6)",
+    color: "rgba(17, 18, 20, 0.55)",
+  },
+  routeAllArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(17, 18, 20, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: Spacing.md,
+  },
+  routeAllArrowText: {
+    color: Colors.bg,
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 1,
   },
 
-  /* Members */
+  /* Member cards */
+  memberCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
   memberHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
+    alignItems: "flex-start",
+    marginBottom: 2,
   },
   memberName: {
     color: Colors.textPrimary,
@@ -600,51 +621,57 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   adminBadge: {
-    backgroundColor: Colors.primary,
-    borderRadius: 6,
+    backgroundColor: Colors.primaryFaded,
+    borderRadius: Radius.xs,
     paddingVertical: 3,
     paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
   },
   adminText: {
-    color: Colors.bg,
+    color: Colors.primary,
     fontSize: FontSizes.xs,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   memberGrade: {
-    color: Colors.primary,
+    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
-    fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   addrRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
-    gap: 8,
+    gap: 10,
   },
   memberAddr: {
     color: Colors.textTertiary,
     fontSize: FontSizes.sm,
     flex: 1,
+    lineHeight: 18,
   },
   dirBtnSmall: {
-    backgroundColor: Colors.primaryFaded,
-    borderRadius: 8,
+    backgroundColor: Colors.bgElevated,
+    borderRadius: Radius.pill,
     paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    paddingHorizontal: 14,
   },
   dirBtnSmallText: {
     fontSize: FontSizes.xs,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.primary,
   },
   parentBox: {
     backgroundColor: Colors.bgElevated,
     borderRadius: Radius.sm,
     padding: Spacing.md,
-    marginTop: 8,
+    marginTop: 6,
+  },
+  parentLabel: {
+    fontSize: FontSizes.xs,
+    color: Colors.textTertiary,
+    fontWeight: "500",
+    marginBottom: 2,
   },
   parentName: {
     color: Colors.textPrimary,
@@ -652,16 +679,30 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
+  parentContactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
   parentContact: {
     color: Colors.textSecondary,
     fontSize: FontSizes.sm,
-    marginBottom: 2,
+  },
+  contactDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.textTertiary,
+    marginHorizontal: 8,
   },
   noParent: {
-    color: Colors.accent,
+    color: Colors.textTertiary,
     fontSize: FontSizes.sm,
+    fontStyle: "italic",
     marginTop: 8,
   },
+
+  /* Danger section */
   dangerSection: {
     marginTop: Spacing.xxl,
     paddingTop: Spacing.xl,
@@ -670,15 +711,14 @@ const styles = StyleSheet.create({
   },
   dangerLabel: {
     fontSize: FontSizes.xs,
-    fontWeight: "700",
-    color: Colors.textTertiary,
-    letterSpacing: 1,
-    marginBottom: Spacing.sm,
+    fontWeight: "600",
+    color: Colors.accent,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
   },
   dangerHint: {
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
-    marginTop: Spacing.sm,
     lineHeight: 18,
   },
 });

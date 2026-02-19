@@ -20,11 +20,12 @@ import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
 import {
   FadeIn,
   PrimaryButton,
+  BackButton,
   PressableScale,
   LoadingScreen,
 } from "../components/UI";
 
-// ─── Google Places helpers ────────────────────────────────────
+// --- Google Places helpers ---
 const hasGoogleKey =
   GOOGLE_API_KEY && GOOGLE_API_KEY !== "YOUR_GOOGLE_API_KEY_HERE";
 
@@ -73,7 +74,7 @@ const fetchPlaceCoords = async (
   }
 };
 
-// ─── Fallback geocoding (no API key) ──────────────────────────
+// --- Fallback geocoding (no API key) ---
 const geocodeFallback = async (
   addr: string
 ): Promise<{ lat: number; lng: number } | null> => {
@@ -86,7 +87,7 @@ const geocodeFallback = async (
   return null;
 };
 
-// ─── Component ────────────────────────────────────────────────
+// --- Component ---
 export default function SetupLocation() {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -308,13 +309,11 @@ export default function SetupLocation() {
       {/* Header */}
       <FadeIn>
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} style={styles.backArea}>
-            <Text style={styles.backText}>← Back</Text>
-          </PressableScale>
+          <BackButton onPress={() => router.back()} />
           <Text style={styles.title}>Pickup Location</Text>
           <Text style={styles.subtitle}>
-            Start typing your address and select from suggestions. The pin will
-            move to match. You can also drag the pin to fine-tune.
+            Start typing your address and select from suggestions. You can also
+            drag the pin to fine-tune.
           </Text>
         </View>
       </FadeIn>
@@ -357,9 +356,7 @@ export default function SetupLocation() {
                     idx < suggestions.length - 1 && styles.suggestionBorder,
                   ]}
                 >
-                  <View style={styles.suggestionIcon}>
-                    <Text style={{ fontSize: 14 }}>📍</Text>
-                  </View>
+                  <View style={styles.suggestionDot} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.suggestionMain} numberOfLines={1}>
                       {s.main_text}
@@ -410,7 +407,7 @@ export default function SetupLocation() {
       {/* Confirmed address strip */}
       {selectedFromSuggestions && (
         <View style={styles.confirmedStrip}>
-          <Text style={{ fontSize: 13 }}>✅</Text>
+          <View style={styles.confirmedDot} />
           <Text style={styles.confirmedText} numberOfLines={1}>
             {address}
           </Text>
@@ -430,13 +427,16 @@ export default function SetupLocation() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  header: { padding: Spacing.xl, paddingTop: 56, paddingBottom: Spacing.sm },
-  backArea: { marginBottom: Spacing.md },
-  backText: {
-    color: Colors.primary,
-    fontSize: FontSizes.base,
-    fontWeight: "600",
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+
+  // Header
+  header: {
+    padding: Spacing.xl,
+    paddingTop: 56,
+    paddingBottom: Spacing.sm,
   },
   title: {
     fontSize: FontSizes.xl,
@@ -451,6 +451,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  // Address section
   addressSection: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.sm,
@@ -482,6 +483,7 @@ const styles = StyleSheet.create({
     top: 16,
   },
 
+  // Suggestions
   suggestionsContainer: {
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
@@ -489,7 +491,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginTop: 4,
     overflow: "hidden",
-    // Shadow
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -511,13 +512,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  suggestionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
+  suggestionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
     marginRight: Spacing.md,
   },
   suggestionMain: {
@@ -541,23 +540,36 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
 
-  map: { flex: 1 },
+  // Map
+  map: {
+    flex: 1,
+  },
 
+  // Confirmed strip
   confirmedStrip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.successFaded,
+    backgroundColor: Colors.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
     paddingVertical: 10,
     paddingHorizontal: Spacing.xl,
-    gap: 8,
+    gap: 10,
+  },
+  confirmedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
   },
   confirmedText: {
     fontSize: FontSizes.sm,
-    color: Colors.success,
+    color: Colors.textSecondary,
     fontWeight: "600",
     flex: 1,
   },
 
+  // Footer
   footer: {
     padding: Spacing.xl,
     backgroundColor: Colors.bg,
