@@ -184,7 +184,7 @@ export default function ParentHome() {
       {/* Header */}
       <ScaleIn>
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
+          <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.name}>{parentName || "Parent"}</Text>
           </View>
@@ -192,7 +192,7 @@ export default function ParentHome() {
             onPress={() => router.push("/settings")}
             style={styles.settingsBtn}
           >
-            <Text style={{ fontSize: 18 }}>⚙️</Text>
+            <Text style={styles.settingsIcon}>S</Text>
           </PressableScale>
         </View>
       </ScaleIn>
@@ -200,17 +200,15 @@ export default function ParentHome() {
       {/* No child linked */}
       {!childName && (
         <FadeIn delay={80}>
-          <View style={[styles.emptyCard, { borderColor: Colors.warm + "40" }]}>
-            <View
-              style={[styles.emptyIcon, { backgroundColor: Colors.warmFaded }]}
-            >
-              <Text style={{ fontSize: 28 }}>⚠️</Text>
+          <View style={styles.warningCard}>
+            <View style={styles.warningAccent} />
+            <View style={styles.warningBody}>
+              <Text style={styles.warningTitle}>No child linked</Text>
+              <Text style={styles.warningText}>
+                Your account isn't linked to a student yet. Make sure your child
+                signs up first with their school email.
+              </Text>
             </View>
-            <Text style={styles.emptyTitle}>No child linked</Text>
-            <Text style={styles.emptyText}>
-              Your account isn't linked to a student yet. Make sure your child
-              signs up first with their school email.
-            </Text>
           </View>
         </FadeIn>
       )}
@@ -220,119 +218,145 @@ export default function ParentHome() {
         ? groups.map((g, idx) => (
             <FadeIn key={g.id} delay={80 + idx * 80}>
               <View style={styles.groupCard}>
-                <PressableScale
-                  onPress={() => router.push(`/my-group?groupId=${g.id}`)}
-                  style={styles.groupCardInner}
-                >
-                  <View style={styles.groupTop}>
-                    <View style={styles.groupIcon}>
-                      <Text style={{ fontSize: 20 }}>👥</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.groupName}>{g.name}</Text>
-                      <Text style={styles.groupSub}>
-                        {g.memberCount}{" "}
-                        {g.memberCount === 1 ? "family" : "families"} ·{" "}
-                        {g.parentCount} parent{g.parentCount !== 1 ? "s" : ""}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.pill,
-                        g.status === "active" ? styles.pillActive : {},
-                      ]}
-                    >
-                      <Text
+                <View
+                  style={[
+                    styles.groupAccent,
+                    {
+                      backgroundColor:
+                        g.status === "active"
+                          ? Colors.primary
+                          : Colors.warm,
+                    },
+                  ]}
+                />
+                <View style={styles.groupBody}>
+                  <PressableScale
+                    onPress={() => router.push(`/my-group?groupId=${g.id}`)}
+                    style={styles.groupCardInner}
+                  >
+                    <View style={styles.groupTop}>
+                      <View style={styles.groupMeta}>
+                        <Text style={styles.groupName}>{g.name}</Text>
+                        <Text style={styles.groupSub}>
+                          {g.memberCount}{" "}
+                          {g.memberCount === 1 ? "family" : "families"}
+                          {"  "}
+                          <Text style={styles.groupSubDivider}>/</Text>
+                          {"  "}
+                          {g.parentCount} parent{g.parentCount !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
+                      <View
                         style={[
-                          styles.pillText,
-                          g.status === "active" ? styles.pillActiveText : {},
+                          styles.statusBadge,
+                          g.status === "active"
+                            ? styles.statusBadgeActive
+                            : styles.statusBadgeForming,
                         ]}
                       >
-                        {g.status === "forming" ? "Forming" : "Active"}
-                      </Text>
+                        <View
+                          style={[
+                            styles.statusDot,
+                            {
+                              backgroundColor:
+                                g.status === "active"
+                                  ? Colors.primary
+                                  : Colors.warm,
+                            },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            {
+                              color:
+                                g.status === "active"
+                                  ? Colors.primary
+                                  : Colors.warm,
+                            },
+                          ]}
+                        >
+                          {g.status === "forming" ? "Forming" : "Active"}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  {/* School destination */}
-                  <View style={styles.schoolStrip}>
-                    <Text style={{ fontSize: 13 }}>🏫</Text>
-                    <Text style={styles.schoolText}>{SCHOOL.name}</Text>
-                  </View>
-
-                  {pickupAddress && idx === 0 && (
-                    <View style={styles.pickupStrip}>
-                      <Text style={{ fontSize: 13 }}>📍</Text>
-                      <Text style={styles.pickupText} numberOfLines={1}>
-                        {pickupAddress}
-                      </Text>
-                      <Text style={styles.pickupEdit}>Edit</Text>
+                    {/* School destination */}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Destination</Text>
+                      <Text style={styles.detailValue}>{SCHOOL.name}</Text>
                     </View>
-                  )}
-                </PressableScale>
 
-                {/* Availability CTA */}
-                {!g.hasAvailability && (
-                  <PressableScale
-                    onPress={() =>
-                      router.push(`/availability?groupId=${g.id}`)
-                    }
-                    style={styles.ctaStrip}
-                  >
-                    <Text style={{ fontSize: 14 }}>🗓️</Text>
-                    <Text style={styles.ctaStripText}>
-                      Set your availability
-                    </Text>
-                    <Text style={styles.ctaStripArrow}>→</Text>
-                  </PressableScale>
-                )}
-
-                {/* Inline quick actions */}
-                <View style={styles.groupActions}>
-                  <PressableScale
-                    onPress={() =>
-                      router.push(`/availability?groupId=${g.id}`)
-                    }
-                    style={styles.groupActionBtn}
-                  >
-                    <Text style={{ fontSize: 14 }}>
-                      {g.hasAvailability ? "✏️" : "🗓️"}
-                    </Text>
-                    <Text style={styles.groupActionText}>
-                      {g.hasAvailability ? "Edit" : "Availability"}
-                    </Text>
+                    {pickupAddress && idx === 0 && (
+                      <View style={styles.pickupRow}>
+                        <View style={styles.pickupInfo}>
+                          <Text style={styles.detailLabel}>Pickup</Text>
+                          <Text style={styles.pickupValue} numberOfLines={1}>
+                            {pickupAddress}
+                          </Text>
+                        </View>
+                        <Text style={styles.pickupEdit}>Edit</Text>
+                      </View>
+                    )}
                   </PressableScale>
 
-                  <PressableScale
-                    onPress={() =>
-                      router.push(`/group-chat?groupId=${g.id}`)
-                    }
-                    style={styles.groupActionBtn}
-                  >
-                    <Text style={{ fontSize: 14 }}>💬</Text>
-                    <Text style={styles.groupActionText}>Chat</Text>
-                  </PressableScale>
-
-                  {g.hasAvailability && (
+                  {/* Availability CTA */}
+                  {!g.hasAvailability && (
                     <PressableScale
                       onPress={() =>
-                        router.push(`/weekly-schedule?groupId=${g.id}`)
+                        router.push(`/availability?groupId=${g.id}`)
                       }
-                      style={styles.groupActionBtn}
+                      style={styles.ctaStrip}
                     >
-                      <Text style={{ fontSize: 14 }}>📅</Text>
-                      <Text style={styles.groupActionText}>This Week</Text>
+                      <Text style={styles.ctaStripText}>
+                        Set your availability
+                      </Text>
+                      <Text style={styles.ctaStripArrow}>{"\u2192"}</Text>
                     </PressableScale>
                   )}
 
-                  <PressableScale
-                    onPress={() =>
-                      router.push(`/my-group?groupId=${g.id}`)
-                    }
-                    style={styles.groupActionBtn}
-                  >
-                    <Text style={{ fontSize: 14 }}>👥</Text>
-                    <Text style={styles.groupActionText}>Members</Text>
-                  </PressableScale>
+                  {/* Inline quick actions */}
+                  <View style={styles.groupActions}>
+                    <PressableScale
+                      onPress={() =>
+                        router.push(`/availability?groupId=${g.id}`)
+                      }
+                      style={styles.actionPill}
+                    >
+                      <Text style={styles.actionPillText}>
+                        {g.hasAvailability ? "Edit" : "Availability"}
+                      </Text>
+                    </PressableScale>
+
+                    <PressableScale
+                      onPress={() =>
+                        router.push(`/group-chat?groupId=${g.id}`)
+                      }
+                      style={styles.actionPill}
+                    >
+                      <Text style={styles.actionPillText}>Chat</Text>
+                    </PressableScale>
+
+                    {g.hasAvailability && (
+                      <PressableScale
+                        onPress={() =>
+                          router.push(`/weekly-schedule?groupId=${g.id}`)
+                        }
+                        style={styles.actionPill}
+                      >
+                        <Text style={styles.actionPillText}>This Week</Text>
+                      </PressableScale>
+                    )}
+
+                    <PressableScale
+                      onPress={() =>
+                        router.push(`/my-group?groupId=${g.id}`)
+                      }
+                      style={styles.actionPill}
+                    >
+                      <Text style={styles.actionPillText}>Members</Text>
+                    </PressableScale>
+                  </View>
                 </View>
               </View>
             </FadeIn>
@@ -340,9 +364,6 @@ export default function ParentHome() {
         : childName && (
             <FadeIn delay={80}>
               <View style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
-                  <Text style={{ fontSize: 28 }}>📋</Text>
-                </View>
                 <Text style={styles.emptyTitle}>No carpool group yet</Text>
                 <Text style={styles.emptyText}>
                   Your child hasn't joined a carpool group yet. They can create
@@ -355,7 +376,7 @@ export default function ParentHome() {
       {/* Status Overview */}
       {hasGroups && (
         <FadeIn delay={180 + groups.length * 80}>
-          <Text style={styles.sectionLabel}>STATUS OVERVIEW</Text>
+          <Text style={styles.sectionLabel}>Status overview</Text>
           <View style={styles.statusCard}>
             {groups.map((g, idx) => (
               <View key={g.id}>
@@ -366,7 +387,7 @@ export default function ParentHome() {
                 <View style={styles.statusRow}>
                   <View
                     style={[
-                      styles.statusDot,
+                      styles.statusIndicator,
                       {
                         backgroundColor: g.hasAvailability
                           ? Colors.success
@@ -383,7 +404,7 @@ export default function ParentHome() {
                 <View style={styles.statusRow}>
                   <View
                     style={[
-                      styles.statusDot,
+                      styles.statusIndicator,
                       {
                         backgroundColor:
                           g.parentCount >= g.memberCount
@@ -401,7 +422,7 @@ export default function ParentHome() {
                 <View style={styles.statusRow}>
                   <View
                     style={[
-                      styles.statusDot,
+                      styles.statusIndicator,
                       {
                         backgroundColor:
                           g.status === "active" ? Colors.success : Colors.info,
@@ -423,7 +444,7 @@ export default function ParentHome() {
       {/* Steps (no group, child linked) */}
       {!hasGroups && childName && (
         <FadeIn delay={200}>
-          <Text style={styles.sectionLabel}>WHAT HAPPENS NEXT</Text>
+          <Text style={styles.sectionLabel}>What happens next</Text>
           <View style={styles.stepsCard}>
             {[
               {
@@ -446,7 +467,7 @@ export default function ParentHome() {
                 <View style={styles.stepNum}>
                   <Text style={styles.stepNumText}>{i + 1}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
                   <Text style={styles.stepSub}>{step.sub}</Text>
                 </View>
@@ -459,7 +480,6 @@ export default function ParentHome() {
       {/* Tip */}
       <FadeIn delay={340}>
         <View style={styles.tipCard}>
-          <Text style={{ fontSize: 16, marginRight: Spacing.md }}>💡</Text>
           <Text style={styles.tipText}>
             {hasGroups
               ? "Pull down to refresh. Tap any group card to see member details, addresses, and get directions."
@@ -474,166 +494,249 @@ export default function ParentHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 40 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
 
+  /* ---- Header ---- */
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.xxl,
+  },
+  headerLeft: {
+    flex: 1,
   },
   greeting: {
     fontSize: FontSizes.sm,
-    color: Colors.primary,
-    fontWeight: "600",
-    marginBottom: 2,
+    color: Colors.textTertiary,
+    fontWeight: "500",
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
   name: {
     fontSize: FontSizes.xxl,
-    fontWeight: "800",
+    fontWeight: "700",
     color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
+  settingsIcon: {
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+    color: Colors.textTertiary,
+  },
 
-  groupCard: {
+  /* ---- Warning (no child) ---- */
+  warningCard: {
+    flexDirection: "row",
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.warmBorder,
+    overflow: "hidden",
+  },
+  warningAccent: {
+    width: 3,
+    backgroundColor: Colors.warm,
+  },
+  warningBody: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  warningTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  warningText: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+
+  /* ---- Group Cards ---- */
+  groupCard: {
+    flexDirection: "row",
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: "hidden",
   },
-  groupCardInner: { padding: Spacing.lg },
-  groupTop: { flexDirection: "row", alignItems: "center" },
-  groupIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
+  groupAccent: {
+    width: 3,
+    backgroundColor: Colors.primary,
+  },
+  groupBody: {
+    flex: 1,
+  },
+  groupCardInner: {
+    padding: Spacing.base,
+    paddingBottom: Spacing.md,
+  },
+  groupTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  groupMeta: {
+    flex: 1,
     marginRight: Spacing.md,
   },
   groupName: {
     fontSize: FontSizes.lg,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  groupSub: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  pill: {
-    backgroundColor: Colors.warmFaded,
+  groupSub: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+  },
+  groupSubDivider: {
+    color: Colors.textTertiary,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: Radius.pill,
     paddingVertical: 4,
     paddingHorizontal: 10,
+    gap: 6,
   },
-  pillActive: { backgroundColor: Colors.successFaded },
-  pillText: { color: Colors.warm, fontSize: FontSizes.xs, fontWeight: "700" },
-  pillActiveText: { color: Colors.success },
-  schoolStrip: {
+  statusBadgeActive: {
+    backgroundColor: Colors.primaryFaded,
+  },
+  statusBadgeForming: {
+    backgroundColor: Colors.warmFaded,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
+  },
+  detailRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: Spacing.md,
-    gap: 8,
+    gap: Spacing.sm,
   },
-  schoolText: {
-    fontSize: FontSizes.sm,
+  detailLabel: {
+    fontSize: FontSizes.xs,
     color: Colors.textTertiary,
     fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    width: 80,
   },
-  pickupStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.bgElevated,
-    borderRadius: 10,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  pickupText: {
+  detailValue: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
+    fontWeight: "500",
     flex: 1,
-    marginLeft: 8,
+  },
+  pickupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  pickupInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: Spacing.sm,
+  },
+  pickupValue: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+    flex: 1,
   },
   pickupEdit: {
     fontSize: FontSizes.sm,
     color: Colors.primary,
     fontWeight: "600",
   },
+
+  /* ---- Availability CTA ---- */
   ctaStrip: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
+    paddingVertical: 11,
+    paddingHorizontal: Spacing.base,
   },
   ctaStripText: {
     fontSize: FontSizes.sm,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.bg,
     flex: 1,
   },
   ctaStripArrow: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: FontSizes.base,
+    fontWeight: "600",
     color: Colors.bg,
   },
+
+  /* ---- Group Actions ---- */
   groupActions: {
     flexDirection: "row",
-    padding: Spacing.md,
-    paddingTop: 0,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: Spacing.md,
     gap: Spacing.sm,
     flexWrap: "wrap",
   },
-  groupActionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+  actionPill: {
     backgroundColor: Colors.bgElevated,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 6,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
-  groupActionText: {
+  actionPillText: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: "500",
   },
 
+  /* ---- Empty State ---- */
   emptyCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.xxl,
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
   },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
-  },
   emptyTitle: {
     fontSize: FontSizes.lg,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: FontSizes.sm,
@@ -642,27 +745,32 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  /* ---- Section Labels ---- */
   sectionLabel: {
     fontSize: FontSizes.xs,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textTertiary,
-    letterSpacing: 1,
+    letterSpacing: 0.3,
     marginBottom: Spacing.md,
     marginTop: Spacing.lg,
+    textTransform: "uppercase",
   },
 
+  /* ---- Status Overview ---- */
   statusCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: Spacing.lg,
   },
-  statusGroupHeader: { marginBottom: Spacing.sm },
+  statusGroupHeader: {
+    marginBottom: Spacing.sm,
+  },
   statusGroupName: {
     fontSize: FontSizes.sm,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
   },
   statusRow: {
@@ -675,9 +783,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     marginVertical: Spacing.md,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
+  statusIndicator: {
+    width: 7,
+    height: 7,
     borderRadius: 4,
     marginRight: Spacing.md,
   },
@@ -687,9 +795,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  /* ---- Steps ---- */
   stepsCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -701,9 +810,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   stepNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Colors.primaryFaded,
     alignItems: "center",
     justifyContent: "center",
@@ -711,28 +820,31 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   stepNumText: {
-    fontSize: FontSizes.sm,
-    fontWeight: "700",
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
     color: Colors.primary,
+  },
+  stepContent: {
+    flex: 1,
   },
   stepTitle: {
     fontSize: FontSizes.md,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   stepSub: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 
+  /* ---- Tip ---- */
   tipCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    flexDirection: "row",
-    alignItems: "flex-start",
+    borderRadius: Radius.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
     borderWidth: 1,
     borderColor: Colors.border,
     marginTop: Spacing.sm,
@@ -740,7 +852,6 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
-    flex: 1,
     lineHeight: 19,
   },
 });

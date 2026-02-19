@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Colors } from "../lib/theme";
 
 export default function RootLayout() {
   return (
@@ -10,7 +11,7 @@ export default function RootLayout() {
           headerShown: false,
           animation: "fade_from_bottom",
           animationDuration: 250,
-          contentStyle: { backgroundColor: "#0F1120" },
+          contentStyle: { backgroundColor: Colors.bg },
         }}
       >
         <Stack.Screen name="index" options={{ animation: "fade" }} />

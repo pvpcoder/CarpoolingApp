@@ -45,10 +45,19 @@ export default function CreateGroup() {
     ]);
   };
 
+  const STEPS = [
+    "You create the group",
+    "Invite 2-4 students from your area",
+    "Each student's parent joins the app",
+    "Parents enter when they can drive",
+    "The app creates a fair weekly schedule",
+  ];
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={styles.inner}>
         <BackButton onPress={() => router.back()} />
+
         <FadeIn>
           <Text style={styles.title}>Create a Carpool Group</Text>
           <Text style={styles.subtitle}>
@@ -58,23 +67,36 @@ export default function CreateGroup() {
 
         <FadeIn delay={150}>
           <Text style={styles.label}>Group Name</Text>
-          <TextInput style={styles.input} placeholder="e.g., North Park Crew" placeholderTextColor={Colors.textTertiary} value={groupName} onChangeText={setGroupName} />
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., North Park Crew"
+            placeholderTextColor={Colors.textTertiary}
+            value={groupName}
+            onChangeText={setGroupName}
+          />
         </FadeIn>
 
         <FadeIn delay={250}>
-          <Card>
-            <Text style={styles.howTitle}>How it works</Text>
-            {["You create the group", "Invite 2-4 students from your area", "Each student's parent joins the app", "Parents enter when they can drive", "The app creates a fair weekly schedule"].map((step, i) => (
+          <View style={styles.stepsCard}>
+            <Text style={styles.stepsTitle}>How it works</Text>
+            <View style={styles.stepsDivider} />
+            {STEPS.map((step, i) => (
               <View key={i} style={styles.stepRow}>
-                <View style={styles.stepNum}><Text style={styles.stepNumText}>{i + 1}</Text></View>
+                <View style={styles.stepNumWrap}>
+                  <Text style={styles.stepNumText}>{i + 1}</Text>
+                </View>
                 <Text style={styles.stepText}>{step}</Text>
               </View>
             ))}
-          </Card>
+          </View>
         </FadeIn>
 
         <FadeIn delay={350}>
-          <PrimaryButton title={loading ? "Creating..." : "Create Group"} onPress={handleCreate} loading={loading} />
+          <PrimaryButton
+            title={loading ? "Creating..." : "Create Group"}
+            onPress={handleCreate}
+            loading={loading}
+          />
         </FadeIn>
       </View>
     </KeyboardAvoidingView>
@@ -82,15 +104,91 @@ export default function CreateGroup() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  inner: { flex: 1, padding: Spacing.xl, paddingTop: 60 },
-  title: { fontSize: FontSizes.xxl, fontWeight: "800", color: Colors.textPrimary, letterSpacing: -0.5, marginBottom: 8 },
-  subtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, lineHeight: 20, marginBottom: Spacing.xxl },
-  label: { color: Colors.textPrimary, fontSize: FontSizes.base, fontWeight: "700", marginBottom: 10 },
-  input: { backgroundColor: Colors.bgInput, borderRadius: Radius.md, padding: 16, fontSize: FontSizes.base, color: Colors.textPrimary, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
-  howTitle: { color: Colors.primary, fontSize: FontSizes.md, fontWeight: "700", marginBottom: Spacing.md },
-  stepRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  stepNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.primaryFaded, alignItems: "center", justifyContent: "center", marginRight: Spacing.md },
-  stepNumText: { color: Colors.primary, fontSize: FontSizes.xs, fontWeight: "700" },
-  stepText: { color: Colors.textSecondary, fontSize: FontSizes.sm, flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  inner: {
+    flex: 1,
+    padding: Spacing.xl,
+    paddingTop: 60,
+  },
+  title: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.xxl,
+  },
+  label: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.xs,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: Colors.bgInput,
+    borderRadius: Radius.md,
+    padding: 16,
+    fontSize: FontSizes.base,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+
+  // Steps card
+  stepsCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.xl,
+  },
+  stepsTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.md,
+    fontWeight: "700",
+  },
+  stepsDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.md,
+  },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  stepNumWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryFaded,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
+  },
+  stepNumText: {
+    color: Colors.primary,
+    fontSize: FontSizes.xs,
+    fontWeight: "700",
+  },
+  stepText: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+    flex: 1,
+    lineHeight: 18,
+  },
 });

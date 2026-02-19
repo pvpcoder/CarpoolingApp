@@ -190,62 +190,77 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.inner}>
-        {/* Logo */}
+        {/* Logo area */}
         <Animated.View
           style={[
             styles.logoContainer,
             { opacity: logoOpacity, transform: [{ scale: logoScale }] },
           ]}
         >
-          <View style={styles.logoIcon}>
-            <Text style={styles.logoIconText}>R</Text>
+          <View style={styles.logoGlow}>
+            <View style={styles.logoIcon}>
+              <Text style={styles.logoIconText}>R</Text>
+            </View>
           </View>
           <Text style={styles.title}>RidePool</Text>
-          <Text style={styles.subtitle}>Carpooling for your school</Text>
+          <Text style={styles.subtitle}>CARPOOLING FOR YOUR SCHOOL</Text>
         </Animated.View>
 
         {/* Form */}
         <Animated.View
-          style={{
-            opacity: formOpacity,
-            transform: [{ translateY: formTranslateY }],
-          }}
+          style={[
+            styles.formContainer,
+            {
+              opacity: formOpacity,
+              transform: [{ translateY: formTranslateY }],
+            },
+          ]}
         >
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={Colors.textTertiary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="you@school.edu"
+              placeholderTextColor={Colors.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={Colors.textTertiary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor={Colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          <PressableScale onPress={handleForgotPassword} style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </PressableScale>
 
           <PrimaryButton
-            title={loading ? "Logging in..." : "Log In"}
+            title="Sign In"
             onPress={handleLogin}
             loading={loading}
             disabled={loading}
-            style={{ marginTop: Spacing.sm, marginBottom: Spacing.xl }}
+            style={styles.ctaButton}
           />
 
-          <PressableScale onPress={handleForgotPassword} style={styles.forgotBtn}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
-          </PressableScale>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+          </View>
 
           <PressableScale onPress={() => router.push("/signup")} style={styles.signupBtn}>
-            <Text style={styles.linkText}>
-              Don't have an account?{" "}
-              <Text style={styles.link}>Sign Up</Text>
+            <Text style={styles.signupText}>
+              Don't have an account?{"  "}
+              <Text style={styles.signupLink}>Create one</Text>
             </Text>
           </PressableScale>
         </Animated.View>
@@ -262,66 +277,107 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     justifyContent: "center",
-    padding: Spacing.xl,
+    paddingHorizontal: 28,
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 56,
+  },
+  logoGlow: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    backgroundColor: Colors.primaryGlow,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
   },
   logoIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 72,
+    height: 72,
+    borderRadius: 22,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.base,
   },
   logoIconText: {
-    fontSize: 30,
+    fontSize: 36,
     fontWeight: "900",
     color: Colors.bg,
   },
   title: {
-    fontSize: FontSizes.hero,
+    fontSize: 40,
     fontWeight: "800",
     color: Colors.textPrimary,
-    letterSpacing: -1,
-    marginBottom: 6,
+    letterSpacing: -1.5,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textTertiary,
+    letterSpacing: 3,
+  },
+  formContainer: {
+    width: "100%",
+  },
+  inputGroup: {
+    marginBottom: Spacing.base,
+  },
+  inputLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: "600",
+    color: Colors.textTertiary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginLeft: 2,
+    textTransform: "uppercase",
   },
   input: {
     backgroundColor: Colors.bgInput,
-    borderRadius: Radius.md,
-    padding: 16,
+    borderRadius: Radius.sm,
+    height: 52,
+    paddingHorizontal: 16,
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   forgotBtn: {
-    alignSelf: "center",
-    paddingVertical: Spacing.sm,
+    alignSelf: "flex-end",
+    paddingVertical: Spacing.xs,
+    marginBottom: Spacing.lg,
   },
   forgotText: {
-    color: Colors.primary,
+    color: Colors.textTertiary,
     fontSize: FontSizes.sm,
-    fontWeight: "600",
+    fontWeight: "500",
+  },
+  ctaButton: {
+    marginTop: Spacing.xs,
+    height: 54,
+    borderRadius: Radius.sm,
+  },
+  divider: {
+    alignItems: "center",
+    marginVertical: 28,
+  },
+  dividerLine: {
+    width: 40,
+    height: 1,
+    backgroundColor: Colors.border,
   },
   signupBtn: {
     alignSelf: "center",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  linkText: {
-    color: Colors.textSecondary,
+  signupText: {
+    color: Colors.textMuted,
     fontSize: FontSizes.sm,
+    fontWeight: "400",
   },
-  link: {
-    color: Colors.primary,
-    fontWeight: "700",
+  signupLink: {
+    color: Colors.textSecondary,
+    fontWeight: "600",
   },
 });

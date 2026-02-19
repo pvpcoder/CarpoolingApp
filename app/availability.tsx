@@ -59,25 +59,51 @@ export default function Availability() {
       <BackButton onPress={() => router.back()} />
       <FadeIn>
         <Text style={styles.title}>Driving Availability</Text>
-        <Text style={styles.subtitle}>Tap the slots when you're available to drive. The app will split driving fairly across all parents.</Text>
+        <Text style={styles.subtitle}>
+          Tap the slots when you can drive. The scheduler will split driving fairly across all parents.
+        </Text>
       </FadeIn>
 
       <FadeIn delay={150}>
         <View style={styles.grid}>
-          <View style={styles.gridRow}>
-            <View style={styles.dayLabel} />
-            <View style={styles.slotHeader}><Text style={styles.slotHeaderText}>🌅 AM</Text></View>
-            <View style={styles.slotHeader}><Text style={styles.slotHeaderText}>🌆 PM</Text></View>
+          {/* Column headers */}
+          <View style={styles.gridHeader}>
+            <View style={styles.dayLabelCell} />
+            <View style={styles.headerCell}>
+              <Text style={styles.headerLabel}>AM</Text>
+            </View>
+            <View style={styles.headerCell}>
+              <Text style={styles.headerLabel}>PM</Text>
+            </View>
           </View>
+
+          {/* Divider */}
+          <View style={styles.gridDivider} />
+
+          {/* Day rows */}
           {DAYS.map((day, i) => (
             <FadeIn key={day} delay={200 + i * 50}>
               <View style={styles.gridRow}>
-                <View style={styles.dayLabel}><Text style={styles.dayText}>{day}</Text></View>
-                <TouchableOpacity style={[styles.slotBtn, schedule[day].morning && styles.slotActive]} onPress={() => toggle(day, "morning")} activeOpacity={0.7}>
-                  <Text style={[styles.slotBtnText, schedule[day].morning && styles.slotActiveText]}>{schedule[day].morning ? "✅" : "—"}</Text>
+                <View style={styles.dayLabelCell}>
+                  <Text style={styles.dayText}>{day}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.slotCell, schedule[day].morning && styles.slotCellActive]}
+                  onPress={() => toggle(day, "morning")}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.slotIndicator, schedule[day].morning && styles.slotIndicatorActive]}>
+                    {schedule[day].morning ? "\u2713" : "\u2014"}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.slotBtn, schedule[day].afternoon && styles.slotActive]} onPress={() => toggle(day, "afternoon")} activeOpacity={0.7}>
-                  <Text style={[styles.slotBtnText, schedule[day].afternoon && styles.slotActiveText]}>{schedule[day].afternoon ? "✅" : "—"}</Text>
+                <TouchableOpacity
+                  style={[styles.slotCell, schedule[day].afternoon && styles.slotCellActive]}
+                  onPress={() => toggle(day, "afternoon")}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.slotIndicator, schedule[day].afternoon && styles.slotIndicatorActive]}>
+                    {schedule[day].afternoon ? "\u2713" : "\u2014"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </FadeIn>
@@ -86,10 +112,18 @@ export default function Availability() {
       </FadeIn>
 
       <FadeIn delay={500}>
-        <Text style={styles.summary}>
-          {totalSelected === 0 ? "No slots selected yet" : `${totalSelected} ${totalSelected === 1 ? "slot" : "slots"} selected`}
-        </Text>
-        <Banner title="Tip" message="The more slots you're available, the more flexibility the scheduler has. You won't necessarily drive every slot — it's just your availability." variant="info" />
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Selected</Text>
+          <Text style={styles.summaryValue}>
+            {totalSelected === 0 ? "None" : `${totalSelected} ${totalSelected === 1 ? "slot" : "slots"}`}
+          </Text>
+        </View>
+
+        <Banner
+          title="Tip"
+          message="The more slots you're available, the more flexibility the scheduler has. You won't necessarily drive every slot — it's just your availability."
+          variant="info"
+        />
         <PrimaryButton title={saving ? "Saving..." : "Save Availability"} onPress={handleSave} loading={saving} />
       </FadeIn>
     </ScrollView>
@@ -97,19 +131,119 @@ export default function Availability() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 48 },
-  title: { fontSize: FontSizes.xxl, fontWeight: "800", color: Colors.textPrimary, letterSpacing: -0.5, marginBottom: 8 },
-  subtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, lineHeight: 20, marginBottom: Spacing.xl },
-  grid: { marginBottom: Spacing.lg },
-  gridRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  dayLabel: { width: 52 },
-  dayText: { color: Colors.textPrimary, fontSize: FontSizes.base, fontWeight: "700" },
-  slotHeader: { flex: 1, alignItems: "center", paddingVertical: 8 },
-  slotHeaderText: { color: Colors.textTertiary, fontSize: FontSizes.sm, fontWeight: "600" },
-  slotBtn: { flex: 1, backgroundColor: Colors.bgCard, borderRadius: Radius.md, padding: 16, alignItems: "center", marginHorizontal: 4, borderWidth: 1, borderColor: Colors.border },
-  slotActive: { backgroundColor: Colors.primaryFaded, borderColor: Colors.primaryBorder },
-  slotBtnText: { color: Colors.textMuted, fontSize: 18 },
-  slotActiveText: { color: Colors.primary },
-  summary: { color: Colors.textSecondary, fontSize: FontSizes.md, textAlign: "center", marginBottom: Spacing.lg, fontWeight: "600" },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    padding: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: 48,
+  },
+  title: {
+    fontSize: FontSizes.xxl,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.xxl,
+  },
+
+  // Grid
+  grid: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.base,
+    marginBottom: Spacing.xl,
+  },
+  gridHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: Spacing.sm,
+  },
+  dayLabelCell: {
+    width: 52,
+  },
+  headerCell: {
+    flex: 1,
+    alignItems: "center",
+  },
+  headerLabel: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.xs,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  gridDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginBottom: Spacing.sm,
+  },
+  gridRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  dayText: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.base,
+    fontWeight: "700",
+  },
+  slotCell: {
+    flex: 1,
+    backgroundColor: Colors.bgElevated,
+    borderRadius: Radius.sm,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  slotCellActive: {
+    backgroundColor: Colors.primaryFaded,
+    borderColor: Colors.primaryBorder,
+  },
+  slotIndicator: {
+    color: Colors.textMuted,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  slotIndicatorActive: {
+    color: Colors.primary,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  // Summary
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.base,
+    marginBottom: Spacing.md,
+  },
+  summaryLabel: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+  },
+  summaryValue: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.md,
+    fontWeight: "700",
+  },
 });

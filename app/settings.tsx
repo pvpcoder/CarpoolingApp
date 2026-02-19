@@ -11,7 +11,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
-import { FadeIn, PressableScale, LoadingScreen } from "../components/UI";
+import { FadeIn, PressableScale, LoadingScreen, BackButton } from "../components/UI";
 
 export default function Settings() {
   const router = useRouter();
@@ -250,6 +250,15 @@ export default function Settings() {
 
   if (loading) return <LoadingScreen />;
 
+  const initials = userName
+    ? userName
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
+
   return (
     <ScrollView
       style={styles.container}
@@ -259,11 +268,9 @@ export default function Settings() {
       {/* Header */}
       <FadeIn>
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} style={styles.backArea}>
-            <Text style={styles.backText}>← Back</Text>
-          </PressableScale>
+          <BackButton onPress={() => router.back()} />
           <Text style={styles.headerTitle}>Settings</Text>
-          <View style={{ width: 50 }} />
+          <View style={{ width: 36 }} />
         </View>
       </FadeIn>
 
@@ -271,21 +278,12 @@ export default function Settings() {
       <FadeIn delay={80}>
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {userName
-                ? userName
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)
-                : "?"}
-            </Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <Text style={styles.profileName}>{userName || "User"}</Text>
           <Text style={styles.profileEmail}>{userEmail}</Text>
-          <View style={styles.rolePill}>
-            <Text style={styles.rolePillText}>
+          <View style={styles.roleTag}>
+            <Text style={styles.roleTagText}>
               {userRole === "student" ? "Student" : "Parent"}
             </Text>
           </View>
@@ -299,8 +297,8 @@ export default function Settings() {
           {childName && (
             <>
               <View style={styles.row}>
-                <Text style={styles.rowIcon}>🎒</Text>
-                <View style={{ flex: 1 }}>
+                <View style={[styles.rowDot, { backgroundColor: Colors.info }]} />
+                <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Linked Child</Text>
                   <Text style={styles.rowValue}>{childName}</Text>
                 </View>
@@ -315,8 +313,8 @@ export default function Settings() {
                 onPress={() => router.push(`/my-group?groupId=${groupId}`)}
                 style={styles.row}
               >
-                <Text style={styles.rowIcon}>👥</Text>
-                <View style={{ flex: 1 }}>
+                <View style={[styles.rowDot, { backgroundColor: Colors.primary }]} />
+                <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Carpool Group</Text>
                   <Text style={styles.rowValue}>{groupName}</Text>
                 </View>
@@ -327,8 +325,8 @@ export default function Settings() {
           )}
 
           <PressableScale onPress={handleResetPassword} style={styles.row}>
-            <Text style={styles.rowIcon}>🔑</Text>
-            <View style={{ flex: 1 }}>
+            <View style={[styles.rowDot, { backgroundColor: Colors.warm }]} />
+            <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>Change Password</Text>
               <Text style={styles.rowSub}>Send a reset link to your email</Text>
             </View>
@@ -342,8 +340,8 @@ export default function Settings() {
                 onPress={() => router.push("/setup-location")}
                 style={styles.row}
               >
-                <Text style={styles.rowIcon}>📍</Text>
-                <View style={{ flex: 1 }}>
+                <View style={[styles.rowDot, { backgroundColor: Colors.primary }]} />
+                <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Pickup Location</Text>
                   <Text style={styles.rowSub}>Update your pickup spot</Text>
                 </View>
@@ -367,8 +365,8 @@ export default function Settings() {
                   }
                   style={styles.row}
                 >
-                  <Text style={styles.rowIcon}>🗓️</Text>
-                  <View style={{ flex: 1 }}>
+                  <View style={[styles.rowDot, { backgroundColor: Colors.info }]} />
+                  <View style={styles.rowContent}>
                     <Text style={styles.rowLabel}>My Availability</Text>
                     <Text style={styles.rowSub}>Edit when you can drive</Text>
                   </View>
@@ -379,8 +377,8 @@ export default function Settings() {
             )}
 
             <PressableScale onPress={confirmLeaveGroup} style={styles.row}>
-              <Text style={styles.rowIcon}>🚪</Text>
-              <View style={{ flex: 1 }}>
+              <View style={[styles.rowDot, { backgroundColor: Colors.accent }]} />
+              <View style={styles.rowContent}>
                 <Text style={[styles.rowLabel, { color: Colors.accent }]}>
                   Leave Group
                 </Text>
@@ -398,8 +396,8 @@ export default function Settings() {
         <Text style={styles.sectionLabel}>ABOUT</Text>
         <View style={styles.section}>
           <View style={styles.row}>
-            <Text style={styles.rowIcon}>📱</Text>
-            <View style={{ flex: 1 }}>
+            <View style={[styles.rowDot, { backgroundColor: Colors.textTertiary }]} />
+            <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>App Version</Text>
               <Text style={styles.rowValue}>1.0.0</Text>
             </View>
@@ -409,8 +407,8 @@ export default function Settings() {
             onPress={() => Linking.openURL("mailto:support@ridepool.app")}
             style={styles.row}
           >
-            <Text style={styles.rowIcon}>✉️</Text>
-            <View style={{ flex: 1 }}>
+            <View style={[styles.rowDot, { backgroundColor: Colors.info }]} />
+            <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>Contact Support</Text>
               <Text style={styles.rowSub}>support@ridepool.app</Text>
             </View>
@@ -421,17 +419,19 @@ export default function Settings() {
 
       {/* Danger Zone */}
       <FadeIn delay={320}>
-        <Text style={styles.sectionLabel}>DANGER ZONE</Text>
-        <View style={styles.section}>
+        <Text style={[styles.sectionLabel, { color: Colors.accent }]}>
+          DANGER ZONE
+        </Text>
+        <View style={[styles.section, styles.dangerSection]}>
           <PressableScale onPress={confirmLogout} style={styles.row}>
-            <Text style={styles.rowIcon}>↩️</Text>
-            <Text style={[styles.rowLabel, { flex: 1 }]}>Sign Out</Text>
+            <View style={[styles.rowDot, { backgroundColor: Colors.accent }]} />
+            <Text style={[styles.rowLabel, styles.rowContent]}>Sign Out</Text>
           </PressableScale>
-          <View style={styles.divider} />
+          <View style={styles.dangerDivider} />
           <PressableScale onPress={confirmDeleteAccount} style={styles.row}>
-            <Text style={styles.rowIcon}>🗑️</Text>
+            <View style={[styles.rowDot, { backgroundColor: Colors.accent }]} />
             <Text
-              style={[styles.rowLabel, { flex: 1, color: Colors.accent }]}
+              style={[styles.rowLabel, styles.rowContent, { color: Colors.accent }]}
             >
               Delete Account
             </Text>
@@ -448,81 +448,80 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   content: { paddingBottom: 40 },
 
+  /* Header */
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: 56,
-    paddingBottom: 16,
+    paddingBottom: 8,
     paddingHorizontal: Spacing.xl,
-  },
-  backArea: {
-    paddingVertical: 4,
-    paddingRight: Spacing.md,
-  },
-  backText: {
-    color: Colors.primary,
-    fontSize: FontSizes.base,
-    fontWeight: "600",
   },
   headerTitle: {
     color: Colors.textPrimary,
     fontSize: FontSizes.lg,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
 
+  /* Profile */
   profileCard: {
     alignItems: "center",
-    paddingVertical: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.md,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: Colors.primaryFaded,
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: Colors.primaryBorder,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.base,
   },
   avatarText: {
-    fontSize: FontSizes.xl,
+    fontSize: 26,
     fontWeight: "800",
     color: Colors.primary,
+    letterSpacing: 1,
   },
   profileName: {
     fontSize: FontSizes.xl,
     fontWeight: "700",
     color: Colors.textPrimary,
+    letterSpacing: -0.3,
     marginBottom: 4,
   },
   profileEmail: {
     fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    color: Colors.textTertiary,
     marginBottom: Spacing.md,
   },
-  rolePill: {
+  roleTag: {
     backgroundColor: Colors.primaryFaded,
-    borderRadius: Radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 14,
+    borderRadius: Radius.xs,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: Colors.primaryBorder,
   },
-  rolePillText: {
-    fontSize: FontSizes.sm,
+  roleTagText: {
+    fontSize: FontSizes.xs,
     fontWeight: "700",
     color: Colors.primary,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
 
+  /* Sections */
   sectionLabel: {
     fontSize: FontSizes.xs,
     fontWeight: "700",
     color: Colors.textTertiary,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginBottom: Spacing.sm,
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.xl,
@@ -532,19 +531,28 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: Colors.border,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.base,
   },
+  dangerSection: {
+    backgroundColor: 'rgba(248, 113, 113, 0.04)',
+    borderColor: Colors.accentBorder,
+  },
+
+  /* Row */
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: Spacing.xl,
   },
-  rowIcon: {
-    fontSize: 18,
-    marginRight: Spacing.md,
-    width: 28,
-    textAlign: "center",
+  rowDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: Spacing.base,
+  },
+  rowContent: {
+    flex: 1,
   },
   rowLabel: {
     fontSize: FontSizes.base,
@@ -554,21 +562,28 @@ const styles = StyleSheet.create({
   rowValue: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   rowSub: {
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
-    marginTop: 1,
+    marginTop: 2,
   },
   rowChevron: {
-    fontSize: 20,
-    color: Colors.textTertiary,
+    fontSize: 18,
+    color: Colors.textMuted,
     marginLeft: Spacing.sm,
   },
+
+  /* Dividers */
   divider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.border,
-    marginLeft: Spacing.xl + 28 + Spacing.md,
+    marginLeft: Spacing.xl + 7 + Spacing.base,
+  },
+  dangerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.accentBorder,
+    marginLeft: Spacing.xl + 7 + Spacing.base,
   },
 });
