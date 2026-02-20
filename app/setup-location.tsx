@@ -11,6 +11,7 @@ import {
   Keyboard,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -356,7 +357,7 @@ export default function SetupLocation() {
                     idx < suggestions.length - 1 && styles.suggestionBorder,
                   ]}
                 >
-                  <View style={styles.suggestionDot} />
+                  <Ionicons name="location" size={16} color={Colors.primary} style={{ marginRight: Spacing.md }} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.suggestionMain} numberOfLines={1}>
                       {s.main_text}
@@ -407,7 +408,7 @@ export default function SetupLocation() {
       {/* Confirmed address strip */}
       {selectedFromSuggestions && (
         <View style={styles.confirmedStrip}>
-          <View style={styles.confirmedDot} />
+          <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
           <Text style={styles.confirmedText} numberOfLines={1}>
             {address}
           </Text>
@@ -420,6 +421,7 @@ export default function SetupLocation() {
           title={saving ? "Saving..." : "Save This Location"}
           onPress={handleSave}
           loading={saving}
+          icon="location"
         />
       </View>
     </KeyboardAvoidingView>
@@ -512,13 +514,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  suggestionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-    marginRight: Spacing.md,
-  },
   suggestionMain: {
     fontSize: FontSizes.base,
     fontWeight: "600",
@@ -555,12 +550,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: Spacing.xl,
     gap: 10,
-  },
-  confirmedDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.success,
   },
   confirmedText: {
     fontSize: FontSizes.sm,

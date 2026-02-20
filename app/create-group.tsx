@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
@@ -46,11 +47,11 @@ export default function CreateGroup() {
   };
 
   const STEPS = [
-    "You create the group",
-    "Invite 2-4 students from your area",
-    "Each student's parent joins the app",
-    "Parents enter when they can drive",
-    "The app creates a fair weekly schedule",
+    { icon: "add-circle-outline" as const, text: "You create the group" },
+    { icon: "person-add-outline" as const, text: "Invite 2-4 students from your area" },
+    { icon: "people-outline" as const, text: "Each student's parent joins the app" },
+    { icon: "calendar-outline" as const, text: "Parents enter when they can drive" },
+    { icon: "sparkles" as const, text: "The app creates a fair weekly schedule" },
   ];
 
   return (
@@ -83,9 +84,9 @@ export default function CreateGroup() {
             {STEPS.map((step, i) => (
               <View key={i} style={styles.stepRow}>
                 <View style={styles.stepNumWrap}>
-                  <Text style={styles.stepNumText}>{i + 1}</Text>
+                  <Ionicons name={step.icon} size={14} color={Colors.primary} />
                 </View>
-                <Text style={styles.stepText}>{step}</Text>
+                <Text style={styles.stepText}>{step.text}</Text>
               </View>
             ))}
           </View>
@@ -96,6 +97,7 @@ export default function CreateGroup() {
             title={loading ? "Creating..." : "Create Group"}
             onPress={handleCreate}
             loading={loading}
+            icon="add-circle-outline"
           />
         </FadeIn>
       </View>
@@ -179,11 +181,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
-  },
-  stepNumText: {
-    color: Colors.primary,
-    fontSize: FontSizes.xs,
-    fontWeight: "700",
   },
   stepText: {
     color: Colors.textSecondary,

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
@@ -198,7 +199,7 @@ export default function StudentHome() {
             onPress={() => router.push("/settings")}
             style={styles.settingsBtn}
           >
-            <Text style={styles.settingsIcon}>S</Text>
+            <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
           </PressableScale>
         </View>
       </ScaleIn>
@@ -211,6 +212,7 @@ export default function StudentHome() {
               <View style={styles.inviteAccent} />
               <View style={styles.inviteBody}>
                 <View style={styles.inviteContent}>
+                  <Ionicons name="mail-outline" size={18} color={Colors.primary} style={{ marginBottom: 4 }} />
                   <Text style={styles.inviteLabel}>Invite</Text>
                   <Text style={styles.inviteName}>
                     {invite.carpool_groups?.name || "Carpool Group"}
@@ -248,23 +250,15 @@ export default function StudentHome() {
         groups.map((g, idx) => (
           <FadeIn key={g.id} delay={140 + idx * 80}>
             <View style={styles.groupCard}>
-              <View
-                style={[
-                  styles.groupAccent,
-                  {
-                    backgroundColor:
-                      g.status === "active"
-                        ? Colors.primary
-                        : Colors.warm,
-                  },
-                ]}
-              />
               <View style={styles.groupBody}>
                 <PressableScale
                   onPress={() => router.push(`/my-group?groupId=${g.id}`)}
                   style={styles.groupCardInner}
                 >
                   <View style={styles.groupRow}>
+                    <View style={styles.groupAvatarWrap}>
+                      <Ionicons name="people" size={18} color={g.status === "active" ? Colors.primary : Colors.warm} />
+                    </View>
                     <View style={styles.groupMeta}>
                       <Text style={styles.groupName}>{g.name}</Text>
                       <Text style={styles.groupSub}>
@@ -343,6 +337,7 @@ export default function StudentHome() {
                     }
                     style={styles.actionPill}
                   >
+                    <Ionicons name="chatbubble-outline" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
                     <Text style={styles.actionPillText}>Chat</Text>
                   </PressableScale>
                   <PressableScale
@@ -351,6 +346,7 @@ export default function StudentHome() {
                     }
                     style={styles.actionPill}
                   >
+                    <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
                     <Text style={styles.actionPillText}>Schedule</Text>
                   </PressableScale>
                   {g.status === "active" && (
@@ -360,6 +356,7 @@ export default function StudentHome() {
                       }
                       style={styles.actionPill}
                     >
+                      <Ionicons name="today-outline" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
                       <Text style={styles.actionPillText}>This Week</Text>
                     </PressableScale>
                   )}
@@ -369,6 +366,7 @@ export default function StudentHome() {
                     }
                     style={styles.actionPill}
                   >
+                    <Ionicons name="people-outline" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
                     <Text style={styles.actionPillText}>Members</Text>
                   </PressableScale>
                 </View>
@@ -379,6 +377,9 @@ export default function StudentHome() {
       ) : (
         <FadeIn delay={140}>
           <View style={styles.emptyCard}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="people-outline" size={32} color={Colors.textTertiary} />
+            </View>
             <Text style={styles.emptyTitle}>No carpool group yet</Text>
             <Text style={styles.emptyText}>
               Create a group and invite nearby students, or wait for an invite.
@@ -401,6 +402,7 @@ export default function StudentHome() {
             onPress={() => router.push("/create-group")}
             style={[styles.tile, !hasGroups ? styles.tilePrimary : {}]}
           >
+            <Ionicons name="add-circle-outline" size={28} color={!hasGroups ? Colors.bg : Colors.primary} style={{ marginBottom: 8 }} />
             <Text
               style={[
                 styles.tileTitle,
@@ -423,6 +425,7 @@ export default function StudentHome() {
             onPress={() => router.push("/discover")}
             style={styles.tile}
           >
+            <Ionicons name="compass-outline" size={28} color={Colors.primary} style={{ marginBottom: 8 }} />
             <Text style={styles.tileTitle}>Discover</Text>
             <Text style={styles.tileSub}>Nearby students</Text>
           </PressableScale>
@@ -433,7 +436,7 @@ export default function StudentHome() {
       {hasGroups && groups.some((g) => g.parentsJoined < g.memberCount) && (
         <FadeIn delay={320}>
           <View style={styles.nudge}>
-            <View style={styles.nudgeDot} />
+            <Ionicons name="alert-circle-outline" size={20} color={Colors.warm} style={{ marginTop: 1, marginRight: Spacing.md }} />
             <View style={styles.nudgeContent}>
               <Text style={styles.nudgeTitle}>Waiting on parents</Text>
               <Text style={styles.nudgeText}>
@@ -450,26 +453,29 @@ export default function StudentHome() {
         <FadeIn delay={320}>
           <Text style={styles.sectionLabel}>How RidePool works</Text>
           <View style={styles.stepsCard}>
-            {[
+            {([
               {
+                icon: "people-outline" as const,
                 title: "Create or join a carpool group",
                 sub: "Find nearby students in the Discover tab",
               },
               {
+                icon: "person-add-outline" as const,
                 title: "Each student's parent signs up",
                 sub: "They link to their child's account",
               },
               {
+                icon: "sparkles" as const,
                 title: "AI builds a fair weekly schedule",
                 sub: "Parents set availability, the app does the rest",
               },
-            ].map((step, i) => (
+            ] as const).map((step, i) => (
               <View
                 key={i}
                 style={[styles.stepRow, i === 2 ? { marginBottom: 0 } : {}]}
               >
                 <View style={styles.stepNum}>
-                  <Text style={styles.stepNumText}>{i + 1}</Text>
+                  <Ionicons name={step.icon} size={14} color={Colors.primary} />
                 </View>
                 <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
@@ -484,7 +490,8 @@ export default function StudentHome() {
       {/* Tip */}
       <FadeIn delay={380}>
         <View style={styles.tipCard}>
-          <Text style={styles.tipText}>
+          <Ionicons name="bulb-outline" size={16} color={Colors.textTertiary} style={{ marginRight: 8, marginTop: 1 }} />
+          <Text style={[styles.tipText, { flex: 1 }]}>
             {hasGroups
               ? "Pull down to refresh. You can be in multiple groups -- each one gets its own schedule."
               : "Pull down to refresh. Once you create or join a group, more options appear here."}
@@ -540,12 +547,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  settingsIcon: {
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
-    color: Colors.textTertiary,
-  },
-
   /* ---- Invites ---- */
   inviteCard: {
     flexDirection: "row",
@@ -617,17 +618,11 @@ const styles = StyleSheet.create({
 
   /* ---- Group Cards ---- */
   groupCard: {
-    flexDirection: "row",
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    overflow: "hidden",
-  },
-  groupAccent: {
-    width: 3,
-    backgroundColor: Colors.primary,
   },
   groupBody: {
     flex: 1,
@@ -640,6 +635,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
+  },
+  groupAvatarWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Colors.bgElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
   },
   groupMeta: {
     flex: 1,
@@ -738,10 +742,14 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   actionPill: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.bgElevated,
     borderRadius: Radius.pill,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   actionPillText: {
     fontSize: FontSizes.sm,
@@ -758,6 +766,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
@@ -805,11 +824,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     padding: Spacing.lg,
+    paddingTop: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     width: TILE_W,
-    justifyContent: "flex-end",
-    minHeight: 100,
+    justifyContent: "flex-start",
+    minHeight: 110,
   },
   tilePrimary: {
     backgroundColor: Colors.primary,
@@ -836,14 +856,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.warmBorder,
-  },
-  nudgeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.warm,
-    marginTop: 5,
-    marginRight: Spacing.md,
   },
   nudgeContent: {
     flex: 1,
@@ -884,11 +896,6 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
     marginTop: 1,
   },
-  stepNumText: {
-    fontSize: FontSizes.xs,
-    fontWeight: "600",
-    color: Colors.primary,
-  },
   stepContent: {
     flex: 1,
   },
@@ -906,6 +913,8 @@ const styles = StyleSheet.create({
 
   /* ---- Tip ---- */
   tipCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.md,

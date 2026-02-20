@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
@@ -26,6 +27,9 @@ export default function ResetPassword() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={styles.inner}>
         <FadeIn>
+          <View style={styles.lockIconWrap}>
+            <Ionicons name="lock-closed-outline" size={28} color={Colors.primary} />
+          </View>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>Enter your new password below.</Text>
         </FadeIn>
@@ -59,6 +63,7 @@ export default function ResetPassword() {
             title={loading ? "Updating..." : "Update Password"}
             onPress={handleReset}
             loading={loading}
+            icon="lock-closed"
             style={{ marginBottom: Spacing.xxl }}
           />
           <PressableScale
@@ -82,6 +87,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     padding: Spacing.xl,
+  },
+  lockIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: Colors.primaryFaded,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: Spacing.lg,
   },
   title: {
     fontSize: FontSizes.xxl,

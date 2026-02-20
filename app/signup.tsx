@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
@@ -178,23 +179,27 @@ export default function SignupScreen() {
 
           <FadeIn delay={200}>
             <PressableScale onPress={() => setRole("student")} style={styles.roleCard}>
-              <View style={styles.roleAccent} />
+              <View style={styles.roleIconWrap}>
+                <Ionicons name="school-outline" size={22} color={Colors.primary} />
+              </View>
               <View style={styles.roleContent}>
                 <Text style={styles.roleTitle}>Student</Text>
                 <Text style={styles.roleDesc}>I need rides to and from school</Text>
               </View>
-              <Text style={styles.roleChevron}>{"\u203A"}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </PressableScale>
           </FadeIn>
 
           <FadeIn delay={350}>
             <PressableScale onPress={() => setRole("parent")} style={styles.roleCard}>
-              <View style={[styles.roleAccent, styles.roleAccentWarm]} />
+              <View style={[styles.roleIconWrap, { backgroundColor: Colors.infoFaded, borderColor: Colors.infoBorder }]}>
+                <Ionicons name="car-outline" size={22} color={Colors.info} />
+              </View>
               <View style={styles.roleContent}>
                 <Text style={styles.roleTitle}>Parent / Driver</Text>
                 <Text style={styles.roleDesc}>I can drive students to school</Text>
               </View>
-              <Text style={styles.roleChevron}>{"\u203A"}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </PressableScale>
           </FadeIn>
 
@@ -440,7 +445,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingVertical: 20,
     paddingRight: 20,
-    paddingLeft: 0,
+    paddingLeft: 20,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -448,16 +453,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
   },
-  roleAccent: {
-    width: 3,
-    height: 32,
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
-    marginLeft: 16,
-    marginRight: 16,
-  },
-  roleAccentWarm: {
-    backgroundColor: Colors.info,
+  roleIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryFaded,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.base,
   },
   roleContent: {
     flex: 1,
@@ -473,13 +478,6 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     lineHeight: 18,
   },
-  roleChevron: {
-    fontSize: 24,
-    color: Colors.textMuted,
-    fontWeight: "300",
-    marginLeft: Spacing.sm,
-  },
-
   // ─── Divider
   divider: {
     alignItems: "center",

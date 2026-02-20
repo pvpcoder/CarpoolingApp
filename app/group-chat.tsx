@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { notifyGroupMembers } from "../lib/notifications";
@@ -101,7 +102,7 @@ export default function GroupChat() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6}>
-          <Text style={styles.backArrow}>{"<"}</Text>
+          <Ionicons name="chevron-back" size={18} color={Colors.textSecondary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Group Chat</Text>
         <View style={styles.headerSpacer} />
@@ -111,6 +112,9 @@ export default function GroupChat() {
       <ScrollView ref={scrollRef} style={styles.messageList} contentContainerStyle={styles.messageContent} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="chatbubbles-outline" size={36} color={Colors.textTertiary} />
+            </View>
             <Text style={styles.emptyTitle}>No messages yet</Text>
             <Text style={styles.emptyText}>Start the conversation with your carpool group</Text>
           </View>
@@ -155,7 +159,7 @@ export default function GroupChat() {
           disabled={!canSend}
           style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
         >
-          <Text style={[styles.sendIcon, !canSend && styles.sendIconDisabled]}>{">"}</Text>
+          <Ionicons name="send" size={18} color={!canSend ? Colors.textTertiary : Colors.bg} />
         </PressableScale>
       </View>
     </KeyboardAvoidingView>
@@ -190,12 +194,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  backArrow: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: -1,
-  },
   headerTitle: {
     color: Colors.textPrimary,
     fontSize: FontSizes.base,
@@ -221,6 +219,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 100,
     paddingHorizontal: Spacing.xl,
+  },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
     color: Colors.textPrimary,
@@ -338,14 +347,5 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: Colors.bgElevated,
-  },
-  sendIcon: {
-    color: Colors.bg,
-    fontSize: 18,
-    fontWeight: "800",
-    marginLeft: 1,
-  },
-  sendIconDisabled: {
-    color: Colors.textTertiary,
   },
 });
