@@ -7,6 +7,7 @@ import {
   Alert,
   Linking,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
@@ -297,7 +298,7 @@ export default function Settings() {
           {childName && (
             <>
               <View style={styles.row}>
-                <View style={[styles.rowDot, { backgroundColor: Colors.info }]} />
+                <Ionicons name="person-outline" size={18} color={Colors.info} style={{ marginRight: Spacing.base }} />
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Linked Child</Text>
                   <Text style={styles.rowValue}>{childName}</Text>
@@ -313,24 +314,24 @@ export default function Settings() {
                 onPress={() => router.push(`/my-group?groupId=${groupId}`)}
                 style={styles.row}
               >
-                <View style={[styles.rowDot, { backgroundColor: Colors.primary }]} />
+                <Ionicons name="people-outline" size={18} color={Colors.primary} style={{ marginRight: Spacing.base }} />
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Carpool Group</Text>
                   <Text style={styles.rowValue}>{groupName}</Text>
                 </View>
-                <Text style={styles.rowChevron}>›</Text>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginLeft: Spacing.sm }} />
               </PressableScale>
               <View style={styles.divider} />
             </>
           )}
 
           <PressableScale onPress={handleResetPassword} style={styles.row}>
-            <View style={[styles.rowDot, { backgroundColor: Colors.warm }]} />
+            <Ionicons name="lock-closed-outline" size={18} color={Colors.warm} style={{ marginRight: Spacing.base }} />
             <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>Change Password</Text>
               <Text style={styles.rowSub}>Send a reset link to your email</Text>
             </View>
-            <Text style={styles.rowChevron}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginLeft: Spacing.sm }} />
           </PressableScale>
 
           {userRole === "student" && (
@@ -340,12 +341,12 @@ export default function Settings() {
                 onPress={() => router.push("/setup-location")}
                 style={styles.row}
               >
-                <View style={[styles.rowDot, { backgroundColor: Colors.primary }]} />
+                <Ionicons name="location-outline" size={18} color={Colors.primary} style={{ marginRight: Spacing.base }} />
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Pickup Location</Text>
                   <Text style={styles.rowSub}>Update your pickup spot</Text>
                 </View>
-                <Text style={styles.rowChevron}>›</Text>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginLeft: Spacing.sm }} />
               </PressableScale>
             </>
           )}
@@ -365,19 +366,19 @@ export default function Settings() {
                   }
                   style={styles.row}
                 >
-                  <View style={[styles.rowDot, { backgroundColor: Colors.info }]} />
+                  <Ionicons name="calendar-outline" size={18} color={Colors.info} style={{ marginRight: Spacing.base }} />
                   <View style={styles.rowContent}>
                     <Text style={styles.rowLabel}>My Availability</Text>
                     <Text style={styles.rowSub}>Edit when you can drive</Text>
                   </View>
-                  <Text style={styles.rowChevron}>›</Text>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginLeft: Spacing.sm }} />
                 </PressableScale>
                 <View style={styles.divider} />
               </>
             )}
 
             <PressableScale onPress={confirmLeaveGroup} style={styles.row}>
-              <View style={[styles.rowDot, { backgroundColor: Colors.accent }]} />
+              <Ionicons name="exit-outline" size={18} color={Colors.accent} style={{ marginRight: Spacing.base }} />
               <View style={styles.rowContent}>
                 <Text style={[styles.rowLabel, { color: Colors.accent }]}>
                   Leave Group
@@ -396,7 +397,7 @@ export default function Settings() {
         <Text style={styles.sectionLabel}>ABOUT</Text>
         <View style={styles.section}>
           <View style={styles.row}>
-            <View style={[styles.rowDot, { backgroundColor: Colors.textTertiary }]} />
+            <Ionicons name="information-circle-outline" size={18} color={Colors.textTertiary} style={{ marginRight: Spacing.base }} />
             <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>App Version</Text>
               <Text style={styles.rowValue}>1.0.0</Text>
@@ -407,12 +408,12 @@ export default function Settings() {
             onPress={() => Linking.openURL("mailto:support@ridepool.app")}
             style={styles.row}
           >
-            <View style={[styles.rowDot, { backgroundColor: Colors.info }]} />
+            <Ionicons name="mail-outline" size={18} color={Colors.info} style={{ marginRight: Spacing.base }} />
             <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>Contact Support</Text>
               <Text style={styles.rowSub}>support@ridepool.app</Text>
             </View>
-            <Text style={styles.rowChevron}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginLeft: Spacing.sm }} />
           </PressableScale>
         </View>
       </FadeIn>
@@ -424,12 +425,12 @@ export default function Settings() {
         </Text>
         <View style={[styles.section, styles.dangerSection]}>
           <PressableScale onPress={confirmLogout} style={styles.row}>
-            <View style={[styles.rowDot, { backgroundColor: Colors.accent }]} />
+            <Ionicons name="log-out-outline" size={18} color={Colors.accent} style={{ marginRight: Spacing.base }} />
             <Text style={[styles.rowLabel, styles.rowContent]}>Sign Out</Text>
           </PressableScale>
           <View style={styles.dangerDivider} />
           <PressableScale onPress={confirmDeleteAccount} style={styles.row}>
-            <View style={[styles.rowDot, { backgroundColor: Colors.accent }]} />
+            <Ionicons name="trash-outline" size={18} color={Colors.accent} style={{ marginRight: Spacing.base }} />
             <Text
               style={[styles.rowLabel, styles.rowContent, { color: Colors.accent }]}
             >
@@ -545,12 +546,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: Spacing.xl,
   },
-  rowDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: Spacing.base,
-  },
   rowContent: {
     flex: 1,
   },
@@ -569,21 +564,15 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 2,
   },
-  rowChevron: {
-    fontSize: 18,
-    color: Colors.textMuted,
-    marginLeft: Spacing.sm,
-  },
-
   /* Dividers */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.border,
-    marginLeft: Spacing.xl + 7 + Spacing.base,
+    marginLeft: Spacing.xl + 18 + Spacing.base,
   },
   dangerDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.accentBorder,
-    marginLeft: Spacing.xl + 7 + Spacing.base,
+    marginLeft: Spacing.xl + 18 + Spacing.base,
   },
 });

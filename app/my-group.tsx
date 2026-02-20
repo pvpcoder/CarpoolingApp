@@ -9,6 +9,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
@@ -293,6 +294,7 @@ export default function MyGroup() {
       {/* School Destination */}
       <FadeIn delay={80}>
         <View style={styles.schoolCard}>
+          <Ionicons name="school-outline" size={20} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
           <Text style={styles.schoolLabel}>SCHOOL</Text>
           <Text style={styles.schoolName}>{SCHOOL.name}</Text>
           <Text style={styles.schoolAddr}>{SCHOOL.address}</Text>
@@ -302,7 +304,10 @@ export default function MyGroup() {
             }
             style={styles.directionsBtn}
           >
-            <Text style={styles.directionsBtnText}>Get Directions</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="navigate-outline" size={14} color={Colors.primary} />
+              <Text style={styles.directionsBtnText}>Get Directions</Text>
+            </View>
           </PressableScale>
         </View>
       </FadeIn>
@@ -323,7 +328,7 @@ export default function MyGroup() {
               </Text>
             </View>
             <View style={styles.routeAllArrow}>
-              <Text style={styles.routeAllArrowText}>{">"}</Text>
+              <Ionicons name="navigate" size={18} color={Colors.bg} />
             </View>
           </PressableScale>
         </FadeIn>
@@ -369,7 +374,10 @@ export default function MyGroup() {
                       }
                       style={styles.dirBtnSmall}
                     >
-                      <Text style={styles.dirBtnSmallText}>Directions</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name="navigate-outline" size={12} color={Colors.primary} />
+                        <Text style={styles.dirBtnSmallText}>Directions</Text>
+                      </View>
                     </PressableScale>
                   )}
                 </View>
@@ -415,6 +423,7 @@ export default function MyGroup() {
                 : "families still need"
             } parent to join.`}
             variant="warning"
+            icon="alert-circle-outline"
           />
         </FadeIn>
       )}
@@ -425,6 +434,7 @@ export default function MyGroup() {
             title="Almost ready"
             message={`You have ${familiesWithParents.length} families with parents. Once parents set their availability, the app can generate a schedule.`}
             variant="success"
+            icon="checkmark-circle-outline"
           />
         </FadeIn>
       )}
@@ -435,6 +445,7 @@ export default function MyGroup() {
           title="Invite More Students"
           onPress={() => router.push("/discover")}
           style={{ marginBottom: Spacing.md }}
+          icon="person-add-outline"
         />
         {group?.status === "active" && (
           <SecondaryButton
@@ -443,6 +454,7 @@ export default function MyGroup() {
               router.push(`/weekly-schedule?groupId=${groupId}`)
             }
             style={{ marginBottom: Spacing.md }}
+            icon="calendar-outline"
           />
         )}
       </FadeIn>
@@ -459,6 +471,7 @@ export default function MyGroup() {
               title={deleting ? "Deleting..." : "Delete Group"}
               onPress={confirmDeleteGroup}
               style={{ marginTop: Spacing.md }}
+              icon="trash-outline"
             />
           </View>
         </FadeIn>
@@ -593,12 +606,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: Spacing.md,
-  },
-  routeAllArrowText: {
-    color: Colors.bg,
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 1,
   },
 
   /* Member cards */

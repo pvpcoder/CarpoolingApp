@@ -11,6 +11,7 @@ import {
   Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from "../lib/supabase";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
 import { PrimaryButton, PressableScale, FadeIn, ScaleIn } from "../components/UI";
@@ -199,7 +200,7 @@ export default function LoginScreen() {
         >
           <View style={styles.logoGlow}>
             <View style={styles.logoIcon}>
-              <Text style={styles.logoIconText}>R</Text>
+              <Ionicons name="car-sport" size={36} color={Colors.bg} />
             </View>
           </View>
           <Text style={styles.title}>RidePool</Text>
@@ -299,11 +300,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  logoIconText: {
-    fontSize: 36,
-    fontWeight: "900",
-    color: Colors.bg,
   },
   title: {
     fontSize: 40,

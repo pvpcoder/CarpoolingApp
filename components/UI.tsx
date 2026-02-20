@@ -9,6 +9,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSizes } from '../lib/theme';
 
 // ─── Fade-in on mount ─────────────────────────────────────────
@@ -165,9 +166,10 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator size="small" color={Colors.bg} />
       ) : (
-        <Text style={s.primaryBtnText}>
-          {icon ? `${icon}  ${title}` : title}
-        </Text>
+        <View style={s.btnInner}>
+          {icon && <Ionicons name={icon as any} size={18} color={Colors.bg} />}
+          <Text style={s.primaryBtnText}>{title}</Text>
+        </View>
       )}
     </PressableScale>
   );
@@ -202,9 +204,10 @@ export function SecondaryButton({
       {loading ? (
         <ActivityIndicator size="small" color={Colors.primary} />
       ) : (
-        <Text style={s.secondaryBtnText}>
-          {icon ? `${icon}  ${title}` : title}
-        </Text>
+        <View style={s.btnInner}>
+          {icon && <Ionicons name={icon as any} size={18} color={Colors.textPrimary} />}
+          <Text style={s.secondaryBtnText}>{title}</Text>
+        </View>
       )}
     </PressableScale>
   );
@@ -214,15 +217,20 @@ export function SecondaryButton({
 export function DangerButton({
   title,
   onPress,
+  icon,
   style,
 }: {
   title: string;
   onPress: () => void;
+  icon?: string;
   style?: ViewStyle;
 }) {
   return (
     <PressableScale onPress={onPress} style={[s.dangerBtn, style]}>
-      <Text style={s.dangerBtnText}>{title}</Text>
+      <View style={s.btnInner}>
+        {icon && <Ionicons name={icon as any} size={18} color={Colors.accent} />}
+        <Text style={s.dangerBtnText}>{title}</Text>
+      </View>
     </PressableScale>
   );
 }
@@ -275,10 +283,11 @@ export function Banner({
 
   return (
     <View style={[s.banner, { backgroundColor: v.bg, borderColor: v.border }, style]}>
-      <Text style={[s.bannerTitle, { color: v.text }]}>
-        {icon ? `${icon}  ${title}` : title}
-      </Text>
-      <Text style={s.bannerMessage}>{message}</Text>
+      <View style={s.bannerHeader}>
+        {icon && <Ionicons name={icon as any} size={18} color={v.text} style={{ marginRight: 8 }} />}
+        <Text style={[s.bannerTitle, { color: v.text }]}>{title}</Text>
+      </View>
+      <Text style={[s.bannerMessage, icon ? { marginLeft: 26 } : undefined]}>{message}</Text>
     </View>
   );
 }
@@ -293,7 +302,7 @@ export function BackButton({ onPress }: { onPress: () => void }) {
   return (
     <TouchableOpacity onPress={onPress} style={s.backBtn} activeOpacity={0.6}>
       <View style={s.backBtnCircle}>
-        <Text style={s.backBtnArrow}>{'<'}</Text>
+        <Ionicons name="chevron-back" size={18} color={Colors.textSecondary} />
       </View>
     </TouchableOpacity>
   );
@@ -305,7 +314,7 @@ export function LoadingScreen({ message }: { message?: string }) {
     <View style={s.loadingScreen}>
       <ScaleIn>
         <View style={s.loadingLogoWrap}>
-          <Text style={s.loadingLogoIcon}>R</Text>
+          <Ionicons name="car-sport" size={28} color={Colors.bg} />
         </View>
       </ScaleIn>
       <FadeIn delay={200}>
@@ -330,6 +339,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 54,
+  },
+  btnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   primaryBtnText: {
     color: Colors.bg,
@@ -386,10 +400,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     marginBottom: Spacing.md,
   },
+  bannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   bannerTitle: {
     fontSize: FontSizes.md,
     fontWeight: '700',
-    marginBottom: 4,
   },
   bannerMessage: {
     color: Colors.textSecondary,
@@ -417,12 +435,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backBtnArrow: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: -1,
-  },
   loadingScreen: {
     flex: 1,
     backgroundColor: Colors.bg,
@@ -437,11 +449,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.base,
-  },
-  loadingLogoIcon: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.bg,
   },
   loadingLogo: {
     fontSize: 24,

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
@@ -192,7 +193,7 @@ export default function ParentHome() {
             onPress={() => router.push("/settings")}
             style={styles.settingsBtn}
           >
-            <Text style={styles.settingsIcon}>S</Text>
+            <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
           </PressableScale>
         </View>
       </ScaleIn>
@@ -201,14 +202,12 @@ export default function ParentHome() {
       {!childName && (
         <FadeIn delay={80}>
           <View style={styles.warningCard}>
-            <View style={styles.warningAccent} />
-            <View style={styles.warningBody}>
-              <Text style={styles.warningTitle}>No child linked</Text>
-              <Text style={styles.warningText}>
-                Your account isn't linked to a student yet. Make sure your child
-                signs up first with their school email.
-              </Text>
-            </View>
+            <Ionicons name="warning-outline" size={20} color={Colors.warm} style={{ marginBottom: 8 }} />
+            <Text style={styles.warningTitle}>No child linked</Text>
+            <Text style={styles.warningText}>
+              Your account isn't linked to a student yet. Make sure your child
+              signs up first with their school email.
+            </Text>
           </View>
         </FadeIn>
       )}
@@ -218,33 +217,27 @@ export default function ParentHome() {
         ? groups.map((g, idx) => (
             <FadeIn key={g.id} delay={80 + idx * 80}>
               <View style={styles.groupCard}>
-                <View
-                  style={[
-                    styles.groupAccent,
-                    {
-                      backgroundColor:
-                        g.status === "active"
-                          ? Colors.primary
-                          : Colors.warm,
-                    },
-                  ]}
-                />
                 <View style={styles.groupBody}>
                   <PressableScale
                     onPress={() => router.push(`/my-group?groupId=${g.id}`)}
                     style={styles.groupCardInner}
                   >
                     <View style={styles.groupTop}>
-                      <View style={styles.groupMeta}>
-                        <Text style={styles.groupName}>{g.name}</Text>
-                        <Text style={styles.groupSub}>
-                          {g.memberCount}{" "}
-                          {g.memberCount === 1 ? "family" : "families"}
-                          {"  "}
-                          <Text style={styles.groupSubDivider}>/</Text>
-                          {"  "}
-                          {g.parentCount} parent{g.parentCount !== 1 ? "s" : ""}
-                        </Text>
+                      <View style={styles.groupRow}>
+                        <View style={styles.groupAvatarWrap}>
+                          <Ionicons name="people" size={18} color={g.status === "active" ? Colors.primary : Colors.warm} />
+                        </View>
+                        <View style={styles.groupMeta}>
+                          <Text style={styles.groupName}>{g.name}</Text>
+                          <Text style={styles.groupSub}>
+                            {g.memberCount}{" "}
+                            {g.memberCount === 1 ? "family" : "families"}
+                            {"  "}
+                            <Text style={styles.groupSubDivider}>/</Text>
+                            {"  "}
+                            {g.parentCount} parent{g.parentCount !== 1 ? "s" : ""}
+                          </Text>
+                        </View>
                       </View>
                       <View
                         style={[
@@ -308,10 +301,11 @@ export default function ParentHome() {
                       }
                       style={styles.ctaStrip}
                     >
+                      <Ionicons name="time-outline" size={16} color={Colors.bg} style={{ marginRight: 8 }} />
                       <Text style={styles.ctaStripText}>
                         Set your availability
                       </Text>
-                      <Text style={styles.ctaStripArrow}>{"\u2192"}</Text>
+                      <Ionicons name="arrow-forward" size={18} color={Colors.bg} />
                     </PressableScale>
                   )}
 
@@ -323,6 +317,7 @@ export default function ParentHome() {
                       }
                       style={styles.actionPill}
                     >
+                      <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} style={{marginRight: 4}} />
                       <Text style={styles.actionPillText}>
                         {g.hasAvailability ? "Edit" : "Availability"}
                       </Text>
@@ -334,6 +329,7 @@ export default function ParentHome() {
                       }
                       style={styles.actionPill}
                     >
+                      <Ionicons name="chatbubble-outline" size={14} color={Colors.textSecondary} style={{marginRight: 4}} />
                       <Text style={styles.actionPillText}>Chat</Text>
                     </PressableScale>
 
@@ -344,6 +340,7 @@ export default function ParentHome() {
                         }
                         style={styles.actionPill}
                       >
+                        <Ionicons name="today-outline" size={14} color={Colors.textSecondary} style={{marginRight: 4}} />
                         <Text style={styles.actionPillText}>This Week</Text>
                       </PressableScale>
                     )}
@@ -354,6 +351,7 @@ export default function ParentHome() {
                       }
                       style={styles.actionPill}
                     >
+                      <Ionicons name="people-outline" size={14} color={Colors.textSecondary} style={{marginRight: 4}} />
                       <Text style={styles.actionPillText}>Members</Text>
                     </PressableScale>
                   </View>
@@ -364,6 +362,9 @@ export default function ParentHome() {
         : childName && (
             <FadeIn delay={80}>
               <View style={styles.emptyCard}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="people-outline" size={32} color={Colors.textTertiary} />
+                </View>
                 <Text style={styles.emptyTitle}>No carpool group yet</Text>
                 <Text style={styles.emptyText}>
                   Your child hasn't joined a carpool group yet. They can create
@@ -385,15 +386,11 @@ export default function ParentHome() {
                   <Text style={styles.statusGroupName}>{g.name}</Text>
                 </View>
                 <View style={styles.statusRow}>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor: g.hasAvailability
-                          ? Colors.success
-                          : Colors.warm,
-                      },
-                    ]}
+                  <Ionicons
+                    name={g.hasAvailability ? "checkmark-circle" : "alert-circle-outline"}
+                    size={16}
+                    color={g.hasAvailability ? Colors.success : Colors.warm}
+                    style={{ marginRight: Spacing.md }}
                   />
                   <Text style={styles.statusText}>
                     {g.hasAvailability
@@ -402,16 +399,11 @@ export default function ParentHome() {
                   </Text>
                 </View>
                 <View style={styles.statusRow}>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor:
-                          g.parentCount >= g.memberCount
-                            ? Colors.success
-                            : Colors.warm,
-                      },
-                    ]}
+                  <Ionicons
+                    name={g.parentCount >= g.memberCount ? "checkmark-circle" : "alert-circle-outline"}
+                    size={16}
+                    color={g.parentCount >= g.memberCount ? Colors.success : Colors.warm}
+                    style={{ marginRight: Spacing.md }}
                   />
                   <Text style={styles.statusText}>
                     {g.parentCount >= g.memberCount
@@ -420,14 +412,11 @@ export default function ParentHome() {
                   </Text>
                 </View>
                 <View style={styles.statusRow}>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor:
-                          g.status === "active" ? Colors.success : Colors.info,
-                      },
-                    ]}
+                  <Ionicons
+                    name={g.status === "active" ? "checkmark-circle" : "information-circle-outline"}
+                    size={16}
+                    color={g.status === "active" ? Colors.success : Colors.info}
+                    style={{ marginRight: Spacing.md }}
                   />
                   <Text style={styles.statusText}>
                     {g.status === "active"
@@ -446,26 +435,29 @@ export default function ParentHome() {
         <FadeIn delay={200}>
           <Text style={styles.sectionLabel}>What happens next</Text>
           <View style={styles.stepsCard}>
-            {[
+            {([
               {
+                icon: "people-outline" as const,
                 title: "Your child creates or joins a group",
                 sub: "They can find nearby students in the Discover tab",
               },
               {
+                icon: "eye-outline" as const,
                 title: "You'll see the group here",
                 sub: "Once they join, your dashboard updates automatically",
               },
               {
+                icon: "sparkles" as const,
                 title: "Set availability & the app handles the rest",
                 sub: "AI builds a fair weekly driving schedule",
               },
-            ].map((step, i) => (
+            ]).map((step, i) => (
               <View
                 key={i}
                 style={[styles.stepRow, i === 2 ? { marginBottom: 0 } : {}]}
               >
                 <View style={styles.stepNum}>
-                  <Text style={styles.stepNumText}>{i + 1}</Text>
+                  <Ionicons name={step.icon} size={14} color={Colors.primary} />
                 </View>
                 <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
@@ -480,7 +472,8 @@ export default function ParentHome() {
       {/* Tip */}
       <FadeIn delay={340}>
         <View style={styles.tipCard}>
-          <Text style={styles.tipText}>
+          <Ionicons name="bulb-outline" size={16} color={Colors.textTertiary} style={{ marginRight: 8, marginTop: 1 }} />
+          <Text style={[styles.tipText, { flex: 1 }]}>
             {hasGroups
               ? "Pull down to refresh. Tap any group card to see member details, addresses, and get directions."
               : "Pull down to refresh. Your child's groups will appear here once they join."}
@@ -536,28 +529,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  settingsIcon: {
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
-    color: Colors.textTertiary,
-  },
 
   /* ---- Warning (no child) ---- */
   warningCard: {
-    flexDirection: "row",
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.warmBorder,
-    overflow: "hidden",
-  },
-  warningAccent: {
-    width: 3,
-    backgroundColor: Colors.warm,
-  },
-  warningBody: {
-    flex: 1,
     padding: Spacing.lg,
   },
   warningTitle: {
@@ -574,17 +553,11 @@ const styles = StyleSheet.create({
 
   /* ---- Group Cards ---- */
   groupCard: {
-    flexDirection: "row",
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    overflow: "hidden",
-  },
-  groupAccent: {
-    width: 3,
-    backgroundColor: Colors.primary,
   },
   groupBody: {
     flex: 1,
@@ -598,9 +571,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-  groupMeta: {
+  groupRow: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     marginRight: Spacing.md,
+  },
+  groupAvatarWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Colors.bgElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
+  },
+  groupMeta: {
+    flex: 1,
   },
   groupName: {
     fontSize: FontSizes.lg,
@@ -696,11 +683,6 @@ const styles = StyleSheet.create({
     color: Colors.bg,
     flex: 1,
   },
-  ctaStripArrow: {
-    fontSize: FontSizes.base,
-    fontWeight: "600",
-    color: Colors.bg,
-  },
 
   /* ---- Group Actions ---- */
   groupActions: {
@@ -711,10 +693,14 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   actionPill: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.bgElevated,
     borderRadius: Radius.pill,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   actionPillText: {
     fontSize: FontSizes.sm,
@@ -731,6 +717,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: "center",
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
     fontSize: FontSizes.lg,
@@ -783,12 +780,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     marginVertical: Spacing.md,
   },
-  statusIndicator: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: Spacing.md,
-  },
   statusText: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
@@ -819,11 +810,6 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
     marginTop: 1,
   },
-  stepNumText: {
-    fontSize: FontSizes.xs,
-    fontWeight: "600",
-    color: Colors.primary,
-  },
   stepContent: {
     flex: 1,
   },
@@ -841,6 +827,8 @@ const styles = StyleSheet.create({
 
   /* ---- Tip ---- */
   tipCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.md,

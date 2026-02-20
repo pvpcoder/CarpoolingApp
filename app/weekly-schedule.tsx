@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
@@ -537,7 +538,7 @@ Respond with ONLY valid JSON in this exact format, no other text:
         <FadeIn delay={150}>
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconWrap}>
-              <Text style={styles.emptyIconText}>S</Text>
+              <Ionicons name="calendar-outline" size={26} color={Colors.textTertiary} />
             </View>
             <Text style={styles.emptyTitle}>No schedule yet</Text>
             <Text style={styles.emptyText}>
@@ -548,6 +549,7 @@ Respond with ONLY valid JSON in this exact format, no other text:
               onPress={generateSchedule}
               loading={generating}
               disabled={generating}
+              icon="sparkles"
             />
           </View>
         </FadeIn>
@@ -558,7 +560,7 @@ Respond with ONLY valid JSON in this exact format, no other text:
             <FadeIn delay={100}>
               <View style={styles.aiCard}>
                 <View style={styles.aiHeader}>
-                  <View style={styles.aiDot} />
+                  <Ionicons name="sparkles" size={16} color={Colors.info} style={{ marginRight: 8 }} />
                   <Text style={styles.aiTitle}>AI Reasoning</Text>
                 </View>
                 <Text style={styles.aiText}>{aiExplanation}</Text>
@@ -680,6 +682,7 @@ Respond with ONLY valid JSON in this exact format, no other text:
               onPress={generateSchedule}
               loading={generating}
               disabled={generating}
+              icon="sparkles"
               style={{ marginTop: Spacing.sm }}
             />
           </FadeIn>
@@ -723,11 +726,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: Spacing.lg,
   },
-  emptyIconText: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: Colors.textTertiary,
-  },
   emptyTitle: {
     color: Colors.textPrimary,
     fontSize: FontSizes.lg,
@@ -756,13 +754,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
-  },
-  aiDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.info,
-    marginRight: 8,
   },
   aiTitle: {
     color: Colors.info,

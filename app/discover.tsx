@@ -2,6 +2,7 @@ import { sendPushNotification } from "../lib/notifications";
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { GOOGLE_API_KEY } from "../lib/config";
 import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
@@ -216,7 +217,7 @@ export default function Discover() {
               </Text>
             </View>
             <View style={styles.bannerArrow}>
-              <Text style={styles.bannerArrowText}>›</Text>
+              <Ionicons name="add-circle" size={20} color={Colors.primary} />
             </View>
           </PressableScale>
         </FadeIn>
@@ -226,7 +227,7 @@ export default function Discover() {
         <FadeIn delay={200}>
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>?</Text>
+              <Ionicons name="search-outline" size={26} color={Colors.textTertiary} />
             </View>
             <Text style={styles.emptyTitle}>No students nearby yet</Text>
             <Text style={styles.emptyText}>
@@ -357,12 +358,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: Spacing.md,
   },
-  bannerArrowText: {
-    color: Colors.primary,
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: -1,
-  },
 
   /* Empty */
   emptyState: {
@@ -380,11 +375,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.lg,
-  },
-  emptyIconText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: Colors.textTertiary,
   },
   emptyTitle: {
     color: Colors.textPrimary,
