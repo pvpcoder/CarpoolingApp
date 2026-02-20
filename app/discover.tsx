@@ -115,14 +115,18 @@ export default function Discover() {
     }));
     withDistance.sort((a: any, b: any) => a.distance_km - b.distance_km);
 
-    // Get invite statuses
-    const { data: sentInvites } = await supabase
-      .from("group_invites")
-      .select("invited_student_id, status")
-      .eq("invited_by", me.id);
-    const inviteMap = new Map(
-      (sentInvites || []).map((i: any) => [i.invited_student_id, i.status])
-    );
+    // Get invite statuses — only for current group (ignore old/deleted group invites)
+    let inviteMap = new Map<string, string>();
+    if (myGroupId) {
+      const { data: sentInvites } = await supabase
+        .from("group_invites")
+        .select("invited_student_id, status")
+        .eq("invited_by", me.id)
+        .eq("group_id", myGroupId);
+      inviteMap = new Map(
+        (sentInvites || []).map((i: any) => [i.invited_student_id, i.status])
+      );
+    }
     const studentsWithInvites = withDistance.map((s: any) => ({
       ...s,
       invite_status: inviteMap.get(s.id) || null,
