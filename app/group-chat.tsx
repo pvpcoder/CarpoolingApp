@@ -122,7 +122,7 @@ export default function GroupChat() {
           messages.map((msg: any) => {
             const isMe = msg.sender_id === currentUserId;
             return (
-              <View key={msg.id} style={[styles.row, isMe && styles.rowMe]}>
+              <View key={msg.id} style={[styles.row, isMe ? styles.rowMe : {}]}>
                 <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
                   {!isMe && (
                     <View style={styles.senderRow}>
@@ -132,8 +132,8 @@ export default function GroupChat() {
                       <Text style={styles.senderRole}>{msg.sender_role}</Text>
                     </View>
                   )}
-                  <Text style={[styles.msgText, isMe && styles.msgTextMe]}>{msg.message}</Text>
-                  <Text style={[styles.msgTime, isMe && styles.msgTimeMe]}>{formatTime(msg.created_at)}</Text>
+                  <Text style={[styles.msgText, isMe ? styles.msgTextMe : {}]}>{msg.message}</Text>
+                  <Text style={[styles.msgTime, isMe ? styles.msgTimeMe : {}]}>{formatTime(msg.created_at)}</Text>
                 </View>
               </View>
             );
@@ -157,7 +157,7 @@ export default function GroupChat() {
         <PressableScale
           onPress={handleSend}
           disabled={!canSend}
-          style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, !canSend ? styles.sendBtnDisabled : {}]}
         >
           <Ionicons name="send" size={18} color={!canSend ? Colors.textTertiary : Colors.bg} />
         </PressableScale>

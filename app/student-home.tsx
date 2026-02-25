@@ -4,10 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   Alert,
   RefreshControl,
   Dimensions,
 } from "react-native";
+
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -44,6 +46,8 @@ export default function StudentHome() {
   const [pickupAddress, setPickupAddress] = useState<string | null>(null);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [schedulesByGroup, setSchedulesByGroup] = useState<Record<string, any[]>>({});
+  const [parentNames, setParentNames] = useState<Record<string, string>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -103,7 +107,57 @@ export default function StudentHome() {
           isAdmin: membership.role === "admin",
         });
       }
-      setGroups(groupList);
+
+      const seen = new Set<string>();
+      const uniqueGroups = groupList.filter((g) => {
+        if (seen.has(g.id)) return false;
+        seen.add(g.id);
+        return true;
+      });
+      setGroups(uniqueGroups);
+
+      // Load this week's schedule for each group
+      const today = new Date();
+      const dow = today.getDay();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+      const weekStart = monday.toISOString().split("T")[0];
+
+      const schedMap: Record<string, any[]> = {};
+      const pNames: Record<string, string> = {};
+
+      for (const g of uniqueGroups) {
+        const { data: sched } = await supabase
+          .from("weekly_schedules")
+          .select("id")
+          .eq("group_id", g.id)
+          .eq("week_start_date", weekStart)
+          .single();
+
+        if (sched) {
+          const { data: slots } = await supabase
+            .from("schedule_slots")
+            .select("day_of_week, slot_type, driver_parent_id, departure_time, status")
+            .eq("schedule_id", sched.id)
+            .order("day_of_week");
+          schedMap[g.id] = slots || [];
+
+          // Get parent names for drivers
+          const parentIds = (slots || [])
+            .map((s: any) => s.driver_parent_id)
+            .filter(Boolean);
+          if (parentIds.length > 0) {
+            const { data: parents } = await supabase
+              .from("parents")
+              .select("id, name")
+              .in("id", parentIds);
+            (parents || []).forEach((p: any) => { pNames[p.id] = p.name; });
+          }
+        }
+      }
+      setSchedulesByGroup(schedMap);
+      setParentNames(pNames);
+
 
       const { data: invites } = await supabase
         .from("group_invites")
@@ -150,12 +204,16 @@ export default function StudentHome() {
         .update({ status: accept ? "accepted" : "declined" })
         .eq("id", inviteId);
       if (accept) {
-        await supabase.from("group_members").insert({
+        const { error: joinError } = await supabase.from("group_members").insert({
           group_id: groupId,
           student_id: user.id,
           role: "member",
           status: "active",
         });
+        if (joinError) {
+          Alert.alert("Error", "Couldn't join the group: " + joinError.message);
+          return;
+        }
         Alert.alert("Joined!", "You're now part of the carpool group.");
       }
       checkProfile();
@@ -394,6 +452,70 @@ export default function StudentHome() {
         </FadeIn>
       )}
 
+      {/* Weekly Schedule Slider */}
+      {hasGroups && Object.keys(schedulesByGroup).length > 0 && (
+        <FadeIn delay={hasGroups ? 180 + groups.length * 80 : 180}>
+          <Text style={styles.sectionLabel}>This week's schedule</Text>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            snapToInterval={SCREEN_W - Spacing.xl * 2 + Spacing.md}
+            decelerationRate="fast"
+            data={groups.filter((g) => schedulesByGroup[g.id]?.length > 0)}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ gap: Spacing.md }}
+            renderItem={({ item: g }) => {
+              const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+              const slots = schedulesByGroup[g.id] || [];
+              return (
+                <PressableScale
+                  onPress={() => router.push(`/weekly-schedule?groupId=${g.id}`)}
+                  style={[styles.schedCard, { width: SCREEN_W - Spacing.xl * 2 }]}
+                >
+                  <View style={styles.schedHeader}>
+                    <Text style={styles.schedGroupName}>{g.name}</Text>
+                    <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+                  </View>
+                  {DAYS.map((day) => {
+                    const daySlots = slots.filter((s: any) => s.day_of_week === day);
+                    const morning = daySlots.find((s: any) => s.slot_type === "morning");
+                    const afternoon = daySlots.find((s: any) => s.slot_type === "afternoon" || s.slot_type === "late_afternoon");
+                    const isToday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date().getDay()] === day;
+                    return (
+                      <View key={day} style={[styles.schedRow, isToday && styles.schedRowToday]}>
+                        <Text style={[styles.schedDay, isToday && styles.schedDayToday]}>{day}</Text>
+                        <View style={styles.schedSlots}>
+                          <View style={styles.schedSlot}>
+                            <Text style={styles.schedSlotLabel}>AM</Text>
+                            <Text style={[styles.schedDriver, !morning?.driver_parent_id && styles.schedNoDriver]}>
+                              {morning ? (morning.driver_parent_id ? parentNames[morning.driver_parent_id] || "Assigned" : "Needs driver") : "—"}
+                            </Text>
+                          </View>
+                          <View style={styles.schedSlot}>
+                            <Text style={styles.schedSlotLabel}>PM</Text>
+                            <Text style={[styles.schedDriver, !afternoon?.driver_parent_id && styles.schedNoDriver]}>
+                              {afternoon ? (afternoon.driver_parent_id ? parentNames[afternoon.driver_parent_id] || "Assigned" : "Needs driver") : "—"}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {groups.length > 1 && (
+                    <View style={styles.schedDots}>
+                      {groups.filter((gr) => schedulesByGroup[gr.id]?.length > 0).map((gr) => (
+                        <View key={gr.id} style={[styles.schedDot, gr.id === g.id && styles.schedDotActive]} />
+                      ))}
+                    </View>
+                  )}
+                </PressableScale>
+              );
+            }}
+          />
+        </FadeIn>
+      )}
+
       {/* Quick Actions */}
       <FadeIn delay={hasGroups ? 220 + groups.length * 80 : 220}>
         <Text style={styles.sectionLabel}>Quick actions</Text>
@@ -421,14 +543,7 @@ export default function StudentHome() {
             </Text>
           </PressableScale>
 
-          <PressableScale
-            onPress={() => router.push("/discover")}
-            style={styles.tile}
-          >
-            <Ionicons name="compass-outline" size={28} color={Colors.primary} style={{ marginBottom: 8 }} />
-            <Text style={styles.tileTitle}>Discover</Text>
-            <Text style={styles.tileSub}>Nearby students</Text>
-          </PressableScale>
+          
         </View>
       </FadeIn>
 
@@ -457,7 +572,7 @@ export default function StudentHome() {
               {
                 icon: "people-outline" as const,
                 title: "Create or join a carpool group",
-                sub: "Find nearby students in the Discover tab",
+                sub: "Open your group and tap Find Nearby Students",
               },
               {
                 icon: "person-add-outline" as const,
@@ -927,5 +1042,90 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
     lineHeight: 19,
+  },
+  // Schedule slider
+  schedCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  schedHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+  },
+  schedGroupName: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.base,
+    fontWeight: "700",
+  },
+  schedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  schedRowToday: {
+    backgroundColor: Colors.primaryFaded,
+    marginHorizontal: -Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.sm,
+  },
+  schedDay: {
+    width: 36,
+    color: Colors.textTertiary,
+    fontSize: FontSizes.sm,
+    fontWeight: "600",
+  },
+  schedDayToday: {
+    color: Colors.primary,
+    fontWeight: "800",
+  },
+  schedSlots: {
+    flex: 1,
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  schedSlot: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  schedSlotLabel: {
+    color: Colors.textTertiary,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  schedDriver: {
+    color: Colors.textPrimary,
+    fontSize: FontSizes.sm,
+    fontWeight: "500",
+  },
+  schedNoDriver: {
+    color: Colors.accent,
+    fontWeight: "600",
+  },
+  schedDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: Spacing.md,
+  },
+  schedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.border,
+  },
+  schedDotActive: {
+    backgroundColor: Colors.primary,
+    width: 16,
   },
 });

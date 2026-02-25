@@ -130,6 +130,11 @@ export default function Settings() {
             try {
               const user = await getValidUser();
               if (!user) return;
+              // Track locally so dashboard hides it immediately
+              if (groupId) {
+                const { deletedGroups } = require("../lib/deletedGroups");
+                deletedGroups.add(groupId);
+              }
               if (userRole === "student") {
                 await supabase
                   .from("group_members")

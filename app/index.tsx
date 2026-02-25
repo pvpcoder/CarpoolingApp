@@ -221,7 +221,7 @@ export default function LoginScreen() {
             <Text style={styles.inputLabel}>Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="you@school.edu"
+              placeholder="123456@pdsb.net"
               placeholderTextColor={Colors.textMuted}
               value={email}
               onChangeText={setEmail}
@@ -376,4 +376,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: "600",
   },
-});
+})

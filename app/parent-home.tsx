@@ -135,7 +135,15 @@ export default function ParentHome() {
             hasAvailability: (availability || []).length > 0,
           });
         }
-        setGroups(groupList);
+
+
+        const seen = new Set<string>();
+        const uniqueGroups = groupList.filter((g: any) => {
+          if (seen.has(g.id)) return false;
+          seen.add(g.id);
+          return true;
+        });
+        setGroups(uniqueGroups);
       }
 
       setLoading(false);

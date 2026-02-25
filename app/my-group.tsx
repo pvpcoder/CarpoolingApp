@@ -147,6 +147,58 @@ export default function MyGroup() {
     setLoading(false);
   };
 
+  const confirmLeaveGroup = () => {
+    Alert.alert(
+      "Leave Group",
+      "Are you sure you want to leave this carpool group? You'll need a new invite to rejoin.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const user = await getValidUser();
+              if (!user) return;
+
+              // Local tracking so dashboard hides it immediately
+              deletedGroups.add(groupId as string);
+
+              if (userRole === "student") {
+                await supabase
+                  .from("group_members")
+                  .update({ status: "left" })
+                  .eq("group_id", groupId)
+                  .eq("student_id", user.id);
+              } else {
+                await supabase
+                  .from("group_members")
+                  .update({ status: "left" })
+                  .eq("group_id", groupId)
+                  .eq("parent_id", user.id);
+              }
+
+              Alert.alert("Done", "You've left the group.", [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    if (userRole === "student") {
+                      router.replace("/student-home");
+                    } else {
+                      router.replace("/parent-home");
+                    }
+                  },
+                },
+              ]);
+            } catch {
+              Alert.alert("Error", "Couldn't leave group. Try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const confirmDeleteGroup = () => {
     Alert.alert(
       "Delete Group",
@@ -334,6 +386,20 @@ export default function MyGroup() {
         </FadeIn>
       )}
 
+     {/* Find Nearby Students */}
+      {isAdmin && (
+        <FadeIn delay={140}>
+          <PressableScale
+            onPress={() => router.push(`/discover?groupId=${groupId}`)}
+            style={styles.discoverBtn}
+          >
+            <Ionicons name="compass-outline" size={20} color={Colors.primary} />
+            <Text style={styles.discoverBtnText}>Find Nearby Students</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          </PressableScale>
+        </FadeIn>
+      )}
+
       {/* Families */}
       <FadeIn delay={150}>
         <SectionHeader title="Families" />
@@ -458,6 +524,20 @@ export default function MyGroup() {
           />
         )}
       </FadeIn>
+
+
+      {/* Non-admin: Leave Group */}
+      {!isAdmin && (
+        <FadeIn delay={600}>
+          <View style={styles.dangerSection}>
+            <DangerButton
+              title="Leave Group"
+              onPress={confirmLeaveGroup}
+              icon="exit-outline"
+            />
+          </View>
+        </FadeIn>
+      )}
 
       {/* Admin: Delete Group */}
       {isAdmin && (
@@ -727,5 +807,22 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
     lineHeight: 18,
+  },
+  discoverBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+    gap: 10,
+  },
+  discoverBtnText: {
+    flex: 1,
+    color: Colors.primary,
+    fontSize: FontSizes.base,
+    fontWeight: "700",
   },
 });

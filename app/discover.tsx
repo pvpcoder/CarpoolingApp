@@ -1,7 +1,7 @@
 import { sendPushNotification } from "../lib/notifications";
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { GOOGLE_API_KEY } from "../lib/config";
@@ -73,8 +73,8 @@ export default function Discover() {
   const [nearbyStudents, setNearbyStudents] = useState<any[]>([]);
   const [myData, setMyData] = useState<any>(null);
   const [inviting, setInviting] = useState<string | null>(null);
-  const [myGroupId, setMyGroupId] = useState<string | null>(null);
-
+  const { groupId } = useLocalSearchParams();
+  const myGroupId = groupId as string;
   useEffect(() => {
     loadData();
   }, []);
@@ -90,14 +90,7 @@ export default function Discover() {
     if (!me) return;
     setMyData(me);
 
-    const { data: membership } = await supabase
-      .from("group_members")
-      .select("group_id")
-      .eq("student_id", me.id)
-      .eq("status", "active")
-      .limit(1);
-    if (membership && membership.length > 0)
-      setMyGroupId(membership[0].group_id);
+
 
     const { data: others } = await supabase
       .from("students")
@@ -208,24 +201,7 @@ export default function Discover() {
         </Text>
       </FadeIn>
 
-      {!myGroupId && (
-        <FadeIn delay={100}>
-          <PressableScale
-            onPress={() => router.push("/create-group")}
-            style={styles.banner}
-          >
-            <View style={styles.bannerContent}>
-              <Text style={styles.bannerTitle}>Start a Carpool Group</Text>
-              <Text style={styles.bannerDesc}>
-                Create a group, then invite students below
-              </Text>
-            </View>
-            <View style={styles.bannerArrow}>
-              <Ionicons name="add-circle" size={20} color={Colors.primary} />
-            </View>
-          </PressableScale>
-        </FadeIn>
-      )}
+
 
       {nearbyStudents.length === 0 ? (
         <FadeIn delay={200}>
@@ -269,7 +245,7 @@ export default function Discover() {
                       In Group
                     </Text>
                   </View>
-                ) : (
+                ) : myGroupId ? (
                   <PressableScale
                     onPress={() => handleInvite(student.id)}
                     disabled={inviting === student.id}
@@ -279,7 +255,7 @@ export default function Discover() {
                       {inviting === student.id ? "..." : "Invite"}
                     </Text>
                   </PressableScale>
-                )}
+                ) : null}
               </View>
 
               <View style={styles.studentDetails}>
