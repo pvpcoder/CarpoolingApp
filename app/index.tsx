@@ -156,7 +156,7 @@ export default function LoginScreen() {
             try {
               const { error } = await supabase.auth.resetPasswordForEmail(
                 email.trim().toLowerCase(),
-                { redirectTo: "ridepool://reset-password" }
+                { redirectTo: "hopin://reset-password" }
               );
               if (error) {
                 Alert.alert("Error", error.message);
@@ -200,11 +200,11 @@ export default function LoginScreen() {
         >
           <View style={styles.logoGlow}>
             <View style={styles.logoIcon}>
-              <Ionicons name="car-sport" size={36} color={Colors.bg} />
+              <Ionicons name="navigate" size={36} color="#FFFFFF" />
             </View>
           </View>
-          <Text style={styles.title}>RidePool</Text>
-          <Text style={styles.subtitle}>CARPOOLING FOR YOUR SCHOOL</Text>
+          <Text style={styles.title}>HopIn</Text>
+          <Text style={styles.subtitle}>SMARTER SCHOOL COMMUTES</Text>
         </Animated.View>
 
         {/* Form */}
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 56,
+    marginBottom: 64,
   },
   logoGlow: {
     width: 88,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: Colors.textTertiary,
-    letterSpacing: 3,
+    letterSpacing: 1.5,
   },
   formContainer: {
     width: "100%",
@@ -324,20 +324,17 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: "600",
     color: Colors.textTertiary,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     marginBottom: 6,
     marginLeft: 2,
-    textTransform: "uppercase",
   },
   input: {
     backgroundColor: Colors.bgInput,
-    borderRadius: Radius.sm,
-    height: 52,
-    paddingHorizontal: 16,
+    borderRadius: Radius.md,
+    height: 54,
+    paddingHorizontal: 18,
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   forgotBtn: {
     alignSelf: "flex-end",
@@ -352,7 +349,7 @@ const styles = StyleSheet.create({
   ctaButton: {
     marginTop: Spacing.xs,
     height: 54,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
   },
   divider: {
     alignItems: "center",

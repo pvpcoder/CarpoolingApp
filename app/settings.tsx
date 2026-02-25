@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import { FadeIn, PressableScale, LoadingScreen, BackButton } from "../components/UI";
 
 export default function Settings() {
@@ -410,13 +410,13 @@ export default function Settings() {
           </View>
           <View style={styles.divider} />
           <PressableScale
-            onPress={() => Linking.openURL("mailto:support@ridepool.app")}
+            onPress={() => Linking.openURL("mailto:support@hopin.app")}
             style={styles.row}
           >
             <Ionicons name="mail-outline" size={18} color={Colors.info} style={{ marginRight: Spacing.base }} />
             <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>Contact Support</Text>
-              <Text style={styles.rowSub}>support@ridepool.app</Text>
+              <Text style={styles.rowSub}>support@hopin.app</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginLeft: Spacing.sm }} />
           </PressableScale>
@@ -534,14 +534,14 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: Colors.bgCard,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: Radius.md,
     marginBottom: Spacing.base,
-  },
+    marginHorizontal: Spacing.xl,
+    overflow: "hidden",
+    ...Shadows?.md,
+  } as any,
   dangerSection: {
     backgroundColor: 'rgba(248, 113, 113, 0.04)',
-    borderColor: Colors.accentBorder,
   },
 
   /* Row */

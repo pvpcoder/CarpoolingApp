@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import { FadeIn, PrimaryButton, SecondaryButton, BackButton, Card, Banner, LoadingScreen } from "../components/UI";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
@@ -720,8 +720,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 16,
     backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.lg,
@@ -772,9 +770,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
+    ...Shadows?.md,
+  } as any,
   fairnessTitle: {
     color: Colors.textPrimary,
     fontSize: FontSizes.md,
@@ -813,9 +810,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
+    ...Shadows?.md,
+  } as any,
   dayTitle: {
     color: Colors.textPrimary,
     fontSize: FontSizes.lg,

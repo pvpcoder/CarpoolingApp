@@ -93,8 +93,6 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 18,
     backgroundColor: Colors.primaryFaded,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
@@ -128,8 +126,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
     marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   backLink: {
     alignSelf: "center",

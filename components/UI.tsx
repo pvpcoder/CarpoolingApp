@@ -10,12 +10,12 @@ import {
   TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSizes } from '../lib/theme';
+import { Colors, Spacing, Radius, FontSizes, Shadows } from '../lib/theme';
 
 // ─── Fade-in on mount ─────────────────────────────────────────
 export function FadeIn({
   delay = 0,
-  duration = 500,
+  duration = 350,
   children,
   style,
 }: {
@@ -25,7 +25,7 @@ export function FadeIn({
   style?: ViewStyle;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -164,10 +164,10 @@ export function PrimaryButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={Colors.bg} />
+        <ActivityIndicator size="small" color="#FFFFFF" />
       ) : (
         <View style={s.btnInner}>
-          {icon && <Ionicons name={icon as any} size={18} color={Colors.bg} />}
+          {icon && <Ionicons name={icon as any} size={18} color="#FFFFFF" />}
           <Text style={s.primaryBtnText}>{title}</Text>
         </View>
       )}
@@ -250,10 +250,10 @@ export function Card({
       : highlight === 'accent' ? Colors.accentBorder
       : highlight === 'info' ? Colors.infoBorder
       : Colors.warmBorder
-    : Colors.border;
+    : 'transparent';
 
   return (
-    <View style={[s.card, { borderColor }, style]}>
+    <View style={[s.card, { borderColor, borderWidth: highlight ? 1 : 0 }, style]}>
       {children}
     </View>
   );
@@ -314,11 +314,11 @@ export function LoadingScreen({ message }: { message?: string }) {
     <View style={s.loadingScreen}>
       <ScaleIn>
         <View style={s.loadingLogoWrap}>
-          <Ionicons name="car-sport" size={28} color={Colors.bg} />
+          <Ionicons name="navigate" size={28} color="#FFFFFF" />
         </View>
       </ScaleIn>
       <FadeIn delay={200}>
-        <Text style={s.loadingLogo}>RidePool</Text>
+        <Text style={s.loadingLogo}>HopIn</Text>
       </FadeIn>
       <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
       {message && <Text style={s.loadingMessage}>{message}</Text>}
@@ -346,20 +346,20 @@ const s = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    color: Colors.bg,
+    color: '#FFFFFF',
     fontSize: FontSizes.base,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   secondaryBtn: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: Radius.md,
     paddingVertical: 16,
     paddingHorizontal: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     minHeight: 54,
   },
   secondaryBtnText: {
@@ -390,9 +390,8 @@ const s = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginBottom: Spacing.md,
+    ...Shadows?.md,
   },
   banner: {
     borderRadius: Radius.md,
@@ -426,12 +425,12 @@ const s = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   backBtnCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: Colors.bgElevated,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import {
   FadeIn,
   PrimaryButton,
@@ -623,9 +623,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
+    ...Shadows?.md,
+  } as any,
   schoolLabel: {
     fontSize: FontSizes.xs,
     color: Colors.textTertiary,
@@ -676,13 +675,13 @@ const styles = StyleSheet.create({
   },
   routeAllSub: {
     fontSize: FontSizes.sm,
-    color: "rgba(17, 18, 20, 0.55)",
+    color: "rgba(255, 255, 255, 0.55)",
   },
   routeAllArrow: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(17, 18, 20, 0.15)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: Spacing.md,
@@ -693,10 +692,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginBottom: Spacing.md,
-  },
+    ...Shadows?.md,
+  } as any,
   memberHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -815,10 +813,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
     gap: 10,
-  },
+    ...Shadows?.md,
+  } as any,
   discoverBtnText: {
     flex: 1,
     color: Colors.primary,

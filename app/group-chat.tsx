@@ -185,12 +185,12 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.bgElevated,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: "center",
     justifyContent: "center",
   },
@@ -225,8 +225,6 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 24,
     backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.lg,
@@ -262,12 +260,10 @@ const styles = StyleSheet.create({
   },
   bubbleOther: {
     backgroundColor: Colors.bgCard,
-    borderWidth: 1,
-    borderColor: Colors.border,
     borderTopLeftRadius: Radius.xs,
   },
   bubbleMe: {
-    backgroundColor: '#2A9D6F',
+    backgroundColor: '#2563EB',
     borderTopRightRadius: Radius.xs,
   },
 
@@ -296,7 +292,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   msgTextMe: {
-    color: "#F0FDF4",
+    color: "#FFFFFF",
   },
   msgTime: {
     color: Colors.textTertiary,
@@ -305,7 +301,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   msgTimeMe: {
-    color: "rgba(240, 253, 244, 0.50)",
+    color: "rgba(255, 255, 255, 0.50)",
   },
 
   /* Input area */
@@ -324,8 +320,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.bgInput,
     borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
     overflow: "hidden",
   },
   input: {

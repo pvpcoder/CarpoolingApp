@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platfor
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import { FadeIn, PrimaryButton, BackButton, Card } from "../components/UI";
 
 export default function CreateGroup() {
@@ -143,8 +143,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
     marginBottom: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
 
   // Steps card
@@ -152,10 +150,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginBottom: Spacing.xl,
-  },
+    ...Shadows?.md,
+  } as any,
   stepsTitle: {
     color: Colors.textPrimary,
     fontSize: FontSizes.md,

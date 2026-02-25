@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import { FadeIn, PrimaryButton, BackButton, Card, Banner, LoadingScreen } from "../components/UI";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
@@ -158,11 +158,10 @@ const styles = StyleSheet.create({
   grid: {
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.base,
     marginBottom: Spacing.xl,
-  },
+    ...Shadows?.md,
+  } as any,
   gridHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -230,12 +229,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
     paddingVertical: 14,
     paddingHorizontal: Spacing.base,
     marginBottom: Spacing.md,
-  },
+    ...Shadows?.sm,
+  } as any,
   summaryLabel: {
     color: Colors.textTertiary,
     fontSize: FontSizes.sm,

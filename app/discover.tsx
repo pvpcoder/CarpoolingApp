@@ -5,7 +5,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { GOOGLE_API_KEY } from "../lib/config";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import {
   FadeIn,
   PressableScale,
@@ -313,11 +313,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.base,
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
     flexDirection: "row",
     alignItems: "center",
-  },
+    ...Shadows?.md,
+  } as any,
   bannerContent: { flex: 1 },
   bannerTitle: {
     color: Colors.primary,
@@ -350,8 +349,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.lg,
@@ -375,9 +372,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.base,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
+    ...Shadows?.sm,
+  } as any,
   studentTop: {
     flexDirection: "row",
     alignItems: "center",

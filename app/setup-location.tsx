@@ -476,8 +476,6 @@ const styles = StyleSheet.create({
     paddingRight: 40,
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   inputSpinner: {
     position: "absolute",
@@ -489,8 +487,6 @@ const styles = StyleSheet.create({
   suggestionsContainer: {
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginTop: 4,
     overflow: "hidden",
     ...Platform.select({

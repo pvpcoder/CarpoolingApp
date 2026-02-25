@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import {
   FadeIn,
   ScaleIn,
@@ -565,7 +565,7 @@ export default function StudentHome() {
       {/* How it works (no groups) */}
       {!hasGroups && (
         <FadeIn delay={320}>
-          <Text style={styles.sectionLabel}>How RidePool works</Text>
+          <Text style={styles.sectionLabel}>How HopIn works</Text>
           <View style={styles.stepsCard}>
             {([
               {
@@ -655,9 +655,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: Radius.sm,
-    backgroundColor: Colors.bgCard,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: "center",
     justifyContent: "center",
   },
@@ -667,10 +667,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
     overflow: "hidden",
-  },
+    ...Shadows?.md,
+  } as any,
   inviteAccent: {
     width: 3,
     backgroundColor: Colors.primary,
@@ -735,9 +734,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
+    ...Shadows?.md,
+  } as any,
   groupBody: {
     flex: 1,
   },
@@ -858,12 +856,12 @@ const styles = StyleSheet.create({
   actionPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: Radius.pill,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   actionPillText: {
     fontSize: FontSizes.sm,
@@ -877,17 +875,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.xxl,
     marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: "center",
-  },
+    ...Shadows?.md,
+  } as any,
   emptyIconWrap: {
     width: 64,
     height: 64,
     borderRadius: 20,
     backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.lg,
@@ -919,13 +914,11 @@ const styles = StyleSheet.create({
 
   /* ---- Section Labels ---- */
   sectionLabel: {
-    fontSize: FontSizes.xs,
+    fontSize: FontSizes.md,
     fontWeight: "600",
-    color: Colors.textTertiary,
-    letterSpacing: 0.3,
+    color: Colors.textSecondary,
     marginBottom: Spacing.md,
     marginTop: Spacing.lg,
-    textTransform: "uppercase",
   },
 
   /* ---- Quick Action Tiles ---- */
@@ -939,12 +932,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.lg,
     paddingTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     width: TILE_W,
     justifyContent: "flex-start",
     minHeight: 110,
-  },
+    ...Shadows?.sm,
+  } as any,
   tilePrimary: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
@@ -991,10 +983,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginBottom: Spacing.lg,
-  },
+    ...Shadows?.md,
+  } as any,
   stepRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1033,10 +1024,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.base,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginTop: Spacing.sm,
-  },
+    ...Shadows?.sm,
+  } as any,
   tipText: {
     fontSize: FontSizes.sm,
     color: Colors.textTertiary,
@@ -1047,10 +1037,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
     marginBottom: Spacing.md,
-  },
+    ...Shadows?.md,
+  } as any,
   schedHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

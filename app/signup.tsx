@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
+import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
 import {
   PrimaryButton,
   PressableScale,
@@ -173,7 +173,7 @@ export default function SignupScreen() {
       <View style={styles.container}>
         <View style={styles.inner}>
           <ScaleIn>
-            <Text style={styles.title}>Join RidePool</Text>
+            <Text style={styles.title}>Join HopIn</Text>
             <Text style={styles.subtitle}>Select your account type</Text>
           </ScaleIn>
 
@@ -447,12 +447,11 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     paddingLeft: 20,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
-  },
+    ...Shadows?.md,
+  } as any,
   roleIconWrap: {
     width: 44,
     height: 44,
@@ -532,20 +531,17 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: "600",
     color: Colors.textTertiary,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     marginBottom: 6,
     marginLeft: 2,
-    textTransform: "uppercase",
   },
   input: {
     backgroundColor: Colors.bgInput,
-    borderRadius: Radius.sm,
-    height: 52,
-    paddingHorizontal: 16,
+    borderRadius: Radius.md,
+    height: 54,
+    paddingHorizontal: 18,
     fontSize: FontSizes.base,
     color: Colors.textPrimary,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
 
   // ─── CTA
