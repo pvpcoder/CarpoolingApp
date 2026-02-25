@@ -103,7 +103,13 @@ export default function StudentHome() {
           isAdmin: membership.role === "admin",
         });
       }
-      setGroups(groupList);
+      const seen = new Set<string>();
+      const uniqueGroups = groupList.filter((g) => {
+        if (seen.has(g.id)) return false;
+        seen.add(g.id);
+        return true;
+      });
+      setGroups(uniqueGroups);
 
       const { data: invites } = await supabase
         .from("group_invites")
