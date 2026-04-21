@@ -15,6 +15,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ animation: "fade" }} />
+        <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
         <Stack.Screen name="signup" />
         <Stack.Screen name="reset-password" />
         <Stack.Screen name="setup-location" />
@@ -25,9 +26,9 @@ export default function RootLayout() {
         <Stack.Screen name="student-schedule" />
         <Stack.Screen name="weekly-schedule" />
         <Stack.Screen name="group-chat" options={{ animation: "slide_from_right" }} />
-        <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="student-home" options={{ animation: "fade" }} />
         <Stack.Screen name="parent-home" options={{ animation: "fade" }} />
+        <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
       </Stack>
     </>
   );

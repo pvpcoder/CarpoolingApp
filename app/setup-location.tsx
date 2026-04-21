@@ -296,7 +296,7 @@ export default function SetupLocation() {
       return;
     }
     Alert.alert("Saved!", "Your pickup location has been set.", [
-      { text: "OK", onPress: () => router.back() },
+      { text: "OK", onPress: () => router.replace("/(tabs)/home") },
     ]);
   };
 

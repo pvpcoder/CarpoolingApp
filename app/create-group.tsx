@@ -42,7 +42,7 @@ export default function CreateGroup() {
 
     Alert.alert("Group Created!", "Now invite students from the discover screen to join your carpool.", [
       { text: "Invite Students", onPress: () => router.replace("/discover") },
-      { text: "Go Home", onPress: () => router.replace("/student-home") },
+      { text: "Go Home", onPress: () => router.replace("/(tabs)/home") },
     ]);
   };
 

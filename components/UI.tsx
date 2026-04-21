@@ -10,7 +10,8 @@ import {
   TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSizes, Shadows } from '../lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, FontSizes, Shadows, Gradients } from '../lib/theme';
 
 // ─── Fade-in on mount ─────────────────────────────────────────
 export function FadeIn({
@@ -326,6 +327,72 @@ export function LoadingScreen({ message }: { message?: string }) {
   );
 }
 
+// ─── Gradient Header ─────────────────────────────────────────
+export function GradientHeader({
+  children,
+  style,
+  colors,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  colors?: readonly string[];
+}) {
+  return (
+    <LinearGradient
+      colors={(colors || Gradients.hero) as any}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[s.gradientHeader, style]}
+    >
+      {children}
+    </LinearGradient>
+  );
+}
+
+// ─── Stat Pill ───────────────────────────────────────────────
+export function StatPill({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  icon?: string;
+}) {
+  return (
+    <View style={s.statPill}>
+      {icon && <Ionicons name={icon as any} size={14} color={Colors.primary} style={{ marginRight: 6 }} />}
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Icon Button ─────────────────────────────────────────────
+export function IconButton({
+  icon,
+  label,
+  onPress,
+  color,
+  size = 44,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  color?: string;
+  size?: number;
+}) {
+  const iconColor = color || Colors.primary;
+  return (
+    <PressableScale onPress={onPress} style={s.iconButton}>
+      <View style={[s.iconButtonCircle, { width: size, height: size, borderRadius: size / 2 }]}>
+        <Ionicons name={icon as any} size={size * 0.45} color={iconColor} />
+      </View>
+      <Text style={s.iconButtonLabel} numberOfLines={1}>{label}</Text>
+    </PressableScale>
+  );
+}
+
 // ─── Input ────────────────────────────────────────────────────
 export { default as TextInput } from 'react-native';
 
@@ -460,5 +527,48 @@ const s = StyleSheet.create({
     color: Colors.textTertiary,
     fontSize: FontSizes.sm,
     marginTop: Spacing.md,
+  },
+  // Gradient Header
+  gradientHeader: {
+    paddingTop: 56,
+    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+  },
+  // Stat Pill
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.bgElevated,
+    borderRadius: Radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  statValue: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginRight: 4,
+  },
+  statLabel: {
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
+    fontWeight: '500',
+  },
+  // Icon Button
+  iconButton: {
+    alignItems: 'center',
+    width: 64,
+  },
+  iconButtonCircle: {
+    backgroundColor: Colors.bgElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  iconButtonLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

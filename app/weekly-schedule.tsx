@@ -78,7 +78,8 @@ export default function WeeklySchedule() {
         .from("schedule_slots")
         .select("id, day_of_week, slot_type, driver_parent_id, departure_time, status")
         .eq("schedule_id", existing.id)
-        .order("day_of_week");
+        .order("day_of_week")
+        .order("departure_time");
 
       setSlots(slotData || []);
 

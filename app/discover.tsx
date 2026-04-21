@@ -87,17 +87,20 @@ export default function Discover() {
       .select("id, school_id, saved_pickup_lat, saved_pickup_lng, name")
       .eq("id", user.id)
       .single();
-    if (!me) return;
+    if (!me) { setLoading(false); return; }
     setMyData(me);
 
-
-
-    const { data: others } = await supabase
+    let query = supabase
       .from("students")
       .select("id, name, grade, saved_pickup_lat, saved_pickup_lng, saved_pickup_address")
-      .eq("school_id", me.school_id)
       .neq("id", me.id)
       .not("saved_pickup_lat", "is", null);
+
+    if (me.school_id) {
+      query = query.eq("school_id", me.school_id);
+    }
+
+    const { data: others } = await query;
     if (!others) { setLoading(false); return; }
 
     // Sort by straight-line first (instant)

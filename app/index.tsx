@@ -102,7 +102,7 @@ export default function LoginScreen() {
 
       if (student) {
         setLoading(false);
-        router.replace("/student-home");
+        router.replace("/(tabs)/home");
         return;
       }
 
@@ -114,7 +114,7 @@ export default function LoginScreen() {
 
       if (parent) {
         setLoading(false);
-        router.replace("/parent-home");
+        router.replace("/(tabs)/home");
         return;
       }
 

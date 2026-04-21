@@ -82,6 +82,12 @@ export const FontSizes = {
   hero: 36,
 };
 
+export const Gradients = {
+  hero: ['#0F172A', '#1E3A5F', '#0F172A'] as const,
+  heroSubtle: ['#0A0E17', '#162032', '#0A0E17'] as const,
+  card: ['rgba(30,58,95,0.4)', 'rgba(17,24,39,0.9)'] as const,
+};
+
 export const Shadows = Platform.select({
   ios: {
     sm: {

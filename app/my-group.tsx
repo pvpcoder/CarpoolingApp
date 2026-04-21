@@ -182,11 +182,7 @@ export default function MyGroup() {
                 {
                   text: "OK",
                   onPress: () => {
-                    if (userRole === "student") {
-                      router.replace("/student-home");
-                    } else {
-                      router.replace("/parent-home");
-                    }
+                    router.replace("/(tabs)/home");
                   },
                 },
               ]);
@@ -262,11 +258,7 @@ export default function MyGroup() {
         {
           text: "OK",
           onPress: () => {
-            if (userRole === "student") {
-              router.replace("/student-home");
-            } else {
-              router.replace("/parent-home");
-            }
+            router.replace("/(tabs)/home");
           },
         },
       ]);
@@ -509,20 +501,18 @@ export default function MyGroup() {
       <FadeIn delay={500}>
         <PrimaryButton
           title="Invite More Students"
-          onPress={() => router.push("/discover")}
+          onPress={() => router.push(`/discover?groupId=${groupId}`)}
           style={{ marginBottom: Spacing.md }}
           icon="person-add-outline"
         />
-        {group?.status === "active" && (
-          <SecondaryButton
-            title="View Weekly Schedule"
-            onPress={() =>
-              router.push(`/weekly-schedule?groupId=${groupId}`)
-            }
-            style={{ marginBottom: Spacing.md }}
-            icon="calendar-outline"
-          />
-        )}
+        <SecondaryButton
+          title={group?.status === "active" ? "View Weekly Schedule" : "Generate Schedule"}
+          onPress={() =>
+            router.push(`/weekly-schedule?groupId=${groupId}`)
+          }
+          style={{ marginBottom: Spacing.md }}
+          icon="calendar-outline"
+        />
       </FadeIn>
 
 

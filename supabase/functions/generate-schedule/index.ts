@@ -1,8 +1,17 @@
 // @ts-nocheck
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CLAUDE_API_KEY = Deno.env.get("CLAUDE_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+// Pricing for claude-sonnet-4-20250514 (USD per token)
+const INPUT_COST_PER_TOKEN = 3.0 / 1_000_000;
+const OUTPUT_COST_PER_TOKEN = 15.0 / 1_000_000;
+
+const MODEL = "claude-sonnet-4-20250514";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,13 +42,32 @@ serve(async (req) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: MODEL,
         max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
     const data = await response.json();
+
+    // Log token usage and cost to Supabase
+    if (data.usage) {
+      const inputTokens = data.usage.input_tokens ?? 0;
+      const outputTokens = data.usage.output_tokens ?? 0;
+      const inputCost = inputTokens * INPUT_COST_PER_TOKEN;
+      const outputCost = outputTokens * OUTPUT_COST_PER_TOKEN;
+
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      await supabase.from("api_usage_logs").insert({
+        function_name: "generate-schedule",
+        model: data.model ?? MODEL,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        input_cost_usd: inputCost,
+        output_cost_usd: outputCost,
+        total_cost_usd: inputCost + outputCost,
+      });
+    }
 
     return new Response(JSON.stringify(data), {
       headers: {
