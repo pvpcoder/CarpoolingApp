@@ -1,18 +1,30 @@
 import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native";
+import * as Haptics from "expo-haptics";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
-import { FadeIn, PrimaryButton, BackButton, Card, Banner, LoadingScreen } from "../components/UI";
+import { useTheme, Radius, Fonts } from "../lib/theme";
+import { PrimaryButton, BackButton, LoadingScreen, ToggleSwitch } from "../components/UI";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 export default function Availability() {
   const router = useRouter();
+  const c = useTheme();
+
   const { groupId } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
   const [schedule, setSchedule] = useState<Record<string, { morning: boolean; afternoon: boolean }>>({
     Mon: { morning: false, afternoon: false }, Tue: { morning: false, afternoon: false },
     Wed: { morning: false, afternoon: false }, Thu: { morning: false, afternoon: false },
@@ -25,16 +37,18 @@ export default function Availability() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setParentId(user.id);
-    const { data: existing } = await supabase.from("parent_availability").select("day_of_week, can_drive_morning, can_drive_afternoon").eq("parent_id", user.id).eq("group_id", groupId);
+    const { data: existing } = await supabase.from("parent_availability").select("day_of_week, can_drive_morning, can_drive_afternoon, is_recurring").eq("parent_id", user.id).eq("group_id", groupId);
     if (existing && existing.length > 0) {
       const loaded = { ...schedule };
       existing.forEach((row: any) => { loaded[row.day_of_week] = { morning: row.can_drive_morning, afternoon: row.can_drive_afternoon }; });
       setSchedule(loaded);
+      setIsRecurring(!!existing[0].is_recurring);
     }
     setLoading(false);
   };
 
   const toggle = (day: string, slot: "morning" | "afternoon") => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSchedule((prev) => ({ ...prev, [day]: { ...prev[day], [slot]: !prev[day][slot] } }));
   };
 
@@ -42,206 +56,195 @@ export default function Availability() {
     if (!parentId) return;
     setSaving(true);
     await supabase.from("parent_availability").delete().eq("parent_id", parentId).eq("group_id", groupId);
-    const rows = DAYS.map((day) => ({ parent_id: parentId, group_id: groupId, day_of_week: day, can_drive_morning: schedule[day].morning, can_drive_afternoon: schedule[day].afternoon, morning_departure_time: "07:30:00", afternoon_pickup_time: "14:45:00" }));
+    const rows = DAYS.map((day) => ({ parent_id: parentId, group_id: groupId, day_of_week: day, can_drive_morning: schedule[day].morning, can_drive_afternoon: schedule[day].afternoon, morning_departure_time: "07:30:00", afternoon_pickup_time: "14:45:00", is_recurring: isRecurring }));
     const { error } = await supabase.from("parent_availability").insert(rows);
     setSaving(false);
     if (error) { Alert.alert("Error", error.message); return; }
     const totalSlots = Object.values(schedule).reduce((sum, day) => sum + (day.morning ? 1 : 0) + (day.afternoon ? 1 : 0), 0);
-    Alert.alert("Saved!", `You're available to drive ${totalSlots} ${totalSlots === 1 ? "slot" : "slots"} per week.`, [{ text: "OK", onPress: () => router.back() }]);
+    Alert.alert("Saved", `You're available to drive ${totalSlots} ${totalSlots === 1 ? "slot" : "slots"} per week.`, [{ text: "OK", onPress: () => router.back() }]);
   };
 
   const totalSelected = Object.values(schedule).reduce((sum, day) => sum + (day.morning ? 1 : 0) + (day.afternoon ? 1 : 0), 0);
 
-  if (loading) return <LoadingScreen />;
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: c.paper }]}
+      contentContainerStyle={styles.content}
+    >
       <BackButton onPress={() => router.back()} />
-      <FadeIn>
-        <Text style={styles.title}>Driving Availability</Text>
-        <Text style={styles.subtitle}>
-          Tap the slots when you can drive. The scheduler will split driving fairly across all parents.
+
+      <View style={styles.heading}>
+        <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>Driving Availability</Text>
+        <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>
+          Tap the slots when you can drive. The scheduler splits driving fairly across all parents.
         </Text>
-      </FadeIn>
+      </View>
 
-      <FadeIn delay={150}>
-        <View style={styles.grid}>
-          {/* Column headers */}
-          <View style={styles.gridHeader}>
-            <View style={styles.dayLabelCell} />
-            <View style={styles.headerCell}>
-              <Text style={styles.headerLabel}>AM</Text>
-            </View>
-            <View style={styles.headerCell}>
-              <Text style={styles.headerLabel}>PM</Text>
-            </View>
+      {/* Grid */}
+      <View style={[styles.grid, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+        {/* Header row */}
+        <View style={[styles.gridHeader, { borderBottomColor: c.line }]}>
+          <View style={styles.dayCol} />
+          <View style={styles.slotHeader}>
+            <Text style={[styles.slotHeaderText, { color: c.dawn, fontFamily: Fonts.bodySemiBold }]}>MORNING</Text>
           </View>
-
-          {/* Divider */}
-          <View style={styles.gridDivider} />
-
-          {/* Day rows */}
-          {DAYS.map((day, i) => (
-            <FadeIn key={day} delay={200 + i * 50}>
-              <View style={styles.gridRow}>
-                <View style={styles.dayLabelCell}>
-                  <Text style={styles.dayText}>{day}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.slotCell, schedule[day].morning && styles.slotCellActive]}
-                  onPress={() => toggle(day, "morning")}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.slotIndicator, schedule[day].morning && styles.slotIndicatorActive]}>
-                    {schedule[day].morning ? "\u2713" : "\u2014"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.slotCell, schedule[day].afternoon && styles.slotCellActive]}
-                  onPress={() => toggle(day, "afternoon")}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.slotIndicator, schedule[day].afternoon && styles.slotIndicatorActive]}>
-                    {schedule[day].afternoon ? "\u2713" : "\u2014"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </FadeIn>
-          ))}
+          <View style={styles.slotHeader}>
+            <Text style={[styles.slotHeaderText, { color: c.dusk, fontFamily: Fonts.bodySemiBold }]}>AFTERNOON</Text>
+          </View>
         </View>
-      </FadeIn>
 
-      <FadeIn delay={500}>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Selected</Text>
-          <Text style={styles.summaryValue}>
-            {totalSelected === 0 ? "None" : `${totalSelected} ${totalSelected === 1 ? "slot" : "slots"}`}
+        {DAYS.map((day, i) => (
+          <View key={day} style={[styles.gridRow, i < DAYS.length - 1 && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+            <View style={styles.dayCol}>
+              <Text style={[styles.dayText, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{day}</Text>
+            </View>
+            {(["morning", "afternoon"] as const).map((slot) => {
+              const active = schedule[day][slot];
+              const activeColor = slot === "morning" ? c.dawn : c.dusk;
+              return (
+                <TouchableOpacity
+                  key={slot}
+                  style={styles.slotCell}
+                  onPress={() => toggle(day, slot)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.slotBox, { borderColor: active ? activeColor : c.line, backgroundColor: active ? activeColor : c.paper, transform: [{ scale: active ? 1.05 : 1 }] }]}>
+                    {active && (
+                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+
+      {/* Summary */}
+      <View style={[styles.summaryRow, { borderColor: c.line, backgroundColor: c.paperElevated }]}>
+        <Text style={[styles.summaryLabel, { color: c.textSecondary, fontFamily: Fonts.bodyMedium }]}>Selected</Text>
+        <Text style={[styles.summaryValue, { color: c.textPrimary, fontFamily: Fonts.mono }]}>
+          {totalSelected === 0 ? "None" : `${totalSelected} ${totalSelected === 1 ? "slot" : "slots"}`}
+        </Text>
+      </View>
+
+      {/* Recurring toggle */}
+      <View
+        style={[styles.recurringRow, { borderColor: c.line, backgroundColor: c.paperElevated }]}
+      >
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={[styles.recurringLabel, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>Keep this the same every week</Text>
+          <Text style={[styles.recurringCaption, { color: c.textMuted, fontFamily: Fonts.body }]}>
+            Otherwise your availability resets every Sunday and you'll need to set it again.
           </Text>
         </View>
+        <ToggleSwitch value={isRecurring} onValueChange={setIsRecurring} />
+      </View>
 
-        <Banner
-          title="Tip"
-          message="The more slots you're available, the more flexibility the scheduler has. You won't necessarily drive every slot — it's just your availability."
-          variant="info"
-        />
-        <PrimaryButton title={saving ? "Saving..." : "Save Availability"} onPress={handleSave} loading={saving} />
-      </FadeIn>
+      {/* Tip */}
+      <Text style={[styles.tip, { color: c.textMuted, fontFamily: Fonts.body }]}>
+        The more slots you're available, the more flexibility the scheduler has. You won't drive every slot — it's just your availability window.
+      </Text>
+
+      <PrimaryButton title="Save availability" onPress={handleSave} loading={saving} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  content: {
-    padding: Spacing.xl,
-    paddingTop: 60,
-    paddingBottom: 48,
-  },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 64, paddingBottom: 48 },
+
+  heading: { marginBottom: 28 },
   title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: 6,
+    fontSize: 40,
+    letterSpacing: -1.5,
+    lineHeight: 42,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: 14,
     lineHeight: 20,
-    marginBottom: Spacing.xxl,
   },
 
-  // Grid
   grid: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.base,
-    marginBottom: Spacing.xl,
-    ...Shadows?.md,
-  } as any,
+    borderWidth: 1.5,
+    borderRadius: Radius.md,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
   gridHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingBottom: Spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
-  dayLabelCell: {
+  dayCol: {
     width: 52,
   },
-  headerCell: {
+  slotHeader: {
     flex: 1,
     alignItems: "center",
   },
-  headerLabel: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.xs,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  gridDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginBottom: Spacing.sm,
+  slotHeaderText: {
+    fontSize: 9,
+    letterSpacing: 0.8,
   },
   gridRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   dayText: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.base,
-    fontWeight: "700",
+    fontSize: 14,
   },
   slotCell: {
     flex: 1,
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radius.sm,
-    height: 48,
+    alignItems: "center",
+  },
+  slotBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  slotCellActive: {
-    backgroundColor: Colors.primaryFaded,
-    borderColor: Colors.primaryBorder,
-  },
-  slotIndicator: {
-    color: Colors.textMuted,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  slotIndicatorActive: {
-    color: Colors.primary,
-    fontSize: 18,
-    fontWeight: "700",
   },
 
-  // Summary
   summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: Colors.bgCard,
+    justifyContent: "space-between",
+    borderWidth: 1.5,
     borderRadius: Radius.md,
     paddingVertical: 14,
-    paddingHorizontal: Spacing.base,
-    marginBottom: Spacing.md,
-    ...Shadows?.sm,
-  } as any,
-  summaryLabel: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
+    paddingHorizontal: 18,
+    marginBottom: 16,
   },
-  summaryValue: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
-    fontWeight: "700",
+  summaryLabel: { fontSize: 14 },
+  summaryValue: { fontSize: 14 },
+
+  recurringRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  recurringLabel: { fontSize: 14, marginBottom: 4 },
+  recurringCaption: { fontSize: 12, lineHeight: 17 },
+
+  tip: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 24,
   },
 });

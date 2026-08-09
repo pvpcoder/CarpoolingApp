@@ -1,55 +1,58 @@
 /**
- * HopIn Design System
- * Dark & premium. Blue primary.
+ * HopIn Design System — "Departure Board"
+ *
+ * Every day in HopIn has a morning leg and an afternoon leg, each needing a
+ * driver. `dawn` and `dusk` are the only saturated colors in the system and
+ * are used functionally: every AM element is `dawn`, every PM element is
+ * `dusk` — never swapped decoratively.
  */
 
-import { Platform } from 'react-native';
+import { Platform, useColorScheme } from "react-native";
 
-export const Colors = {
-  // Backgrounds – deep navy-black with blue undertones
-  bg: '#0A0E17',
-  bgCard: '#111827',
-  bgElevated: '#1E293B',
-  bgInput: '#111827',
-  bgSurface: '#0F1629',
+export type ThemeTokens = typeof lightTokens;
 
-  // Primary – blue
-  primary: '#3B82F6',
-  primaryDark: '#2563EB',
-  primaryFaded: 'rgba(59, 130, 246, 0.10)',
-  primaryBorder: 'rgba(59, 130, 246, 0.22)',
-  primaryGlow: 'rgba(59, 130, 246, 0.06)',
-
-  // Danger / destructive
-  accent: '#F87171',
-  accentFaded: 'rgba(248, 113, 113, 0.10)',
-  accentBorder: 'rgba(248, 113, 113, 0.22)',
-
-  // Info
-  info: '#60A5FA',
-  infoFaded: 'rgba(96, 165, 250, 0.10)',
-  infoBorder: 'rgba(96, 165, 250, 0.22)',
-
-  // Warm / warning
-  warm: '#FBBF24',
-  warmFaded: 'rgba(251, 191, 36, 0.10)',
-  warmBorder: 'rgba(251, 191, 36, 0.22)',
-
-  // Text – cooler slate-based hierarchy
-  textPrimary: '#F1F5F9',
-  textSecondary: '#94A3B8',
-  textTertiary: '#64748B',
-  textMuted: '#475569',
-
-  // Borders – cooler
-  border: '#1E293B',
-  borderLight: '#1E293B',
-
-  // Misc
-  overlay: 'rgba(0, 0, 0, 0.6)',
-  success: '#3B82F6',
-  successFaded: 'rgba(59, 130, 246, 0.10)',
+const lightTokens = {
+  ink: "#14171F",
+  paper: "#F5F3EE",
+  paperElevated: "#FFFFFF",
+  dawn: "#4C5FD5",
+  dawnFaded: "rgba(76, 95, 213, 0.10)",
+  dawnBorder: "rgba(76, 95, 213, 0.24)",
+  dusk: "#E8853A",
+  duskFaded: "rgba(232, 133, 58, 0.12)",
+  duskBorder: "rgba(232, 133, 58, 0.26)",
+  line: "#DDD8CC",
+  rust: "#C2503F",
+  rustFaded: "rgba(194, 80, 63, 0.10)",
+  rustBorder: "rgba(194, 80, 63, 0.24)",
+  textPrimary: "#14171F",
+  textSecondary: "#5B5A52",
+  textMuted: "#9B978A",
 };
+
+const darkTokens = {
+  ink: "#F2F0EA",
+  paper: "#14161C",
+  paperElevated: "#1B1E26",
+  dawn: "#7C8BF0",
+  dawnFaded: "rgba(124, 139, 240, 0.14)",
+  dawnBorder: "rgba(124, 139, 240, 0.28)",
+  dusk: "#F2A05C",
+  duskFaded: "rgba(242, 160, 92, 0.14)",
+  duskBorder: "rgba(242, 160, 92, 0.30)",
+  line: "#2A2D35",
+  rust: "#E2695A",
+  rustFaded: "rgba(226, 105, 90, 0.14)",
+  rustBorder: "rgba(226, 105, 90, 0.28)",
+  textPrimary: "#F2F0EA",
+  textSecondary: "#A7A498",
+  textMuted: "#5F5D55",
+};
+
+export function useTheme(): ThemeTokens {
+  const scheme = useColorScheme();
+  return scheme === "dark" ? darkTokens : lightTokens;
+}
 
 export const Spacing = {
   xs: 4,
@@ -65,9 +68,9 @@ export const Spacing = {
 export const Radius = {
   xs: 6,
   sm: 10,
-  md: 14,
-  lg: 20,
-  xl: 24,
+  md: 12,
+  lg: 16,
+  xl: 20,
   pill: 999,
 };
 
@@ -79,39 +82,40 @@ export const FontSizes = {
   lg: 18,
   xl: 22,
   xxl: 28,
-  hero: 36,
+  hero: 38,
 };
 
-export const Gradients = {
-  hero: ['#0F172A', '#1E3A5F', '#0F172A'] as const,
-  heroSubtle: ['#0A0E17', '#162032', '#0A0E17'] as const,
-  card: ['rgba(30,58,95,0.4)', 'rgba(17,24,39,0.9)'] as const,
+// Space Grotesk (display) + Inter (body) are a real designed pairing from the
+// same type foundry. Space Mono (utility) carries every time/count value —
+// a literal split-flap departure-board reference.
+export const Fonts = {
+  display: "SpaceGrotesk_700Bold",
+  displaySemiBold: "SpaceGrotesk_600SemiBold",
+  body: "Inter_400Regular",
+  bodyMedium: "Inter_500Medium",
+  bodySemiBold: "Inter_600SemiBold",
+  bodyBold: "Inter_700Bold",
+  mono: "SpaceMono_400Regular",
+  monoBold: "SpaceMono_700Bold",
 };
 
 export const Shadows = Platform.select({
   ios: {
     sm: {
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
+      shadowOpacity: 0.08,
       shadowRadius: 6,
     },
     md: {
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.20,
+      shadowOpacity: 0.10,
       shadowRadius: 16,
-    },
-    lg: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.25,
-      shadowRadius: 30,
     },
   },
   default: {
-    sm: { elevation: 3 },
-    md: { elevation: 8 },
-    lg: { elevation: 14 },
+    sm: { elevation: 2 },
+    md: { elevation: 6 },
   },
 });

@@ -6,17 +6,19 @@ import {
   ScrollView,
   Alert,
   Linking,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
-import { Colors, Spacing, Radius, FontSizes, Shadows, Gradients } from "../../lib/theme";
-import { FadeIn, PressableScale, LoadingScreen, SecondaryButton } from "../../components/UI";
+import { useTheme, Fonts } from "../../lib/theme";
+import { LoadingScreen, FadeIn } from "../../components/UI";
 
 export default function ProfileTab() {
   const router = useRouter();
+  const c = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -107,21 +109,17 @@ export default function ProfileTab() {
   };
 
   const confirmLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    Alert.alert("Sign out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: () => handleLogout(router),
-      },
+      { text: "Sign out", style: "destructive", onPress: () => handleLogout(router) },
     ]);
   };
 
   const confirmLeaveGroup = () => {
     if (!groupId) return;
     Alert.alert(
-      "Leave Group",
-      "Are you sure you want to leave this carpool group? You'll need a new invite to rejoin.",
+      "Leave group",
+      "You'll need a new invite to rejoin.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -162,8 +160,8 @@ export default function ProfileTab() {
 
   const confirmDeleteAccount = () => {
     Alert.alert(
-      "Delete Account",
-      "This will permanently delete your account and all associated data. This action cannot be undone.",
+      "Delete account",
+      "This permanently deletes your account and all data. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -176,42 +174,24 @@ export default function ProfileTab() {
               [
                 { text: "Cancel", style: "cancel" },
                 {
-                  text: "Yes, Delete Everything",
+                  text: "Yes, delete everything",
                   style: "destructive",
                   onPress: async () => {
                     try {
                       const user = await getValidUser();
                       if (!user) return;
                       if (userRole === "student") {
-                        await supabase
-                          .from("group_members")
-                          .delete()
-                          .eq("student_id", user.id);
-                        await supabase
-                          .from("students")
-                          .delete()
-                          .eq("id", user.id);
+                        await supabase.from("group_members").delete().eq("student_id", user.id);
+                        await supabase.from("students").delete().eq("id", user.id);
                       } else {
-                        await supabase
-                          .from("group_members")
-                          .update({ parent_id: null })
-                          .match({ parent_id: user.id });
-                        await supabase
-                          .from("parent_availability")
-                          .delete()
-                          .eq("parent_id", user.id);
-                        await supabase
-                          .from("parents")
-                          .delete()
-                          .eq("id", user.id);
+                        await supabase.from("group_members").update({ parent_id: null }).match({ parent_id: user.id });
+                        await supabase.from("parent_availability").delete().eq("parent_id", user.id);
+                        await supabase.from("parents").delete().eq("id", user.id);
                       }
                       await supabase.auth.signOut();
                       router.replace("/");
                     } catch {
-                      Alert.alert(
-                        "Error",
-                        "Couldn't delete account. Please try again or contact support."
-                      );
+                      Alert.alert("Error", "Couldn't delete account. Please try again or contact support.");
                     }
                   },
                 },
@@ -226,19 +206,19 @@ export default function ProfileTab() {
   const handleResetPassword = async () => {
     if (!userEmail) return;
     Alert.alert(
-      "Reset Password",
-      `We'll send a password reset link to ${userEmail}. Continue?`,
+      "Reset password",
+      `Send a reset link to ${userEmail}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Send Link",
+          text: "Send link",
           onPress: async () => {
             try {
               const { error } = await supabase.auth.resetPasswordForEmail(userEmail);
               if (error) {
                 Alert.alert("Error", error.message);
               } else {
-                Alert.alert("Check Your Email", "A password reset link has been sent.");
+                Alert.alert("Check your email", "A password reset link has been sent.");
               }
             } catch {
               Alert.alert("Error", "Couldn't send reset email. Try again.");
@@ -249,199 +229,151 @@ export default function ProfileTab() {
     );
   };
 
-  if (loading) return <LoadingScreen />;
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   const initials = userName
-    ? userName
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+    ? userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: c.paper }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Gradient Header with Avatar */}
-      <LinearGradient
-        colors={Gradients.hero as any}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.heroHeader}
-      >
-        <FadeIn>
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-            <Text style={styles.profileName}>{userName || "User"}</Text>
-            <Text style={styles.profileEmail}>{userEmail}</Text>
-            <View style={styles.roleTag}>
-              <Text style={styles.roleTagText}>
-                {userRole === "student" ? "Student" : "Parent"}
-              </Text>
-            </View>
+      {/* Header */}
+      <FadeIn>
+        <View style={styles.header}>
+          <View style={[styles.initials, { backgroundColor: c.dawnFaded }]}>
+            <Text style={[styles.initialsText, { color: c.dawn, fontFamily: Fonts.display }]}>{initials}</Text>
           </View>
-        </FadeIn>
-      </LinearGradient>
+          <Text style={[styles.profileName, { color: c.textPrimary, fontFamily: Fonts.display }]}>{userName || "User"}</Text>
+          <Text style={[styles.profileEmail, { color: c.textMuted, fontFamily: Fonts.body }]}>{userEmail}</Text>
+          <View style={[styles.roleTag, { backgroundColor: c.dawnFaded, borderColor: c.dawnBorder }]}>
+            <Text style={[styles.roleTagText, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>
+              {userRole === "student" ? "STUDENT" : "PARENT"}
+            </Text>
+          </View>
+        </View>
+      </FadeIn>
 
-      {/* Account Section */}
-      <FadeIn delay={100}>
-        <Text style={styles.sectionLabel}>ACCOUNT</Text>
-        <View style={styles.section}>
+      <View style={styles.body}>
+        {/* Account section */}
+        <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACCOUNT</Text>
+        <View style={[styles.section, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
           {childName && (
             <>
               <View style={styles.row}>
-                <View style={[styles.rowIcon, { backgroundColor: Colors.infoFaded }]}>
-                  <Ionicons name="person-outline" size={16} color={Colors.info} />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Linked Child</Text>
-                  <Text style={styles.rowValue}>{childName}</Text>
-                </View>
+                <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Linked child</Text>
+                <Text style={[styles.rowValue, { color: c.textSecondary, fontFamily: Fonts.body }]}>{childName}</Text>
               </View>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: c.line }]} />
             </>
           )}
 
           {groupName && (
             <>
-              <PressableScale
+              <Pressable
                 onPress={() => router.push(`/my-group?groupId=${groupId}`)}
-                style={styles.row}
+                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
               >
-                <View style={[styles.rowIcon, { backgroundColor: Colors.primaryFaded }]}>
-                  <Ionicons name="people-outline" size={16} color={Colors.primary} />
+                <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Carpool group</Text>
+                <View style={styles.rowRight}>
+                  <Text style={[styles.rowValue, { color: c.textSecondary, fontFamily: Fonts.body }]} numberOfLines={1}>
+                    {groupName}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ marginLeft: 6 }} />
                 </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Carpool Group</Text>
-                  <Text style={styles.rowValue}>{groupName}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </PressableScale>
-              <View style={styles.divider} />
+              </Pressable>
+              <View style={[styles.divider, { backgroundColor: c.line }]} />
             </>
           )}
 
-          <PressableScale onPress={handleResetPassword} style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: Colors.warmFaded }]}>
-              <Ionicons name="lock-closed-outline" size={16} color={Colors.warm} />
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowLabel}>Change Password</Text>
-              <Text style={styles.rowSub}>Send a reset link to your email</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-          </PressableScale>
+          <Pressable
+            onPress={handleResetPassword}
+            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Change password</Text>
+            <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+          </Pressable>
 
           {userRole === "student" && (
             <>
-              <View style={styles.divider} />
-              <PressableScale
+              <View style={[styles.divider, { backgroundColor: c.line }]} />
+              <Pressable
                 onPress={() => router.push("/setup-location")}
-                style={styles.row}
+                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
               >
-                <View style={[styles.rowIcon, { backgroundColor: Colors.primaryFaded }]}>
-                  <Ionicons name="location-outline" size={16} color={Colors.primary} />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Pickup Location</Text>
-                  <Text style={styles.rowSub}>Update your pickup spot</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </PressableScale>
+                <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Pickup location</Text>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
             </>
           )}
         </View>
-      </FadeIn>
 
-      {/* Group Section */}
-      {groupName && (
-        <FadeIn delay={160}>
-          <Text style={styles.sectionLabel}>GROUP</Text>
-          <View style={styles.section}>
-            {userRole === "parent" && groupId && (
-              <>
-                <PressableScale
-                  onPress={() => router.push(`/availability?groupId=${groupId}`)}
-                  style={styles.row}
-                >
-                  <View style={[styles.rowIcon, { backgroundColor: Colors.infoFaded }]}>
-                    <Ionicons name="calendar-outline" size={16} color={Colors.info} />
-                  </View>
-                  <View style={styles.rowContent}>
-                    <Text style={styles.rowLabel}>My Availability</Text>
-                    <Text style={styles.rowSub}>Edit when you can drive</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-                </PressableScale>
-                <View style={styles.divider} />
-              </>
-            )}
+        {/* Group section */}
+        {groupName && (
+          <>
+            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>GROUP</Text>
+            <View style={[styles.section, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              {userRole === "parent" && groupId && (
+                <>
+                  <Pressable
+                    onPress={() => router.push(`/availability?groupId=${groupId}`)}
+                    style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>My availability</Text>
+                    <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+                  </Pressable>
+                  <View style={[styles.divider, { backgroundColor: c.line }]} />
+                </>
+              )}
+              <Pressable
+                onPress={confirmLeaveGroup}
+                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Text style={[styles.rowLabel, { color: c.rust, fontFamily: Fonts.bodyMedium }]}>Leave group</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
 
-            <PressableScale onPress={confirmLeaveGroup} style={styles.row}>
-              <View style={[styles.rowIcon, { backgroundColor: Colors.accentFaded }]}>
-                <Ionicons name="exit-outline" size={16} color={Colors.accent} />
-              </View>
-              <View style={styles.rowContent}>
-                <Text style={[styles.rowLabel, { color: Colors.accent }]}>Leave Group</Text>
-                <Text style={styles.rowSub}>You'll need a new invite to rejoin</Text>
-              </View>
-            </PressableScale>
-          </View>
-        </FadeIn>
-      )}
-
-      {/* About Section */}
-      <FadeIn delay={220}>
-        <Text style={styles.sectionLabel}>ABOUT</Text>
-        <View style={styles.section}>
+        {/* About section */}
+        <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ABOUT</Text>
+        <View style={[styles.section, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
           <View style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: Colors.bgElevated }]}>
-              <Ionicons name="information-circle-outline" size={16} color={Colors.textTertiary} />
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowLabel}>App Version</Text>
-              <Text style={styles.rowValue}>1.0.0</Text>
-            </View>
+            <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Version</Text>
+            <Text style={[styles.rowValue, { color: c.textSecondary, fontFamily: Fonts.mono }]}>1.0.0</Text>
           </View>
-          <View style={styles.divider} />
-          <PressableScale
+          <View style={[styles.divider, { backgroundColor: c.line }]} />
+          <Pressable
             onPress={() => Linking.openURL("mailto:support@hopin.app")}
-            style={styles.row}
+            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
           >
-            <View style={[styles.rowIcon, { backgroundColor: Colors.infoFaded }]}>
-              <Ionicons name="mail-outline" size={16} color={Colors.info} />
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowLabel}>Contact Support</Text>
-              <Text style={styles.rowSub}>support@hopin.app</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-          </PressableScale>
+            <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Contact support</Text>
+            <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+          </Pressable>
         </View>
-      </FadeIn>
 
-      {/* Sign Out */}
-      <FadeIn delay={280}>
-        <SecondaryButton
-          title="Sign Out"
-          icon="log-out-outline"
+        {/* Sign out */}
+        <Pressable
           onPress={confirmLogout}
-          style={styles.signOutBtn}
-        />
-      </FadeIn>
+          style={({ pressed }) => [styles.signOutBtn, { borderColor: c.line, backgroundColor: c.paperElevated, opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Text style={[styles.signOutText, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>Sign out</Text>
+        </Pressable>
 
-      {/* Delete Account */}
-      <FadeIn delay={340}>
-        <PressableScale onPress={confirmDeleteAccount} style={styles.deleteLink}>
-          <Text style={styles.deleteLinkText}>Delete Account</Text>
-        </PressableScale>
-      </FadeIn>
+        {/* Delete account */}
+        <Pressable
+          onPress={confirmDeleteAccount}
+          style={{ alignSelf: "center", marginTop: 20, paddingVertical: 8 }}
+          hitSlop={12}
+        >
+          <Text style={[styles.deleteText, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Delete account</Text>
+        </Pressable>
+      </View>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -449,141 +381,112 @@ export default function ProfileTab() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loader: {
     flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  content: {
-    paddingBottom: 40,
-  },
-
-  /* Hero Header */
-  heroHeader: {
-    paddingTop: 64,
-    paddingBottom: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-    alignItems: "center",
-  },
-  avatarWrap: {
-    alignItems: "center",
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primaryFaded,
-    borderWidth: 2,
-    borderColor: Colors.primaryBorder,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.base,
   },
-  avatarText: {
+  container: { flex: 1 },
+  content: { paddingBottom: 40 },
+
+  header: {
+    paddingHorizontal: 28,
+    paddingTop: 64,
+    paddingBottom: 32,
+  },
+  initials: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  initialsText: {
     fontSize: 26,
-    fontWeight: "800",
-    color: Colors.primary,
+    fontWeight: "900",
     letterSpacing: 1,
   },
   profileName: {
-    fontSize: FontSizes.xl,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    letterSpacing: -0.3,
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: -1.2,
+    lineHeight: 38,
     marginBottom: 4,
   },
   profileEmail: {
-    fontSize: FontSizes.sm,
-    color: Colors.textTertiary,
-    marginBottom: Spacing.md,
+    fontSize: 13,
+    fontWeight: "400",
+    marginBottom: 12,
   },
   roleTag: {
-    backgroundColor: Colors.primaryFaded,
-    borderRadius: Radius.xs,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
+    alignSelf: "flex-start",
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.primaryBorder,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
   },
   roleTagText: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     fontWeight: "700",
-    color: Colors.primary,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
 
-  /* Sections */
+  body: {
+    paddingHorizontal: 20,
+  },
+
   sectionLabel: {
-    fontSize: FontSizes.xs,
+    fontSize: 10,
     fontWeight: "700",
-    color: Colors.textTertiary,
-    letterSpacing: 1.2,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginTop: 24,
+    marginLeft: 2,
   },
   section: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    marginHorizontal: Spacing.xl,
+    borderWidth: 1.5,
+    borderRadius: 12,
     overflow: "hidden",
-    ...Shadows?.md,
-  } as any,
-
-  /* Rows */
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.lg,
-  },
-  rowIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
-  },
-  rowContent: {
-    flex: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
   },
   rowLabel: {
-    fontSize: FontSizes.base,
-    fontWeight: "600",
-    color: Colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "500",
+    flex: 1,
   },
   rowValue: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: "400",
+    maxWidth: 160,
   },
-  rowSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textTertiary,
-    marginTop: 2,
+  rowRight: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.border,
-    marginLeft: Spacing.lg + 32 + Spacing.md,
+    marginHorizontal: 18,
   },
 
-  /* Sign Out */
   signOutBtn: {
-    marginHorizontal: Spacing.xl,
-    marginTop: Spacing.xxl,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginTop: 28,
   },
-
-  /* Delete */
-  deleteLink: {
-    alignSelf: "center",
-    marginTop: Spacing.xl,
-    paddingVertical: Spacing.sm,
+  signOutText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
-  deleteLinkText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textMuted,
+  deleteText: {
+    fontSize: 13,
     fontWeight: "500",
   },
 });

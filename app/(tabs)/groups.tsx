@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  Pressable,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -13,15 +15,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { deletedGroups } from "../../lib/deletedGroups";
-import { Colors, Spacing, Radius, FontSizes, Shadows } from "../../lib/theme";
-import {
-  FadeIn,
-  PressableScale,
-  PrimaryButton,
-  SecondaryButton,
-  LoadingScreen,
-} from "../../components/UI";
 import { SCHOOL } from "../../lib/config";
+import { useTheme, Fonts } from "../../lib/theme";
+import { LoadingScreen, PressableScale, FadeIn, EmptyState } from "../../components/UI";
 
 interface GroupInfo {
   id: string;
@@ -34,11 +30,15 @@ interface GroupInfo {
 
 export default function GroupsTab() {
   const router = useRouter();
+  const c = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [role, setRole] = useState<"student" | "parent" | null>(null);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [childName, setChildName] = useState<string | null>(null);
+  const bodyOpacity = useRef(new Animated.Value(0)).current;
+  const bodySlide = useRef(new Animated.Value(16)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -79,6 +79,12 @@ export default function GroupsTab() {
 
       setLoading(false);
       setRefreshing(false);
+      if (!isRefresh) {
+        Animated.parallel([
+          Animated.timing(bodyOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
+          Animated.timing(bodySlide, { toValue: 0, duration: 380, useNativeDriver: true }),
+        ]).start();
+      }
     } catch (err: any) {
       setLoading(false);
       setRefreshing(false);
@@ -186,146 +192,138 @@ export default function GroupsTab() {
     }));
   };
 
-  if (loading) return <LoadingScreen />;
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  const hasGroups = groups.length > 0;
+  const groupsNeedingAvailability = groups.filter((g) => !g.hasAvailability);
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: c.paper }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => loadGroups(true)}
-          tintColor={Colors.primary}
+          tintColor={c.dawn}
         />
       }
     >
-      {/* Header */}
-      <FadeIn>
-        <Text style={styles.title}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>
           {role === "parent" && childName ? `${childName}'s Groups` : "My Groups"}
         </Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, { color: c.textSecondary, fontFamily: Fonts.body }]}>
           {role === "student"
-            ? "Manage your carpool groups and find nearby students"
+            ? "Manage your carpool groups"
             : "Your child's carpool groups"}
         </Text>
-      </FadeIn>
+      </View>
 
-      {/* Group List */}
-      {groups.length > 0 ? (
-        groups.map((g, idx) => (
-          <FadeIn key={g.id} delay={100 + idx * 60}>
-            <PressableScale
-              onPress={() => router.push(`/my-group?groupId=${g.id}`)}
-              style={styles.groupCard}
-            >
-              <View style={styles.groupTop}>
-                <View style={styles.groupIcon}>
-                  <Ionicons
-                    name="people"
-                    size={20}
-                    color={g.status === "active" ? Colors.primary : Colors.warm}
-                  />
-                </View>
-                <View style={styles.groupInfo}>
-                  <Text style={styles.groupName}>{g.name}</Text>
-                  <Text style={styles.groupMeta}>
-                    {g.memberCount} {g.memberCount === 1 ? "family" : "families"}
-                    {"  ·  "}
-                    {g.parentCount} parent{g.parentCount !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-                <View style={[styles.badge, g.status === "active" ? styles.badgeActive : styles.badgeForming]}>
-                  <Text style={[styles.badgeText, { color: g.status === "active" ? Colors.primary : Colors.warm }]}>
-                    {g.status === "forming" ? "Forming" : "Active"}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.groupBottom}>
-                <View style={styles.detailChip}>
-                  <Ionicons name="school-outline" size={12} color={Colors.textTertiary} />
-                  <Text style={styles.detailChipText}>{SCHOOL.name}</Text>
-                </View>
-
-                {role === "parent" && (
-                  <View style={[styles.detailChip, g.hasAvailability ? styles.chipSuccess : styles.chipWarn]}>
-                    <Ionicons
-                      name={g.hasAvailability ? "checkmark-circle" : "alert-circle"}
-                      size={12}
-                      color={g.hasAvailability ? Colors.success : Colors.warm}
-                    />
-                    <Text style={[styles.detailChipText, { color: g.hasAvailability ? Colors.success : Colors.warm }]}>
-                      {g.hasAvailability ? "Availability set" : "Set availability"}
+      <Animated.View style={[styles.body, { opacity: bodyOpacity, transform: [{ translateY: bodySlide }] }]}>
+        {hasGroups ? (
+          <View style={[styles.groupList, { borderColor: c.line }]}>
+            {groups.map((g, idx) => (
+              <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
+                {idx > 0 && <View style={[styles.rowDivider, { backgroundColor: c.line }]} />}
+                <PressableScale
+                  onPress={() => router.push(`/my-group?groupId=${g.id}`)}
+                  style={styles.groupRow}
+                >
+                  <View style={styles.groupInfo}>
+                    <Text style={[styles.groupName, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{g.name}</Text>
+                    <Text style={[styles.groupMeta, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+                      {g.memberCount} {g.memberCount === 1 ? "family" : "families"}
+                      {"  ·  "}
+                      {g.parentCount} parent{g.parentCount !== 1 ? "s" : ""}
+                      {"  ·  "}
+                      {SCHOOL.name}
+                    </Text>
+                    {role === "parent" && (
+                      <Text style={[styles.availLine, { color: g.hasAvailability ? c.dawn : c.rust, fontFamily: Fonts.bodySemiBold }]}>
+                        {g.hasAvailability ? "Availability set" : "Availability not set"}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: g.status === "active" ? c.dawnFaded : c.rustFaded },
+                  ]}>
+                    <Text style={[
+                      styles.statusText,
+                      { color: g.status === "active" ? c.dawn : c.rust, fontFamily: Fonts.bodyBold },
+                    ]}>
+                      {g.status === "forming" ? "Forming" : "Active"}
                     </Text>
                   </View>
-                )}
-              </View>
-
-              <View style={styles.groupArrow}>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </View>
-            </PressableScale>
-          </FadeIn>
-        ))
-      ) : (
-        <FadeIn delay={100}>
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="people-outline" size={32} color={Colors.textTertiary} />
-            </View>
-            <Text style={styles.emptyTitle}>No groups yet</Text>
-            <Text style={styles.emptyText}>
-              {role === "student"
-                ? "Create a carpool group or wait for an invite from a classmate."
-                : "Your child hasn't joined any carpool groups yet."}
-            </Text>
+                  <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ marginLeft: 10 }} />
+                </PressableScale>
+              </FadeIn>
+            ))}
           </View>
-        </FadeIn>
-      )}
-
-      {/* Student Actions */}
-      {role === "student" && (
-        <FadeIn delay={200 + groups.length * 60}>
-          <View style={styles.actionsSection}>
-            {groups.length > 0 && groups[0]?.id && (
-              <SecondaryButton
-                title="Find Nearby Students"
-                icon="search-outline"
-                onPress={() => router.push(`/discover?groupId=${groups[0].id}`)}
-                style={{ marginBottom: Spacing.md }}
-              />
-            )}
-
-            <PrimaryButton
-              title={groups.length > 0 ? "Create Another Group" : "Create a Group"}
-              icon="add-circle-outline"
-              onPress={() => router.push("/create-group")}
+        ) : (
+          <View style={{ marginBottom: 24 }}>
+            <EmptyState
+              icon="people-outline"
+              title="No groups yet"
+              message={
+                role === "student"
+                  ? "Create a carpool group or wait for an invite from a classmate."
+                  : "Your child hasn't joined any carpool groups yet."
+              }
             />
           </View>
-        </FadeIn>
-      )}
+        )}
 
-      {/* Parent Actions */}
-      {role === "parent" && groups.length > 0 && (
-        <FadeIn delay={200 + groups.length * 60}>
-          <View style={styles.actionsSection}>
-            {groups.map((g) =>
-              !g.hasAvailability ? (
-                <PrimaryButton
-                  key={g.id}
-                  title={`Set Availability — ${g.name}`}
-                  icon="calendar-outline"
-                  onPress={() => router.push(`/availability?groupId=${g.id}`)}
-                  style={{ marginBottom: Spacing.md }}
-                />
-              ) : null
+        {/* Student actions */}
+        {role === "student" && (
+          <View style={styles.actions}>
+            <Text style={[styles.actionsLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACTIONS</Text>
+            {hasGroups && groups[0]?.id && (
+              <PressableScale
+                onPress={() => router.push(`/discover?groupId=${groups[0].id}`)}
+                style={[styles.linkRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+              >
+                <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Find nearby students</Text>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </PressableScale>
             )}
+            <PressableScale
+              onPress={() => router.push("/create-group")}
+              style={[styles.linkRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+            >
+              <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>
+                {hasGroups ? "Create another group" : "Create a group"}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+            </PressableScale>
           </View>
-        </FadeIn>
-      )}
+        )}
+
+        {/* Parent availability CTAs */}
+        {role === "parent" && groupsNeedingAvailability.length > 0 && (
+          <View style={styles.actions}>
+            <Text style={[styles.actionsLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACTIONS NEEDED</Text>
+            {groupsNeedingAvailability.map((g, idx) => (
+              <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
+                <PressableScale
+                  onPress={() => router.push(`/availability?groupId=${g.id}`)}
+                  style={[styles.linkRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.linkSubLabel, { color: c.rust, fontFamily: Fonts.bodyBold }]}>AVAILABILITY NEEDED</Text>
+                    <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>{g.name}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+                </PressableScale>
+              </FadeIn>
+            ))}
+          </View>
+        )}
+      </Animated.View>
 
       <View style={{ height: 24 }} />
     </ScrollView>
@@ -333,148 +331,128 @@ export default function GroupsTab() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loader: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  content: {
-    padding: Spacing.xl,
-    paddingTop: 64,
-    paddingBottom: 40,
-  },
+  container: { flex: 1 },
+  content: { paddingBottom: 40 },
 
-  /* Header */
+  header: {
+    paddingHorizontal: 28,
+    paddingTop: 64,
+    paddingBottom: 28,
+  },
   title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    fontSize: 42,
+    fontWeight: "900",
+    letterSpacing: -1.8,
+    lineHeight: 44,
     marginBottom: 6,
   },
   subtitle: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "400",
     lineHeight: 20,
-    marginBottom: Spacing.xl,
   },
 
-  /* Group Cards */
-  groupCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    position: "relative",
-    ...Shadows?.md,
-  } as any,
-  groupTop: {
+  body: {
+    paddingHorizontal: 20,
+  },
+
+  groupList: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  groupRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.md,
-  },
-  groupIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: Colors.bgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
   },
   groupInfo: {
     flex: 1,
-    marginRight: Spacing.md,
+    marginRight: 12,
   },
   groupName: {
-    fontSize: FontSizes.lg,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 3,
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    marginBottom: 4,
   },
   groupMeta: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 18,
   },
-  badge: {
-    borderRadius: Radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  badgeActive: {
-    backgroundColor: Colors.primaryFaded,
-  },
-  badgeForming: {
-    backgroundColor: Colors.warmFaded,
-  },
-  badgeText: {
-    fontSize: FontSizes.xs,
+  availLine: {
+    fontSize: 12,
     fontWeight: "600",
+    marginTop: 5,
   },
-  groupBottom: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  detailChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radius.pill,
+  statusBadge: {
+    borderRadius: 6,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
-  detailChipText: {
-    fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
-    fontWeight: "500",
-  },
-  chipSuccess: {
-    backgroundColor: Colors.successFaded,
-  },
-  chipWarn: {
-    backgroundColor: Colors.warmFaded,
-  },
-  groupArrow: {
-    position: "absolute",
-    right: Spacing.lg,
-    top: "50%",
-    marginTop: -9,
+  statusText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
-  /* Empty */
   emptyCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.xxl,
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-    ...Shadows?.md,
-  } as any,
-  emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: Colors.bgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 24,
   },
   emptyTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: 17,
     fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "400",
     lineHeight: 20,
   },
 
-  /* Actions */
-  actionsSection: {
-    marginTop: Spacing.lg,
+  actions: {
+    marginBottom: 16,
+  },
+  actionsLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginLeft: 2,
+  },
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  linkSubLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    marginBottom: 3,
+  },
+  linkText: {
+    fontSize: 15,
+    fontWeight: "500",
+    flex: 1,
   },
 });

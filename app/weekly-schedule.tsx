@@ -8,17 +8,20 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
-import { FadeIn, PrimaryButton, SecondaryButton, BackButton, Card, Banner, LoadingScreen } from "../components/UI";
+import { useTheme, Radius, Fonts } from "../lib/theme";
+import { PrimaryButton, SecondaryButton, BackButton, FadeIn, Card, SunArc, ScaleIn } from "../components/UI";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 export default function WeeklySchedule() {
   const router = useRouter();
+  const c = useTheme();
+
   const { groupId } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -28,447 +31,207 @@ export default function WeeklySchedule() {
   const [parentMap, setParentMap] = useState<Record<string, string>>({});
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isParent, setIsParent] = useState(false);
   const [swapRequests, setSwapRequests] = useState<any[]>([]);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [justGenerated, setJustGenerated] = useState(false);
 
   useEffect(() => {
-    loadSchedule();
-  }, []);
+    if (!justGenerated) return;
+    const timer = setTimeout(() => setJustGenerated(false), 1600);
+    return () => clearTimeout(timer);
+  }, [justGenerated]);
 
-  const loadSchedule = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    setCurrentUserId(user.id);
-    const { data: memberData } = await supabase
-      .from("group_members")
-      .select(`
-        id, student_id, parent_id,
-        students ( name ),
-        parents ( name )
-      `)
-      .eq("group_id", groupId)
-      .eq("status", "active");
+  useEffect(() => {
+    setLoading(true);
+    setSchedule(null);
+    setSlots([]);
+    setSwapRequests([]);
+    loadSchedule(weekOffset);
+  }, [weekOffset]);
 
-    setMembers(memberData || []);
-
-    const pMap: Record<string, string> = {};
-    (memberData || []).forEach((m: any) => {
-      if (m.parent_id && m.parents) {
-        pMap[m.parent_id] = m.parents.name;
-      }
-    });
-    setParentMap(pMap);
-
+  const getWeekStart = (offset: number) => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const monday = new Date(today);
-    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    const weekStart = monday.toISOString().split("T")[0];
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + offset * 7);
+    return monday.toISOString().split("T")[0];
+  };
 
-    const { data: existing } = await supabase
-      .from("weekly_schedules")
-      .select("id, status, week_start_date")
-      .eq("group_id", groupId)
-      .eq("week_start_date", weekStart)
-      .single();
+  const getWeekLabel = (offset: number) => {
+    if (offset === 0) return "This week";
+    if (offset === -1) return "Last week";
+    if (offset === 1) return "Next week";
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + offset * 7);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[monday.getMonth()]} ${monday.getDate()} – ${months[friday.getMonth()]} ${friday.getDate()}`;
+  };
 
+  const loadSchedule = async (offset: number = 0) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setCurrentUserId(user.id);
+    const { data: parentRow } = await supabase.from("parents").select("id").eq("id", user.id).maybeSingle();
+    setIsParent(!!parentRow);
+    const { data: memberData } = await supabase.from("group_members").select(`id, student_id, parent_id, students ( name ), parents ( name )`).eq("group_id", groupId).eq("status", "active");
+    setMembers(memberData || []);
+    const pMap: Record<string, string> = {};
+    (memberData || []).forEach((m: any) => { if (m.parent_id && m.parents) pMap[m.parent_id] = m.parents.name; });
+    setParentMap(pMap);
+    const weekStart = getWeekStart(offset);
+    const { data: existing } = await supabase.from("weekly_schedules").select("id, status, week_start_date").eq("group_id", groupId).eq("week_start_date", weekStart).single();
     if (existing) {
       setSchedule(existing);
-
-      const { data: slotData } = await supabase
-        .from("schedule_slots")
-        .select("id, day_of_week, slot_type, driver_parent_id, departure_time, status")
-        .eq("schedule_id", existing.id)
-        .order("day_of_week")
-        .order("departure_time");
-
+      const { data: slotData } = await supabase.from("schedule_slots").select("id, day_of_week, slot_type, driver_parent_id, departure_time, status").eq("schedule_id", existing.id).order("day_of_week").order("departure_time");
       setSlots(slotData || []);
-
-      // Load swap requests for this group's current schedule
       const slotIds = (slotData || []).map((s: any) => s.id);
       if (slotIds.length > 0) {
-        const { data: swaps } = await supabase
-          .from("swap_requests")
-          .select("id, slot_id, requesting_parent_id, covering_parent_id, status, message")
-          .in("slot_id", slotIds);
+        const { data: swaps } = await supabase.from("swap_requests").select("id, slot_id, requesting_parent_id, covering_parent_id, status, message").in("slot_id", slotIds);
         setSwapRequests(swaps || []);
       }
     }
-
     setLoading(false);
   };
 
   const generateSchedule = async () => {
     setGenerating(true);
     setAiExplanation(null);
-
-    // Gather all data for Claude
-    const { data: availability } = await supabase
-      .from("parent_availability")
-      .select("parent_id, day_of_week, can_drive_morning, can_drive_afternoon")
-      .eq("group_id", groupId);
-
+    const { data: availability } = await supabase.from("parent_availability").select("parent_id, day_of_week, can_drive_morning, can_drive_afternoon").eq("group_id", groupId);
     if (!availability || availability.length === 0) {
       setGenerating(false);
-      Alert.alert("No Availability", "No parents have set their driving availability yet.");
+      Alert.alert("No availability set", "No parents have set their driving availability yet.");
       return;
     }
-
-    const { data: exceptions } = await supabase
-      .from("student_exceptions")
-      .select("student_id, day_of_week, exception_type, custom_pickup_time, reason")
-      .eq("group_id", groupId)
-      .eq("is_recurring", true);
-
-    // Build readable data for Claude
-    const familyInfo = members.map((m: any) => ({
-      student_name: m.students?.name || "Unknown Student",
-      parent_name: m.parents?.name || "Unknown Parent",
-      parent_id: m.parent_id,
-      student_id: m.student_id,
-    }));
-
-    const availabilityInfo = availability.map((a: any) => ({
-      parent_id: a.parent_id,
-      parent_name: parentMap[a.parent_id] || "Parent",
-      day: a.day_of_week,
-      can_morning: a.can_drive_morning,
-      can_afternoon: a.can_drive_afternoon,
-    }));
-
-    const exceptionInfo = (exceptions || []).map((e: any) => {
-      const family = familyInfo.find((f) => f.student_id === e.student_id);
-      return {
-        student_name: family?.student_name || "Student",
-        day: e.day_of_week,
-        type: e.exception_type,
-        pickup_time: e.custom_pickup_time,
-        reason: e.reason,
-      };
-    });
-
-    const prompt = `You are a carpool scheduling assistant. Create a fair weekly driving schedule for a carpool group.
-
-FAMILIES IN THE GROUP:
-${familyInfo.map((f) => `- ${f.student_name} (student) + ${f.parent_name} (parent, ID: ${f.parent_id})`).join("\n")}
-
-PARENT DRIVING AVAILABILITY:
-${availabilityInfo.map((a) => `- ${a.parent_name} (${a.parent_id}): ${a.day} — Morning: ${a.can_morning ? "YES" : "NO"}, Afternoon: ${a.can_afternoon ? "YES" : "NO"}`).join("\n")}
-
-STUDENT SCHEDULE EXCEPTIONS:
-${exceptionInfo.length > 0
-  ? exceptionInfo.map((e) => `- ${e.student_name}: ${e.day} — ${e.type}${e.pickup_time ? ` at ${e.pickup_time}` : ""}${e.reason ? ` (${e.reason})` : ""}`).join("\n")
-  : "None"}
-
-RULES:
-1. Every weekday needs a morning slot (to school, 7:30 AM)
-2. For afternoon pickups, use this logic:
-   - If NO students have a late_pickup exception that day → add a normal "afternoon" slot (2:45 PM)
-   - If SOME students have a late_pickup and some don't → add BOTH a normal "afternoon" slot AND a "late_afternoon" slot
-   - If ALL students have a late_pickup exception on the same day → add ONLY a "late_afternoon" slot at their pickup time, do NOT add a regular "afternoon" slot
-3. A parent can ONLY drive a slot if they marked it as available
-4. Split driving as FAIRLY as possible — each parent should drive roughly the same number of slots
-5. If a student has a "no_ride" exception, they don't need ANY pickup that day (but others still do)
-6. If ALL students have "no_ride" on the same day, skip the afternoon slot entirely
-7. If no parent is available for a slot, mark driver_parent_id as null
-
-TOTAL STUDENTS IN GROUP: ${familyInfo.length}
-
-Respond with ONLY valid JSON in this exact format, no other text:
-{
-  "slots": [
-    {
-      "day_of_week": "Mon",
-      "slot_type": "morning",
-      "driver_parent_id": "parent-uuid-here",
-      "departure_time": "07:30:00"
-    }
-  ],
-  "explanation": "Brief explanation of how you split the driving fairly"
-}`;
-
+    const { data: exceptions } = await supabase.from("student_exceptions").select("student_id, day_of_week, exception_type, custom_pickup_time, reason").eq("group_id", groupId).eq("is_recurring", true);
+    const familyInfo = members.map((m: any) => ({ student_name: m.students?.name || "Unknown", parent_name: m.parents?.name || "Unknown", parent_id: m.parent_id, student_id: m.student_id }));
+    const availabilityInfo = availability.map((a: any) => ({ parent_id: a.parent_id, parent_name: parentMap[a.parent_id] || "Parent", day: a.day_of_week, can_morning: a.can_drive_morning, can_afternoon: a.can_drive_afternoon }));
+    const exceptionInfo = (exceptions || []).map((e: any) => { const family = familyInfo.find((f) => f.student_id === e.student_id); return { student_name: family?.student_name || "Student", parent_id: family?.parent_id || null, parent_name: family?.parent_name || "Unknown", day: e.day_of_week, type: e.exception_type, pickup_time: e.custom_pickup_time, reason: e.reason }; });
+    const prompt = `You are a carpool scheduling assistant. Create a fair weekly driving schedule for a carpool group.\n\nFAMILIES IN THE GROUP:\n${familyInfo.map((f) => `- ${f.student_name} (student) + ${f.parent_name} (parent, ID: ${f.parent_id})`).join("\n")}\n\nPARENT DRIVING AVAILABILITY:\n${availabilityInfo.map((a) => `- ${a.parent_name} (${a.parent_id}): ${a.day} — Morning: ${a.can_morning ? "YES" : "NO"}, Afternoon: ${a.can_afternoon ? "YES" : "NO"}`).join("\n")}\n\nSTUDENT SCHEDULE EXCEPTIONS:\n${exceptionInfo.length > 0 ? exceptionInfo.map((e) => `- ${e.student_name} (parent ID: ${e.parent_id}): ${e.day} — ${e.type}${e.pickup_time ? ` at ${e.pickup_time}` : ""}${e.reason ? ` (${e.reason})` : ""}`).join("\n") : "None"}\n\nRULES:\n1. Every weekday needs a morning slot (to school, 7:30 AM)\n2. For afternoon/late pickups, follow this logic EXACTLY:\n   - If NO students have a late_pickup exception that day → add ONE normal "afternoon" slot at 2:45 PM, assigned fairly\n   - If EXACTLY ONE student has a late_pickup exception that day → MANDATORY: assign that student's own parent (use their parent_id from the exceptions list) as the driver for the "late_afternoon" slot — do not override this with fairness. Also add a normal "afternoon" slot for the remaining students, assigned fairly to other parents.\n   - If 2 OR MORE students have late_pickup exceptions that day → add a "late_afternoon" slot assigned fairly among all available parents based on driving count\n   - If ALL students have a late_pickup exception that day → add ONLY a "late_afternoon" slot (no regular afternoon slot)\n3. A parent can ONLY drive a slot if they marked it as available for that day. Exception: the mandatory single-student late pickup rule in Rule 2 overrides availability — if that parent isn't available, still assign them (they agreed to pick up their own child).\n4. Split driving as FAIRLY as possible across all other slots — each parent should drive roughly the same number of slots\n5. If a student has a "no_ride" exception, they don't need ANY pickup that day (but others still do)\n6. If ALL students have "no_ride" on the same day, skip the afternoon slot entirely\n7. If no parent is available for a slot (and it's not the mandatory single-student case), mark driver_parent_id as null\n\nTOTAL STUDENTS IN GROUP: ${familyInfo.length}\n\nRespond with ONLY valid JSON in this exact format, no other text:\n{\n  "slots": [\n    {\n      "day_of_week": "Mon",\n      "slot_type": "morning",\n      "driver_parent_id": "parent-uuid-here",\n      "departure_time": "07:30:00"\n    }\n  ],\n  "explanation": "Brief explanation of how you split the driving fairly"\n}`;
     try {
-      const response = await supabase.functions.invoke(
-        "generate-schedule",
-        { body: { prompt } }
-      );
-
-      console.log("Full response:", JSON.stringify(response));
-
-      if (response.error) {
-        // Try to read the error body
-        const errorContext = response.error?.context;
-        if (errorContext && errorContext.json) {
-          const body = await errorContext.json();
-          console.log("Error body:", JSON.stringify(body));
-        }
-        throw new Error(response.error.message);
-      }
-
+      const response = await supabase.functions.invoke("generate-schedule", { body: { prompt } });
+      if (response.error) throw new Error(response.error.message);
       const data = response.data;
-
-      if (data.error) {
-        throw new Error(data.error.message || "API error");
-      }
-
-      const text = data.content?.[0]?.text || "";
-
-      // Parse JSON from response (handle possible markdown fences)
+      if (data.error) throw new Error(data.error.message || "API error");
+      const text = data.choices?.[0]?.message?.content || "";
       const cleaned = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
-
-      if (!parsed.slots || !Array.isArray(parsed.slots)) {
-        throw new Error("Invalid response format");
-      }
-
+      if (!parsed.slots || !Array.isArray(parsed.slots)) throw new Error("Invalid response format");
       setAiExplanation(parsed.explanation || null);
-
-      // Save to database
       const today = new Date();
       const dayOfWeek = today.getDay();
       const monday = new Date(today);
       monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
       const weekStart = monday.toISOString().split("T")[0];
-
-      // Delete existing schedule
-      const { data: oldSchedule } = await supabase
-        .from("weekly_schedules")
-        .select("id")
-        .eq("group_id", groupId)
-        .eq("week_start_date", weekStart)
-        .single();
-
+      const { data: oldSchedule } = await supabase.from("weekly_schedules").select("id").eq("group_id", groupId).eq("week_start_date", weekStart).single();
       if (oldSchedule) {
         await supabase.from("schedule_slots").delete().eq("schedule_id", oldSchedule.id);
         await supabase.from("weekly_schedules").delete().eq("id", oldSchedule.id);
       }
-
-      const { data: newSchedule, error: schedError } = await supabase
-        .from("weekly_schedules")
-        .insert({
-          group_id: groupId,
-          week_start_date: weekStart,
-          status: "published",
-          generated_by: "ai",
-        })
-        .select("id")
-        .single();
-
-      if (schedError || !newSchedule) {
-        throw new Error(schedError?.message || "Failed to create schedule");
-      }
-
-      const slotsToInsert = parsed.slots.map((s: any) => ({
-        schedule_id: newSchedule.id,
-        day_of_week: s.day_of_week,
-        slot_type: s.slot_type,
-        driver_parent_id: s.driver_parent_id || null,
-        departure_time: s.departure_time,
-        status: s.driver_parent_id ? "confirmed" : "needs_coverage",
-      }));
-
-      const { error: slotError } = await supabase
-        .from("schedule_slots")
-        .insert(slotsToInsert);
-
-      if (slotError) {
-        throw new Error(slotError.message);
-      }
-
+      const { data: newSchedule, error: schedError } = await supabase.from("weekly_schedules").insert({ group_id: groupId, week_start_date: weekStart, status: "published", generated_by: "ai" }).select("id").single();
+      if (schedError || !newSchedule) throw new Error(schedError?.message || "Failed to create schedule");
+      const slotsToInsert = parsed.slots.map((s: any) => ({ schedule_id: newSchedule.id, day_of_week: s.day_of_week, slot_type: s.slot_type, driver_parent_id: s.driver_parent_id || null, departure_time: s.departure_time, status: s.driver_parent_id ? "confirmed" : "needs_coverage" }));
+      const { error: slotError } = await supabase.from("schedule_slots").insert(slotsToInsert);
+      if (slotError) throw new Error(slotError.message);
       setGenerating(false);
-      Alert.alert("Schedule Generated! 🎉", "Claude created a fair driving schedule for your group.");
+      setJustGenerated(true);
+      Alert.alert("Schedule generated", "A fair driving schedule has been created for your group.");
       loadSchedule();
-
     } catch (err: any) {
       setGenerating(false);
-      console.error("AI scheduling error:", err);
-
-      // Fallback to simple algorithm
-      Alert.alert(
-        "AI Unavailable",
-        "Couldn't reach Claude. Would you like to use the basic scheduler instead?",
-        [
-          { text: "Cancel" },
-          { text: "Use Basic", onPress: () => generateBasicSchedule() },
-        ]
-      );
+      Alert.alert("AI unavailable", "Couldn't reach the AI. Use the basic scheduler instead?", [
+        { text: "Cancel" },
+        { text: "Use basic", onPress: () => generateBasicSchedule() },
+      ]);
     }
   };
 
   const generateBasicSchedule = async () => {
     setGenerating(true);
-
-    const { data: availability } = await supabase
-      .from("parent_availability")
-      .select("parent_id, day_of_week, can_drive_morning, can_drive_afternoon")
-      .eq("group_id", groupId);
-
-    const { data: exceptions } = await supabase
-      .from("student_exceptions")
-      .select("student_id, day_of_week, exception_type, custom_pickup_time")
-      .eq("group_id", groupId)
-      .eq("is_recurring", true);
-
+    const { data: availability } = await supabase.from("parent_availability").select("parent_id, day_of_week, can_drive_morning, can_drive_afternoon").eq("group_id", groupId);
+    const { data: exceptions } = await supabase.from("student_exceptions").select("student_id, day_of_week, exception_type, custom_pickup_time").eq("group_id", groupId).eq("is_recurring", true);
     const availMap: Record<string, { morning: string[]; afternoon: string[] }> = {};
     DAYS.forEach((d) => { availMap[d] = { morning: [], afternoon: [] }; });
-
     (availability || []).forEach((a: any) => {
       if (a.can_drive_morning) availMap[a.day_of_week].morning.push(a.parent_id);
       if (a.can_drive_afternoon) availMap[a.day_of_week].afternoon.push(a.parent_id);
     });
-
     const assignCount: Record<string, number> = {};
-    members.forEach((m: any) => {
-      if (m.parent_id) assignCount[m.parent_id] = 0;
-    });
-
+    members.forEach((m: any) => { if (m.parent_id) assignCount[m.parent_id] = 0; });
     const newSlots: any[] = [];
-
     DAYS.forEach((day) => {
-      // Morning
       const am = [...availMap[day].morning].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-      if (am.length > 0) {
-        assignCount[am[0]] = (assignCount[am[0]] || 0) + 1;
-        newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: am[0], departure_time: "07:30:00", status: "confirmed" });
-      } else {
-        newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: null, departure_time: "07:30:00", status: "needs_coverage" });
-      }
-
-      // Afternoon
+      if (am.length > 0) { assignCount[am[0]] = (assignCount[am[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: am[0], departure_time: "07:30:00", status: "confirmed" }); }
+      else { newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: null, departure_time: "07:30:00", status: "needs_coverage" }); }
       const pm = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-      if (pm.length > 0) {
-        assignCount[pm[0]] = (assignCount[pm[0]] || 0) + 1;
-        newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: pm[0], departure_time: "14:45:00", status: "confirmed" });
-      } else {
-        newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: null, departure_time: "14:45:00", status: "needs_coverage" });
-      }
-
-      // Late afternoon
+      if (pm.length > 0) { assignCount[pm[0]] = (assignCount[pm[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: pm[0], departure_time: "14:45:00", status: "confirmed" }); }
+      else { newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: null, departure_time: "14:45:00", status: "needs_coverage" }); }
       const lateExceptions = (exceptions || []).filter((e: any) => e.day_of_week === day && e.exception_type === "late_pickup");
-      if (lateExceptions.length > 0) {
-        const late = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-        if (late.length > 0) {
-          assignCount[late[0]] = (assignCount[late[0]] || 0) + 1;
-          newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: late[0], departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" });
+      if (lateExceptions.length === 1) {
+        // Single kid with late pickup — their own parent must drive, regardless of fairness
+        const family = members.find((m: any) => m.student_id === lateExceptions[0].student_id);
+        const forcedParentId = family?.parent_id || null;
+        if (forcedParentId) {
+          assignCount[forcedParentId] = (assignCount[forcedParentId] || 0) + 1;
+          newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: forcedParentId, departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" });
+        } else {
+          // Parent not in group yet — fair fallback
+          const late = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
+          if (late.length > 0) { assignCount[late[0]] = (assignCount[late[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: late[0], departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" }); }
         }
+      } else if (lateExceptions.length > 1) {
+        // Multiple kids with late pickup — assign fairly
+        const late = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
+        if (late.length > 0) { assignCount[late[0]] = (assignCount[late[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: late[0], departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" }); }
       }
     });
-
     const today = new Date();
     const dayOfWeek = today.getDay();
     const monday = new Date(today);
     monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
     const weekStart = monday.toISOString().split("T")[0];
-
-    const { data: oldSchedule } = await supabase
-      .from("weekly_schedules").select("id").eq("group_id", groupId).eq("week_start_date", weekStart).single();
-
-    if (oldSchedule) {
-      await supabase.from("schedule_slots").delete().eq("schedule_id", oldSchedule.id);
-      await supabase.from("weekly_schedules").delete().eq("id", oldSchedule.id);
-    }
-
-    const { data: newSchedule } = await supabase
-      .from("weekly_schedules")
-      .insert({ group_id: groupId, week_start_date: weekStart, status: "published", generated_by: "manual" })
-      .select("id").single();
-
-    if (newSchedule) {
-      await supabase.from("schedule_slots").insert(
-        newSlots.map((s) => ({ ...s, schedule_id: newSchedule.id }))
-      );
-    }
-
+    const { data: oldSchedule } = await supabase.from("weekly_schedules").select("id").eq("group_id", groupId).eq("week_start_date", weekStart).single();
+    if (oldSchedule) { await supabase.from("schedule_slots").delete().eq("schedule_id", oldSchedule.id); await supabase.from("weekly_schedules").delete().eq("id", oldSchedule.id); }
+    const { data: newSchedule } = await supabase.from("weekly_schedules").insert({ group_id: groupId, week_start_date: weekStart, status: "published", generated_by: "manual" }).select("id").single();
+    if (newSchedule) { await supabase.from("schedule_slots").insert(newSlots.map((s) => ({ ...s, schedule_id: newSchedule.id }))); }
     setGenerating(false);
+    setJustGenerated(true);
     setAiExplanation("Generated using basic fair-split algorithm.");
     loadSchedule();
   };
+
   const handleRequestSwap = async (slotId: string) => {
     if (!currentUserId) return;
-
-    Alert.alert(
-      "Request Swap",
-      "This will notify other parents that you need someone to cover this slot.",
-      [
-        { text: "Cancel" },
-        {
-          text: "Request Swap",
-          onPress: async () => {
-            const { error } = await supabase.from("swap_requests").insert({
-              slot_id: slotId,
-              requesting_parent_id: currentUserId,
-              status: "open",
-              message: "Can someone cover this slot?",
-            });
-
-            if (error) {
-              Alert.alert("Error", error.message);
-              return;
-            }
-            notifyGroupMembers(
-              groupId as string,
-              currentUserId!,
-              "🔄 Swap Request",
-              `${parentMap[currentUserId!] || "A parent"} needs someone to cover a driving slot.`
-            );
-            Alert.alert("Swap Requested! 🔄", "Other parents in the group will see your request.");
-            loadSchedule();
-          },
-        },
-      ]
-    );
+    Alert.alert("Request swap", "This will notify other parents that you need someone to cover this slot.", [
+      { text: "Cancel" },
+      { text: "Request swap", onPress: async () => {
+        const { error } = await supabase.from("swap_requests").insert({ slot_id: slotId, requesting_parent_id: currentUserId, status: "open", message: "Can someone cover this slot?" });
+        if (error) { Alert.alert("Error", error.message); return; }
+        notifyGroupMembers(groupId as string, currentUserId!, "Swap Request", `${parentMap[currentUserId!] || "A parent"} needs someone to cover a driving slot.`);
+        Alert.alert("Swap requested", "Other parents will see your request.");
+        loadSchedule();
+      }},
+    ]);
   };
 
   const handleCoverSwap = async (swapId: string, slotId: string) => {
     if (!currentUserId) return;
-
-    Alert.alert(
-      "Cover This Slot",
-      "You'll be assigned as the driver for this slot.",
-      [
-        { text: "Cancel" },
-        {
-          text: "I'll Cover It",
-          onPress: async () => {
-            // Update swap request
-            const { error: swapError } = await supabase
-              .from("swap_requests")
-              .update({
-                covering_parent_id: currentUserId,
-                status: "covered",
-              })
-              .eq("id", swapId);
-
-            if (swapError) {
-              Alert.alert("Error", swapError.message);
-              return;
-            }
-
-            // Update the schedule slot driver
-            const { error: slotError } = await supabase
-              .from("schedule_slots")
-              .update({
-                driver_parent_id: currentUserId,
-                status: "swapped",
-              })
-              .eq("id", slotId);
-
-            if (slotError) {
-              Alert.alert("Error", slotError.message);
-              return;
-            }
-            notifyGroupMembers(
-              groupId as string,
-              currentUserId!,
-              "✅ Swap Covered",
-              `${parentMap[currentUserId!] || "A parent"} is covering the slot.`
-            );
-
-            Alert.alert("Thanks! 🙏", "You've been assigned as the driver for this slot.");
-            loadSchedule();
-          },
-        },
-      ]
-    );
+    Alert.alert("Cover this slot", "You'll be assigned as the driver for this slot.", [
+      { text: "Cancel" },
+      { text: "I'll cover it", onPress: async () => {
+        const { error: swapError } = await supabase.from("swap_requests").update({ covering_parent_id: currentUserId, status: "covered" }).eq("id", swapId);
+        if (swapError) { Alert.alert("Error", swapError.message); return; }
+        const { error: slotError } = await supabase.from("schedule_slots").update({ driver_parent_id: currentUserId, status: "swapped" }).eq("id", slotId);
+        if (slotError) { Alert.alert("Error", slotError.message); return; }
+        notifyGroupMembers(groupId as string, currentUserId!, "Swap Covered", `${parentMap[currentUserId!] || "A parent"} is covering the slot.`);
+        Alert.alert("Thanks!", "You've been assigned as the driver for this slot.");
+        loadSchedule();
+      }},
+    ]);
   };
 
   const formatTime = (timeStr: string) => {
@@ -480,471 +243,296 @@ Respond with ONLY valid JSON in this exact format, no other text:
     return `${displayHour}:${m} ${ampm}`;
   };
 
-  const getSlotIcon = (type: string) => {
-    switch (type) {
-      case "morning": return "🌅";
-      case "afternoon": return "🌆";
-      case "late_afternoon": return "🌙";
-      default: return "📍";
-    }
-  };
-
   const getSlotLabel = (type: string) => {
     switch (type) {
-      case "morning": return "To School";
-      case "afternoon": return "From School";
-      case "late_afternoon": return "Late Pickup";
+      case "morning": return "To school";
+      case "afternoon": return "From school";
+      case "late_afternoon": return "Late pickup";
       default: return type;
     }
   };
 
   const getSlotTag = (type: string) => {
-    switch (type) {
-      case "morning": return "AM";
-      case "afternoon": return "PM";
-      case "late_afternoon": return "Late";
-      default: return type;
-    }
+    switch (type) { case "morning": return "AM"; case "afternoon": return "PM"; case "late_afternoon": return "Late"; default: return type; }
   };
 
-  const getSlotAccentColor = (type: string) => {
-    switch (type) {
-      case "morning": return Colors.primary;
-      case "afternoon": return Colors.info;
-      case "late_afternoon": return Colors.warm;
-      default: return Colors.textTertiary;
-    }
-  };
+  const isMorningSlot = (type: string) => type === "morning";
 
   const driverCounts: Record<string, number> = {};
-  slots.forEach((s: any) => {
-    if (s.driver_parent_id) {
-      driverCounts[s.driver_parent_id] = (driverCounts[s.driver_parent_id] || 0) + 1;
-    }
-  });
+  slots.forEach((s: any) => { if (s.driver_parent_id) driverCounts[s.driver_parent_id] = (driverCounts[s.driver_parent_id] || 0) + 1; });
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  const renderSlotRow = (slot: any) => {
+    const morning = isMorningSlot(slot.slot_type);
+    const tagColor = morning ? c.dawn : c.dusk;
+    const tagBg = morning ? c.dawnFaded : c.duskFaded;
+    const needsCoverage = slot.status === "needs_coverage";
+    return (
+      <View key={slot.id} style={[styles.slotRow, { backgroundColor: needsCoverage ? c.rustFaded : c.paperElevated, borderColor: c.line }]}>
+        <View style={styles.slotLeft}>
+          <View style={[styles.slotTag, { backgroundColor: tagBg }]}>
+            <Text style={[styles.slotTagText, { color: tagColor, fontFamily: Fonts.bodySemiBold }]}>{getSlotTag(slot.slot_type)}</Text>
+          </View>
+        </View>
+        <View style={styles.slotMiddle}>
+          <Text style={[styles.slotLabel, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{getSlotLabel(slot.slot_type)}</Text>
+          {slot.driver_parent_id ? (
+            <Text style={[styles.driverName, { color: tagColor, fontFamily: Fonts.bodySemiBold }]}>{parentMap[slot.driver_parent_id] || "Assigned"}</Text>
+          ) : (
+            <Text style={[styles.needsDriver, { color: c.rust, fontFamily: Fonts.bodySemiBold }]}>Needs a driver</Text>
+          )}
+        </View>
+        <Text style={[styles.slotTime, { color: c.textMuted, fontFamily: Fonts.mono }]}>{formatTime(slot.departure_time)}</Text>
+      </View>
+    );
+  };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: c.paper }]}
+      contentContainerStyle={styles.content}
+    >
       <BackButton onPress={() => router.back()} />
 
-      <FadeIn>
-        <Text style={styles.title}>Weekly Schedule</Text>
-      </FadeIn>
+      <View style={styles.weekNav}>
+        <Pressable
+          onPress={() => setWeekOffset(prev => prev - 1)}
+          style={styles.weekNavBtn}
+          hitSlop={12}
+        >
+          <Ionicons name="chevron-back" size={22} color={c.dawn} />
+        </Pressable>
+        <Text style={[styles.weekLabel, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{getWeekLabel(weekOffset)}</Text>
+        <Pressable
+          onPress={() => setWeekOffset(prev => prev + 1)}
+          style={styles.weekNavBtn}
+          hitSlop={12}
+        >
+          <Ionicons name="chevron-forward" size={22} color={c.dawn} />
+        </Pressable>
+      </View>
 
-      {!schedule ? (
-        <FadeIn delay={150}>
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="calendar-outline" size={26} color={Colors.textTertiary} />
-            </View>
-            <Text style={styles.emptyTitle}>No schedule yet</Text>
-            <Text style={styles.emptyText}>
-              AI will analyze everyone's availability and create a fair driving rotation.
+      {loading ? (
+        <View style={{ paddingTop: 40, alignItems: "center" }}>
+          <ActivityIndicator color={c.dawn} />
+        </View>
+      ) : !schedule ? (
+        <Card style={styles.emptyCard}>
+          <Text style={[styles.emptyTitle, { color: c.textPrimary, fontFamily: Fonts.displaySemiBold }]}>No schedule yet</Text>
+          <Text style={[styles.emptyText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+            The app will analyse everyone's availability and create a fair driving rotation.
+          </Text>
+          {isParent ? (
+            <PrimaryButton title="Generate schedule" onPress={generateSchedule} loading={generating} />
+          ) : (
+            <Text style={[styles.emptyText, { color: c.textMuted, fontFamily: Fonts.body }]}>
+              Ask a parent in your group to generate the schedule.
             </Text>
-            <PrimaryButton
-              title={generating ? "Generating..." : "Generate with AI"}
-              onPress={generateSchedule}
-              loading={generating}
-              disabled={generating}
-              icon="sparkles"
-            />
-          </View>
-        </FadeIn>
+          )}
+        </Card>
       ) : (
         <>
-          {/* AI Explanation */}
-          {aiExplanation && (
-            <FadeIn delay={100}>
-              <View style={styles.aiCard}>
-                <View style={styles.aiHeader}>
-                  <Ionicons name="sparkles" size={16} color={Colors.info} style={{ marginRight: 8 }} />
-                  <Text style={styles.aiTitle}>AI Reasoning</Text>
-                </View>
-                <Text style={styles.aiText}>{aiExplanation}</Text>
-              </View>
-            </FadeIn>
+          {justGenerated && (
+            <ScaleIn style={styles.celebrationWrap}>
+              <SunArc size={56} animated />
+            </ScaleIn>
           )}
 
-          {/* Fairness Summary */}
-          <FadeIn delay={150}>
-            <View style={styles.fairnessCard}>
-              <Text style={styles.fairnessTitle}>Driving Split</Text>
-              <View style={styles.fairnessDivider} />
+          {/* AI explanation */}
+          {aiExplanation && (
+            <View style={[styles.explanationCard, { backgroundColor: c.dawnFaded, borderColor: c.dawnBorder }]}>
+              <Text style={[styles.explanationText, { color: c.textSecondary, fontFamily: Fonts.body }]}>{aiExplanation}</Text>
+            </View>
+          )}
+
+          {/* Driving split */}
+          {Object.keys(driverCounts).length > 0 && (
+            <View style={[styles.splitCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              <Text style={[styles.splitLabel, { color: c.textMuted, fontFamily: Fonts.bodySemiBold }]}>DRIVING SPLIT</Text>
               {Object.entries(driverCounts).map(([parentId, count]) => (
-                <View key={parentId} style={styles.fairnessRow}>
-                  <Text style={styles.fairnessName}>{parentMap[parentId] || "Parent"}</Text>
-                  <View style={styles.fairnessCountBadge}>
-                    <Text style={styles.fairnessCount}>{count}</Text>
+                <View key={parentId} style={styles.splitRow}>
+                  <Text style={[styles.splitName, { color: c.textSecondary, fontFamily: Fonts.body }]}>{parentMap[parentId] || "Parent"}</Text>
+                  <View style={[styles.splitCount, { backgroundColor: c.dawnFaded }]}>
+                    <Text style={[styles.splitCountText, { color: c.dawn, fontFamily: Fonts.mono }]}>{count}</Text>
                   </View>
                 </View>
               ))}
             </View>
-          </FadeIn>
+          )}
 
           {/* Day-by-day */}
           {DAYS.map((day, i) => {
             const daySlots = slots.filter((s: any) => s.day_of_week === day);
+            const amSlots = daySlots.filter((s: any) => isMorningSlot(s.slot_type));
+            const pmSlots = daySlots.filter((s: any) => !isMorningSlot(s.slot_type));
             return (
-              <FadeIn key={day} delay={200 + i * 60}>
-                <View style={styles.dayCard}>
-                  <Text style={styles.dayTitle}>{day}</Text>
+              <FadeIn key={day} delay={Math.min(i, 6) * 40}>
+                <View style={[styles.dayCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+                  <Text style={[styles.dayTitle, { color: c.textPrimary, fontFamily: Fonts.displaySemiBold }]}>{day}</Text>
                   {daySlots.length === 0 ? (
-                    <Text style={styles.noSlots}>No rides scheduled</Text>
+                    <Text style={[styles.noSlots, { color: c.textMuted, fontFamily: Fonts.body }]}>No rides scheduled</Text>
                   ) : (
-                    daySlots.map((slot: any) => (
-                      <View key={slot.id}>
-                        <View
-                          style={[
-                            styles.slotRow,
-                            slot.status === "needs_coverage" && styles.slotNeedsCoverage,
-                          ]}
-                        >
-                          {/* Left accent bar */}
-                          <View style={[styles.slotAccent, { backgroundColor: getSlotAccentColor(slot.slot_type) }]} />
-                          <View style={styles.slotContent}>
-                            <View style={styles.slotTop}>
-                              <View style={styles.slotLabelRow}>
-                                <Text style={styles.slotTag}>{getSlotTag(slot.slot_type)}</Text>
-                                <Text style={styles.slotLabel}>{getSlotLabel(slot.slot_type)}</Text>
-                              </View>
-                              <Text style={styles.slotTime}>{formatTime(slot.departure_time)}</Text>
-                            </View>
-                            <View style={styles.slotBottom}>
-                              {slot.driver_parent_id ? (
-                                <Text style={styles.driverName}>
-                                  {parentMap[slot.driver_parent_id] || "Assigned"}
-                                </Text>
-                              ) : (
-                                <Text style={styles.needsCoverage}>Needs driver</Text>
-                              )}
-                            </View>
-                          </View>
+                    <>
+                      {amSlots.map(renderSlotRow)}
+                      {amSlots.length > 0 && pmSlots.length > 0 && (
+                        <View style={styles.sunArcDivider}>
+                          <SunArc size={20} />
                         </View>
-
-                        {/* Swap actions */}
-                        {(() => {
-                          const swap = swapRequests.find((s: any) => s.slot_id === slot.id);
-                          const isMySlot = slot.driver_parent_id === currentUserId;
-
-                          if (swap && swap.status === "open") {
-                            if (swap.requesting_parent_id === currentUserId) {
-                              return (
-                                <View style={styles.swapBanner}>
-                                  <Text style={styles.swapBannerText}>Swap requested -- waiting for coverage</Text>
-                                </View>
-                              );
-                            } else {
-                              return (
-                                <TouchableOpacity
-                                  style={styles.coverButton}
-                                  onPress={() => handleCoverSwap(swap.id, slot.id)}
-                                  activeOpacity={0.7}
-                                >
-                                  <Text style={styles.coverButtonText}>I'll Cover This Slot</Text>
-                                </TouchableOpacity>
-                              );
-                            }
-                          } else if (swap && swap.status === "covered") {
-                            return (
-                              <View style={styles.swapCoveredBanner}>
-                                <Text style={styles.swapCoveredText}>
-                                  Covered by {parentMap[swap.covering_parent_id] || "another parent"}
-                                </Text>
-                              </View>
-                            );
-                          } else if (isMySlot && !swap) {
-                            return (
-                              <TouchableOpacity
-                                style={styles.cantDriveButton}
-                                onPress={() => handleRequestSwap(slot.id)}
-                                activeOpacity={0.7}
-                              >
-                                <Text style={styles.cantDriveText}>Can't drive this slot?</Text>
-                              </TouchableOpacity>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </View>
-                    ))
+                      )}
+                      {pmSlots.map(renderSlotRow)}
+                    </>
                   )}
+
+                  {/* Swap actions per day */}
+                  {daySlots.map((slot: any) => {
+                    const swap = swapRequests.find((s: any) => s.slot_id === slot.id);
+                    const isMySlot = slot.driver_parent_id === currentUserId;
+                    if (swap && swap.status === "open") {
+                      if (swap.requesting_parent_id === currentUserId) {
+                        return (
+                          <View key={`swap-${slot.id}`} style={[styles.swapNote, { backgroundColor: c.rustFaded }]}>
+                            <Text style={[styles.swapNoteText, { color: c.rust, fontFamily: Fonts.bodyMedium }]}>Swap requested — waiting for coverage</Text>
+                          </View>
+                        );
+                      } else {
+                        return (
+                          <TouchableOpacity key={`swap-${slot.id}`} style={[styles.coverBtn, { borderColor: c.dawn }]} onPress={() => handleCoverSwap(swap.id, slot.id)} activeOpacity={0.7}>
+                            <Text style={[styles.coverBtnText, { color: c.dawn, fontFamily: Fonts.bodySemiBold }]}>Cover {getSlotLabel(slot.slot_type)} on {slot.day_of_week}</Text>
+                          </TouchableOpacity>
+                        );
+                      }
+                    } else if (swap && swap.status === "covered") {
+                      const covered = isMorningSlot(slot.slot_type);
+                      return (
+                        <View key={`swap-${slot.id}`} style={[styles.swapNote, { backgroundColor: covered ? c.dawnFaded : c.duskFaded }]}>
+                          <Text style={[styles.swapNoteText, { color: covered ? c.dawn : c.dusk, fontFamily: Fonts.bodyMedium }]}>Covered by {parentMap[swap.covering_parent_id] || "another parent"}</Text>
+                        </View>
+                      );
+                    } else if (isMySlot && !swap) {
+                      return (
+                        <TouchableOpacity key={`swap-${slot.id}`} onPress={() => handleRequestSwap(slot.id)} activeOpacity={0.7} style={{ paddingTop: 6 }}>
+                          <Text style={[styles.cantDrive, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Can't drive this slot?</Text>
+                        </TouchableOpacity>
+                      );
+                    }
+                    return null;
+                  })}
                 </View>
               </FadeIn>
             );
           })}
 
-          <FadeIn delay={550}>
-            <SecondaryButton
-              title={generating ? "Generating..." : "Regenerate with AI"}
-              onPress={generateSchedule}
-              loading={generating}
-              disabled={generating}
-              icon="sparkles"
-              style={{ marginTop: Spacing.sm }}
-            />
-          </FadeIn>
+          {isParent && (
+            <SecondaryButton title="Regenerate schedule" onPress={generateSchedule} loading={generating} style={styles.regenerateBtn} />
+          )}
         </>
       )}
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  content: {
-    padding: Spacing.xl,
-    paddingTop: 60,
-    paddingBottom: 48,
-  },
-  title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: Spacing.xl,
-  },
-
-  // Empty state
-  emptyContainer: {
+  weekNav: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 40,
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  emptyIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.bgElevated,
+  weekNavBtn: {
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.lg,
+  },
+  weekLabel: {
+    fontSize: 17,
+    letterSpacing: -0.3,
+  },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 64, paddingBottom: 48 },
+
+  emptyCard: {
+    padding: 24,
   },
   emptyTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.lg,
-    fontWeight: "700",
+    fontSize: 18,
+    letterSpacing: -0.2,
     marginBottom: 8,
   },
   emptyText: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.md,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-  },
-
-  // AI Card
-  aiCard: {
-    backgroundColor: Colors.infoFaded,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.infoBorder,
-  },
-  aiHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  aiTitle: {
-    color: Colors.info,
-    fontSize: FontSizes.md,
-    fontWeight: "700",
-  },
-  aiText: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
+    fontSize: 14,
     lineHeight: 20,
+    marginBottom: 20,
   },
 
-  // Fairness Card
-  fairnessCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-    ...Shadows?.md,
-  } as any,
-  fairnessTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
-    fontWeight: "700",
+  explanationCard: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: 16,
+    marginBottom: 16,
   },
-  fairnessDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: Spacing.md,
-  },
-  fairnessRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 6,
-  },
-  fairnessName: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.md,
-  },
-  fairnessCountBadge: {
-    backgroundColor: Colors.primaryFaded,
-    borderRadius: Radius.xs,
-    paddingVertical: 2,
-    paddingHorizontal: 10,
-  },
-  fairnessCount: {
-    color: Colors.primary,
-    fontSize: FontSizes.md,
-    fontWeight: "700",
-  },
+  explanationText: { fontSize: 13, lineHeight: 19 },
 
-  // Day cards
+  splitCard: {
+    borderWidth: 1.5,
+    borderRadius: Radius.md,
+    padding: 16,
+    marginBottom: 16,
+  },
+  splitLabel: { fontSize: 10, letterSpacing: 0.8, marginBottom: 10 },
+  splitRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 5 },
+  splitName: { fontSize: 14 },
+  splitCount: { borderRadius: 6, paddingVertical: 2, paddingHorizontal: 10 },
+  splitCountText: { fontSize: 13 },
+
   dayCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows?.md,
-  } as any,
-  dayTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.lg,
-    fontWeight: "700",
-    marginBottom: Spacing.md,
+    borderWidth: 1.5,
+    borderRadius: Radius.md,
+    padding: 16,
+    marginBottom: 12,
   },
-  noSlots: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
-  },
+  dayTitle: { fontSize: 15, letterSpacing: -0.2, marginBottom: 12 },
+  noSlots: { fontSize: 13 },
 
-  // Slot rows
+  sunArcDivider: { alignItems: "center", marginVertical: 6 },
+
   slotRow: {
     flexDirection: "row",
-    alignItems: "stretch",
-    marginBottom: 8,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.bgElevated,
-    overflow: "hidden",
-  },
-  slotNeedsCoverage: {
-    backgroundColor: Colors.accentFaded,
-  },
-  slotAccent: {
-    width: 3,
-  },
-  slotContent: {
-    flex: 1,
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 8,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    gap: 10,
   },
-  slotTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  slotLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  slotTag: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.xs,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.xs,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    overflow: "hidden",
-  },
-  slotLabel: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
-    fontWeight: "600",
-  },
-  slotTime: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
-  },
-  slotBottom: {
-    marginTop: 2,
-  },
-  driverName: {
-    color: Colors.primary,
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
-  },
-  needsCoverage: {
-    color: Colors.accent,
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
-  },
+  slotLeft: { alignItems: "center" },
+  slotTag: { borderRadius: 5, paddingVertical: 3, paddingHorizontal: 8 },
+  slotTagText: { fontSize: 10, letterSpacing: 0.4 },
+  slotMiddle: { flex: 1 },
+  slotLabel: { fontSize: 14, marginBottom: 2 },
+  driverName: { fontSize: 12 },
+  needsDriver: { fontSize: 12 },
+  slotTime: { fontSize: 12 },
 
-  // Swap UI
-  cantDriveButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+  swapNote: {
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 4,
+  },
+  swapNoteText: { fontSize: 12, textAlign: "center" },
+  coverBtn: {
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingVertical: 10,
     alignItems: "center",
     marginBottom: 4,
   },
-  cantDriveText: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
-    textDecorationLine: "underline",
-  },
-  swapBanner: {
-    backgroundColor: Colors.warmFaded,
-    borderRadius: Radius.sm,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.warmBorder,
-  },
-  swapBannerText: {
-    color: Colors.warm,
-    fontSize: FontSizes.sm,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  coverButton: {
-    backgroundColor: Colors.infoFaded,
-    borderRadius: Radius.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.infoBorder,
-  },
-  coverButtonText: {
-    color: Colors.info,
-    fontSize: FontSizes.sm,
-    fontWeight: "700",
-  },
-  swapCoveredBanner: {
-    backgroundColor: Colors.successFaded,
-    borderRadius: Radius.sm,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
-  },
-  swapCoveredText: {
-    color: Colors.success,
-    fontSize: FontSizes.sm,
-    textAlign: "center",
-    fontWeight: "500",
-  },
+  coverBtnText: { fontSize: 13 },
+  cantDrive: { fontSize: 12, textDecorationLine: "underline", textAlign: "center" },
+
+  regenerateBtn: { marginTop: 4 },
+
+  celebrationWrap: { alignItems: "center", marginBottom: 16 },
 });

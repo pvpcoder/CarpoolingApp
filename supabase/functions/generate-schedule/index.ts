@@ -3,15 +3,15 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const CLAUDE_API_KEY = Deno.env.get("CLAUDE_API_KEY");
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-// Pricing for claude-sonnet-4-20250514 (USD per token)
-const INPUT_COST_PER_TOKEN = 3.0 / 1_000_000;
-const OUTPUT_COST_PER_TOKEN = 15.0 / 1_000_000;
+// Pricing for google/gemini-2.5-flash via OpenRouter (USD per token)
+const INPUT_COST_PER_TOKEN = 0.30 / 1_000_000;
+const OUTPUT_COST_PER_TOKEN = 2.50 / 1_000_000;
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "google/gemini-2.5-flash";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -34,12 +34,13 @@ serve(async (req) => {
       });
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": CLAUDE_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://carpoolapp.app",
+        "X-Title": "CarpoolingApp",
       },
       body: JSON.stringify({
         model: MODEL,
@@ -52,8 +53,8 @@ serve(async (req) => {
 
     // Log token usage and cost to Supabase
     if (data.usage) {
-      const inputTokens = data.usage.input_tokens ?? 0;
-      const outputTokens = data.usage.output_tokens ?? 0;
+      const inputTokens = data.usage.prompt_tokens ?? 0;
+      const outputTokens = data.usage.completion_tokens ?? 0;
       const inputCost = inputTokens * INPUT_COST_PER_TOKEN;
       const outputCost = outputTokens * OUTPUT_COST_PER_TOKEN;
 

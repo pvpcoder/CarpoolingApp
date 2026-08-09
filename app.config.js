@@ -2,13 +2,13 @@ require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
 
   module.exports = {
     expo: {
-      name: "CarpoolingApp",
+      name: "HopIn",
       slug: "CarpoolingApp",
       scheme: "hopin",
       version: "1.0.0",
       orientation: "portrait",
       icon: "./assets/icon.png",
-      userInterfaceStyle: "light",
+      userInterfaceStyle: "automatic",
       newArchEnabled: true,
       splash: {
         image: "./assets/splash-icon.png",
@@ -37,10 +37,13 @@ require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
       web: {
         favicon: "./assets/favicon.png",
       },
-      plugins: ["expo-router", "expo-secure-store"],
+      plugins: ["expo-router", "expo-secure-store", "expo-font"],
       extra: {
           googleApiKey: process.env.GOOGLE_API_KEY,
           debug_googleKey: process.env.GOOGLE_API_KEY ? "LOADED" : "MISSING",
+          eas: {
+            projectId: process.env.EAS_PROJECT_ID,
+          },
       },
     },
   };

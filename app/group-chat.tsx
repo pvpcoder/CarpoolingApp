@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { notifyGroupMembers } from "../lib/notifications";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
-import { FadeIn, PressableScale, LoadingScreen } from "../components/UI";
+import { useTheme, Fonts } from "../lib/theme";
+import { LoadingScreen } from "../components/UI";
 
 export default function GroupChat() {
   const router = useRouter();
+  const c = useTheme();
+
   const { groupId } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<any[]>([]);
@@ -20,8 +32,22 @@ export default function GroupChat() {
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [nameMap, setNameMap] = useState<Record<string, string>>({});
   const scrollRef = useRef<ScrollView>(null);
+  const subscriptionRef = useRef<any>(null);
 
-  useEffect(() => { loadChat(); const interval = setInterval(loadMessages, 5000); return () => clearInterval(interval); }, []);
+  useEffect(() => {
+    loadChat();
+    subscriptionRef.current = supabase
+      .channel(`group-chat-${groupId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "group_messages", filter: `group_id=eq.${groupId}` }, (payload) => {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        });
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      })
+      .subscribe();
+    return () => { subscriptionRef.current?.unsubscribe(); };
+  }, []);
 
   const loadChat = async () => {
     try {
@@ -50,7 +76,7 @@ export default function GroupChat() {
       if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
         Alert.alert("No Internet", "Please check your connection.", [{ text: "Retry", onPress: () => loadChat() }]);
       } else {
-        Alert.alert("Error", "Couldn't load chat.", [{ text: "Retry", onPress: () => loadChat() }, { text: "Go Back", onPress: () => router.back() }]);
+        Alert.alert("Error", "Couldn't load chat.", [{ text: "Retry", onPress: () => loadChat() }, { text: "Go back", onPress: () => router.back() }]);
       }
     }
   };
@@ -69,11 +95,11 @@ export default function GroupChat() {
     try {
       const { error } = await supabase.from("group_messages").insert({ group_id: groupId, sender_id: currentUserId, sender_role: currentUserRole, message: newMessage.trim() });
       if (error) { setSending(false); Alert.alert("Error", "Couldn't send message."); return; }
-      notifyGroupMembers(groupId as string, currentUserId!, `💬 ${currentUserName}`, newMessage.trim());
+      notifyGroupMembers(groupId as string, currentUserId!, `${currentUserName}`, newMessage.trim());
       setNewMessage("");
       await loadMessages();
       setSending(false);
-    } catch (err: any) {
+    } catch {
       setSending(false);
       Alert.alert("Error", "Couldn't send message.");
     }
@@ -93,47 +119,53 @@ export default function GroupChat() {
     return `${days[d.getDay()]} ${time}`;
   };
 
-  if (loading) return <LoadingScreen />;
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   const canSend = newMessage.trim().length > 0 && !sending;
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: c.paper }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: c.paperElevated, borderBottomColor: c.line }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6}>
-          <Ionicons name="chevron-back" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-back" size={20} color={c.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Group Chat</Text>
+        <Text style={[styles.headerTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>Group Chat</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       {/* Messages */}
-      <ScrollView ref={scrollRef} style={styles.messageList} contentContainerStyle={styles.messageContent} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.messageList}
+        contentContainerStyle={styles.messageContent}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+      >
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="chatbubbles-outline" size={36} color={Colors.textTertiary} />
-            </View>
-            <Text style={styles.emptyTitle}>No messages yet</Text>
-            <Text style={styles.emptyText}>Start the conversation with your carpool group</Text>
+            <Text style={[styles.emptyTitle, { color: c.textPrimary, fontFamily: Fonts.displaySemiBold }]}>No messages yet</Text>
+            <Text style={[styles.emptyText, { color: c.textSecondary, fontFamily: Fonts.body }]}>Start the conversation with your carpool group.</Text>
           </View>
         ) : (
           messages.map((msg: any) => {
             const isMe = msg.sender_id === currentUserId;
             return (
-              <View key={msg.id} style={[styles.row, isMe ? styles.rowMe : {}]}>
-                <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
+              <View key={msg.id} style={[styles.row, isMe && styles.rowMe]}>
+                <View style={[styles.bubble, { backgroundColor: isMe ? c.dawn : c.paperElevated, borderColor: c.line }, isMe ? styles.bubbleMe : styles.bubbleOther]}>
                   {!isMe && (
                     <View style={styles.senderRow}>
-                      <Text style={styles.senderName}>
-                        {nameMap[msg.sender_id] || "Unknown"}
-                      </Text>
-                      <Text style={styles.senderRole}>{msg.sender_role}</Text>
+                      <Text style={[styles.senderName, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>{nameMap[msg.sender_id] || "Unknown"}</Text>
+                      <Text style={[styles.senderRole, { color: c.textMuted, fontFamily: Fonts.body }]}>{msg.sender_role}</Text>
                     </View>
                   )}
-                  <Text style={[styles.msgText, isMe ? styles.msgTextMe : {}]}>{msg.message}</Text>
-                  <Text style={[styles.msgTime, isMe ? styles.msgTimeMe : {}]}>{formatTime(msg.created_at)}</Text>
+                  <Text style={[styles.msgText, { color: isMe ? "#FFFFFF" : c.textPrimary, fontFamily: Fonts.body }]}>{msg.message}</Text>
+                  <Text style={[styles.msgTime, { color: isMe ? "rgba(255,255,255,0.5)" : c.textMuted, fontFamily: Fonts.mono }]}>{formatTime(msg.created_at)}</Text>
                 </View>
               </View>
             );
@@ -142,132 +174,99 @@ export default function GroupChat() {
       </ScrollView>
 
       {/* Input */}
-      <View style={styles.inputArea}>
-        <View style={styles.inputWrapper}>
+      <View style={[styles.inputArea, { backgroundColor: c.paperElevated, borderTopColor: c.line }]}>
+        <View style={[styles.inputWrapper, { backgroundColor: c.paper, borderColor: c.line }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: c.textPrimary, fontFamily: Fonts.body }]}
             placeholder="Message..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={c.textMuted}
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
             maxLength={500}
           />
         </View>
-        <PressableScale
+        <TouchableOpacity
           onPress={handleSend}
           disabled={!canSend}
-          style={[styles.sendBtn, !canSend ? styles.sendBtnDisabled : {}]}
+          activeOpacity={0.7}
+          style={[styles.sendBtn, { backgroundColor: canSend ? c.dawn : c.line }]}
         >
-          <Ionicons name="send" size={18} color={!canSend ? Colors.textTertiary : Colors.bg} />
-        </PressableScale>
+          <Ionicons name="send" size={16} color={canSend ? "#FFFFFF" : c.textMuted} />
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
+  container: { flex: 1 },
 
-  /* Header */
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 58,
+    paddingTop: 56,
     paddingBottom: 14,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.bgCard,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.base,
-    fontWeight: "700",
+    fontSize: 15,
     letterSpacing: -0.2,
   },
-  headerSpacer: {
-    width: 36,
-  },
+  headerSpacer: { width: 40 },
 
-  /* Messages */
-  messageList: {
-    flex: 1,
-  },
+  messageList: { flex: 1 },
   messageContent: {
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
 
-  /* Empty */
   emptyContainer: {
     alignItems: "center",
-    marginTop: 100,
-    paddingHorizontal: Spacing.xl,
-  },
-  emptyIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor: Colors.bgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
+    marginTop: 80,
+    paddingHorizontal: 32,
   },
   emptyTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.lg,
-    fontWeight: "700",
-    marginBottom: 6,
-    letterSpacing: -0.3,
+    fontSize: 17,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
   emptyText: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
+    fontSize: 14,
     textAlign: "center",
-    lineHeight: 19,
+    lineHeight: 20,
   },
 
-  /* Bubble layout */
   row: {
     flexDirection: "row",
     marginBottom: 10,
     justifyContent: "flex-start",
   },
-  rowMe: {
-    justifyContent: "flex-end",
-  },
+  rowMe: { justifyContent: "flex-end" },
   bubble: {
     maxWidth: "78%",
-    borderRadius: Radius.lg,
+    borderRadius: 16,
+    borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  bubbleOther: {
-    backgroundColor: Colors.bgCard,
-    borderTopLeftRadius: Radius.xs,
-  },
   bubbleMe: {
-    backgroundColor: '#2563EB',
-    borderTopRightRadius: Radius.xs,
+    borderTopRightRadius: 4,
+    borderWidth: 0,
+  },
+  bubbleOther: {
+    borderTopLeftRadius: 4,
   },
 
-  /* Sender */
   senderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -275,71 +274,48 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   senderName: {
-    color: Colors.primary,
-    fontSize: FontSizes.xs,
-    fontWeight: "600",
+    fontSize: 11,
   },
   senderRole: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.xs,
-    fontWeight: "400",
+    fontSize: 11,
+    textTransform: "capitalize",
   },
-
-  /* Message text */
   msgText: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
+    fontSize: 15,
     lineHeight: 21,
   },
-  msgTextMe: {
-    color: "#FFFFFF",
-  },
   msgTime: {
-    color: Colors.textTertiary,
     fontSize: 10,
     marginTop: 4,
-    textAlign: "right",
-  },
-  msgTimeMe: {
-    color: "rgba(255, 255, 255, 0.50)",
   },
 
-  /* Input area */
   inputArea: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.md,
-    paddingBottom: 34,
-    backgroundColor: Colors.bgCard,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 34 : 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
     gap: 10,
   },
   inputWrapper: {
     flex: 1,
-    backgroundColor: Colors.bgInput,
-    borderRadius: Radius.xl,
+    borderWidth: 1.5,
+    borderRadius: 20,
     overflow: "hidden",
   },
   input: {
-    paddingHorizontal: Spacing.base,
-    paddingTop: 11,
-    paddingBottom: 11,
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontSize: 15,
     maxHeight: 100,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 1,
-  },
-  sendBtnDisabled: {
-    backgroundColor: Colors.bgElevated,
   },
 });

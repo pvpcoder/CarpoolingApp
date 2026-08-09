@@ -12,118 +12,132 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
-import {
-  PrimaryButton,
-  PressableScale,
-  FadeIn,
-  ScaleIn,
-  BackButton,
-} from "../components/UI";
+import { useTheme, Fonts, ThemeTokens } from "../lib/theme";
+import { PrimaryButton, PressableScale, BackButton } from "../components/UI";
+
+type Role = "student" | "parent" | null;
+
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  c,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder: string;
+  secureTextEntry?: boolean;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  c: ThemeTokens;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[styles.field, { borderColor: focused ? c.dawn : c.line }]}>
+      <Text style={[styles.fieldLabel, { color: focused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
+        {label}
+      </Text>
+      <TextInput
+        style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+        placeholder={placeholder}
+        placeholderTextColor={c.textMuted}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType ?? "default"}
+        autoCapitalize={autoCapitalize ?? "words"}
+        autoCorrect={false}
+      />
+    </View>
+  );
+}
 
 export default function SignupScreen() {
   const router = useRouter();
-  const [role, setRole] = useState<"student" | "parent" | null>(null);
+  const c = useTheme();
+
+  const [role, setRole] = useState<Role>(null);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [grade, setGrade] = useState("");
   const [phone, setPhone] = useState("");
   const [childEmail, setChildEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const resetForm = () => {
+    setName(""); setEmail(""); setPassword("");
+    setGrade(""); setPhone(""); setChildEmail("");
+  };
+
   const handleStudentSignup = async () => {
     if (!email.trim().toLowerCase().endsWith("@pdsb.net")) {
-      Alert.alert("Invalid Email", "You must use your @pdsb.net school email to sign up.");
+      Alert.alert("Invalid email", "Use your @pdsb.net school email to sign up.");
       return;
     }
     if (!name || !password || !grade) {
-      Alert.alert("Error", "Please fill in all fields.");
+      Alert.alert("Missing fields", "Fill in all fields to continue.");
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters.");
+      Alert.alert("Password too short", "Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
+        options: {
+          data: { role: "student", name: name.trim(), grade: parseInt(grade) },
+        },
       });
 
+      setLoading(false);
       if (authError) {
-        setLoading(false);
         if (authError.message.includes("already registered")) {
-          Alert.alert("Account Exists", "An account with this email already exists. Try logging in instead.");
+          Alert.alert("Account exists", "An account with this email already exists. Try signing in instead.");
         } else {
-          Alert.alert("Signup Failed", authError.message);
+          Alert.alert("Sign up failed", authError.message);
         }
         return;
       }
 
-      const { data: school } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("pdsb_code", "PILOT01")
-        .single();
-
-      const { error: profileError } = await supabase.from("students").insert({
-        id: authData.user?.id,
-        email: email.trim().toLowerCase(),
-        name: name.trim(),
-        grade: parseInt(grade),
-        school_id: school?.id,
-      });
-
-      setLoading(false);
-      if (profileError) {
-        Alert.alert("Error", profileError.message);
-        return;
-      }
-
-      Alert.alert("Account Created!", "You can now log in with your email and password.", [
-        { text: "OK", onPress: () => router.replace("/") },
-      ]);
+      Alert.alert(
+        "Check your email",
+        `We sent a verification link to ${email.trim().toLowerCase()}. Click it to verify your account, then come back here and sign in.`,
+        [{ text: "OK", onPress: () => router.replace("/") }]
+      );
     } catch (err: any) {
       setLoading(false);
       if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
-        Alert.alert("No Internet", "Please check your internet connection and try again.");
+        Alert.alert("No connection", "Check your internet and try again.");
       } else {
-        Alert.alert("Error", "Something went wrong. Please try again.");
+        Alert.alert("Something went wrong", "Please try again.");
       }
     }
   };
 
   const handleParentSignup = async () => {
     if (!name || !email || !password || !phone) {
-      Alert.alert("Error", "Please fill in all fields.");
+      Alert.alert("Missing fields", "Fill in all fields to continue.");
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters.");
+      Alert.alert("Password too short", "Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-      });
-
-      if (authError) {
-        setLoading(false);
-        if (authError.message.includes("already registered")) {
-          Alert.alert("Account Exists", "An account with this email already exists. Try logging in instead.");
-        } else {
-          Alert.alert("Signup Failed", authError.message);
-        }
-        return;
-      }
-
-      let studentId = null;
       if (childEmail) {
         const { data: student } = await supabase
           .from("students")
@@ -131,423 +145,273 @@ export default function SignupScreen() {
           .eq("email", childEmail.trim().toLowerCase())
           .single();
 
-        if (student) {
-          studentId = student.id;
-        } else {
+        if (!student) {
           setLoading(false);
-          Alert.alert("Student Not Found", "No student found with that email. Make sure your child signs up first with their @pdsb.net email.");
+          Alert.alert("Student not found", "No student found with that email. Make sure your child signs up first with their @pdsb.net email.");
           return;
         }
       }
 
-      const { error: profileError } = await supabase.from("parents").insert({
-        id: authData.user?.id,
+      const { error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
-        name: name.trim(),
-        phone: phone.trim(),
-        student_id: studentId,
+        password,
+        options: {
+          data: {
+            role: "parent",
+            name: name.trim(),
+            phone: phone.trim(),
+            child_email: childEmail.trim().toLowerCase(),
+          },
+        },
       });
 
       setLoading(false);
-      if (profileError) {
-        Alert.alert("Error", profileError.message);
+      if (authError) {
+        if (authError.message.includes("already registered")) {
+          Alert.alert("Account exists", "An account with this email already exists. Try signing in instead.");
+        } else {
+          Alert.alert("Sign up failed", authError.message);
+        }
         return;
       }
 
-      Alert.alert("Account Created!", "You can now log in with your email and password.", [
-        { text: "OK", onPress: () => router.replace("/") },
-      ]);
+      Alert.alert(
+        "Check your email",
+        `We sent a verification link to ${email.trim().toLowerCase()}. Click it to verify your account, then come back here and sign in.`,
+        [{ text: "OK", onPress: () => router.replace("/") }]
+      );
     } catch (err: any) {
       setLoading(false);
       if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
-        Alert.alert("No Internet", "Please check your internet connection and try again.");
+        Alert.alert("No connection", "Check your internet and try again.");
       } else {
-        Alert.alert("Error", "Something went wrong. Please try again.");
+        Alert.alert("Something went wrong", "Please try again.");
       }
     }
   };
 
-  // ─── Role Selection ───────────────────────────────────────
+  // ── Role selection ─────────────────────────────────────────
   if (!role) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.root, { backgroundColor: c.paper }]}>
         <View style={styles.inner}>
-          <ScaleIn>
-            <Text style={styles.title}>Join HopIn</Text>
-            <Text style={styles.subtitle}>Select your account type</Text>
-          </ScaleIn>
+          <BackButton onPress={() => router.back()} />
 
-          <FadeIn delay={200}>
-            <PressableScale onPress={() => setRole("student")} style={styles.roleCard}>
-              <View style={styles.roleIconWrap}>
-                <Ionicons name="school-outline" size={22} color={Colors.primary} />
-              </View>
-              <View style={styles.roleContent}>
-                <Text style={styles.roleTitle}>Student</Text>
-                <Text style={styles.roleDesc}>I need rides to and from school</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
-            </PressableScale>
-          </FadeIn>
-
-          <FadeIn delay={350}>
-            <PressableScale onPress={() => setRole("parent")} style={styles.roleCard}>
-              <View style={[styles.roleIconWrap, { backgroundColor: Colors.infoFaded, borderColor: Colors.infoBorder }]}>
-                <Ionicons name="car-outline" size={22} color={Colors.info} />
-              </View>
-              <View style={styles.roleContent}>
-                <Text style={styles.roleTitle}>Parent / Driver</Text>
-                <Text style={styles.roleDesc}>I can drive students to school</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
-            </PressableScale>
-          </FadeIn>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
+          <View style={styles.heading}>
+            <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>Join HopIn</Text>
+            <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>I'm a…</Text>
           </View>
 
-          <FadeIn delay={500}>
-            <PressableScale onPress={() => router.back()} style={styles.loginLink}>
-              <Text style={styles.linkText}>
+          <View style={styles.roleList}>
+            <PressableScale
+              onPress={() => { resetForm(); setRole("student"); }}
+              style={[styles.roleRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+            >
+              <View style={styles.roleText}>
+                <Text style={[styles.roleTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>Student</Text>
+                <Text style={[styles.roleDesc, { color: c.textMuted, fontFamily: Fonts.body }]}>I need rides to and from school</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+            </PressableScale>
+
+            <PressableScale
+              onPress={() => { resetForm(); setRole("parent"); }}
+              style={[styles.roleRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+            >
+              <View style={styles.roleText}>
+                <Text style={[styles.roleTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>Parent / Driver</Text>
+                <Text style={[styles.roleDesc, { color: c.textMuted, fontFamily: Fonts.body }]}>I can drive students to school</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+            </PressableScale>
+          </View>
+
+          <View style={styles.roleFooter}>
+            <PressableScale onPress={() => router.back()} style={styles.footerPress}>
+              <Text style={[styles.footerText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
                 Already have an account?{"  "}
-                <Text style={styles.link}>Sign in</Text>
+                <Text style={{ color: c.dawn, fontFamily: Fonts.bodySemiBold }}>Sign in</Text>
               </Text>
             </PressableScale>
-          </FadeIn>
+          </View>
         </View>
       </View>
     );
   }
 
-  // ─── Student Form ─────────────────────────────────────────
-  if (role === "student") {
-    return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView contentContainerStyle={styles.scrollInner} keyboardShouldPersistTaps="handled">
-          <BackButton onPress={() => setRole(null)} />
+  // ── Shared form shell ──────────────────────────────────────
+  const isStudent = role === "student";
 
-          <FadeIn>
-            <Text style={styles.formTitle}>Student Account</Text>
-            <Text style={styles.formSubtitle}>Use your @pdsb.net school email</Text>
-          </FadeIn>
-
-          <View style={styles.formSection}>
-            <FadeIn delay={100}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Your full name"
-                  placeholderTextColor={Colors.textMuted}
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-            </FadeIn>
-
-            <FadeIn delay={150}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>School Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="you@pdsb.net"
-                  placeholderTextColor={Colors.textMuted}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-            </FadeIn>
-
-            <FadeIn delay={200}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Grade</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="9 - 12"
-                  placeholderTextColor={Colors.textMuted}
-                  value={grade}
-                  onChangeText={setGrade}
-                  keyboardType="number-pad"
-                />
-              </View>
-            </FadeIn>
-
-            <FadeIn delay={250}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Min. 6 characters"
-                  placeholderTextColor={Colors.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-            </FadeIn>
-          </View>
-
-          <FadeIn delay={300}>
-            <PrimaryButton
-              title="Create Account"
-              onPress={handleStudentSignup}
-              loading={loading}
-              disabled={loading}
-              style={styles.ctaButton}
-            />
-          </FadeIn>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // ─── Parent Form ──────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.root, { backgroundColor: c.paper }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollInner} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollInner}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <BackButton onPress={() => setRole(null)} />
 
-        <FadeIn>
-          <Text style={styles.formTitle}>Parent Account</Text>
-          <Text style={styles.formSubtitle}>Link to your child's student account</Text>
-        </FadeIn>
-
-        <View style={styles.formSection}>
-          <FadeIn delay={100}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Your full name"
-                placeholderTextColor={Colors.textMuted}
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-          </FadeIn>
-
-          <FadeIn delay={150}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@email.com"
-                placeholderTextColor={Colors.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </FadeIn>
-
-          <FadeIn delay={200}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="(123) 456-7890"
-                placeholderTextColor={Colors.textMuted}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-            </View>
-          </FadeIn>
-
-          <FadeIn delay={250}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Child's School Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="child@pdsb.net (optional)"
-                placeholderTextColor={Colors.textMuted}
-                value={childEmail}
-                onChangeText={setChildEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </FadeIn>
-
-          <FadeIn delay={300}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Min. 6 characters"
-                placeholderTextColor={Colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-          </FadeIn>
+        <View style={styles.heading}>
+          <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>
+            {isStudent ? "Student account" : "Parent account"}
+          </Text>
+          <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>
+            {isStudent ? "Use your @pdsb.net school email" : "Link to your child's student account"}
+          </Text>
         </View>
 
-        <FadeIn delay={350}>
-          <PrimaryButton
-            title="Create Account"
-            onPress={handleParentSignup}
-            loading={loading}
-            disabled={loading}
-            style={styles.ctaButton}
+        <View style={styles.form}>
+          <Field label="FULL NAME" value={name} onChangeText={setName} placeholder="Your full name" c={c} />
+
+          <Field
+            label="EMAIL"
+            value={email}
+            onChangeText={setEmail}
+            placeholder={isStudent ? "123456@pdsb.net" : "you@email.com"}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            c={c}
           />
-        </FadeIn>
+
+          {isStudent ? (
+            <Field
+              label="GRADE"
+              value={grade}
+              onChangeText={setGrade}
+              placeholder="9 – 12"
+              keyboardType="number-pad"
+              autoCapitalize="none"
+              c={c}
+            />
+          ) : (
+            <>
+              <Field
+                label="PHONE"
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="(123) 456-7890"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                c={c}
+              />
+              <Field
+                label="CHILD'S SCHOOL EMAIL"
+                value={childEmail}
+                onChangeText={setChildEmail}
+                placeholder="child@pdsb.net (optional)"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                c={c}
+              />
+            </>
+          )}
+
+          <Field
+            label="PASSWORD"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Min. 6 characters"
+            secureTextEntry
+            autoCapitalize="none"
+            c={c}
+          />
+        </View>
+
+        <PrimaryButton
+          title="Create account"
+          onPress={isStudent ? handleStudentSignup : handleParentSignup}
+          loading={loading}
+          style={styles.submitBtn}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
+  root: { flex: 1 },
+
   inner: {
     flex: 1,
-    justifyContent: "center",
     paddingHorizontal: 28,
+    paddingTop: 64,
+    paddingBottom: 48,
   },
   scrollInner: {
     flexGrow: 1,
     paddingHorizontal: 28,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingTop: 64,
+    paddingBottom: 48,
   },
 
-  // ─── Role selection header
+  heading: { marginBottom: 40 },
   title: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -1,
-    marginBottom: 6,
+    fontSize: 46,
+    letterSpacing: -2,
+    lineHeight: 48,
+    marginBottom: 10,
   },
   subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textTertiary,
-    marginBottom: 36,
+    fontSize: 14,
+    lineHeight: 20,
   },
 
-  // ─── Role cards
-  roleCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.md,
-    paddingVertical: 20,
-    paddingRight: 20,
-    paddingLeft: 20,
-    marginBottom: Spacing.md,
+  // Role selection
+  roleList: { gap: 10 },
+  roleRow: {
     flexDirection: "row",
     alignItems: "center",
-    overflow: "hidden",
-    ...Shadows?.md,
-  } as any,
-  roleIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: Colors.primaryFaded,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.base,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
-  roleContent: {
-    flex: 1,
-  },
+  roleText: { flex: 1 },
   roleTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: "700",
-    color: Colors.textPrimary,
+    fontSize: 16,
     marginBottom: 3,
+    letterSpacing: -0.2,
   },
   roleDesc: {
-    fontSize: FontSizes.sm,
-    color: Colors.textTertiary,
+    fontSize: 13,
     lineHeight: 18,
   },
-  // ─── Divider
-  divider: {
+  roleFooter: {
+    marginTop: "auto" as any,
     alignItems: "center",
-    marginVertical: 24,
   },
-  dividerLine: {
-    width: 40,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-
-  // ─── Login link
-  loginLink: {
+  footerPress: {
     alignSelf: "center",
-    paddingVertical: Spacing.sm,
   },
-  linkText: {
-    color: Colors.textMuted,
-    fontSize: FontSizes.sm,
-    fontWeight: "400",
-  },
-  link: {
-    color: Colors.textSecondary,
-    fontWeight: "600",
+  footerText: {
+    fontSize: 14,
   },
 
-  // ─── Form headers
-  formTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -0.8,
-    marginBottom: 6,
+  // Form
+  form: { gap: 12 },
+  field: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 13,
   },
-  formSubtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textTertiary,
-    marginBottom: 8,
+  fieldLabel: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
-
-  // ─── Form section
-  formSection: {
-    marginTop: 24,
-    marginBottom: 8,
-  },
-
-  // ─── Inputs
-  inputGroup: {
-    marginBottom: Spacing.base,
-  },
-  inputLabel: {
-    fontSize: FontSizes.xs,
-    fontWeight: "600",
-    color: Colors.textTertiary,
-    letterSpacing: 0.3,
-    marginBottom: 6,
-    marginLeft: 2,
-  },
-  input: {
-    backgroundColor: Colors.bgInput,
-    borderRadius: Radius.md,
-    height: 54,
-    paddingHorizontal: 18,
-    fontSize: FontSizes.base,
-    color: Colors.textPrimary,
+  fieldInput: {
+    fontSize: 16,
+    paddingVertical: 0,
+    height: 26,
   },
 
-  // ─── CTA
-  ctaButton: {
-    marginTop: Spacing.sm,
-    height: 54,
-    borderRadius: Radius.sm,
+  submitBtn: {
+    marginTop: 28,
+    alignSelf: "stretch",
   },
 });

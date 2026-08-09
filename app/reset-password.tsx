@@ -1,140 +1,159 @@
 import { useState } from "react";
-import { View, Text, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
-import { FadeIn, PrimaryButton, PressableScale } from "../components/UI";
+import { useTheme, Fonts, ThemeTokens } from "../lib/theme";
+import { PrimaryButton, PressableScale } from "../components/UI";
+
+function Field({
+  label, value, onChangeText, placeholder, c,
+}: {
+  label: string; value: string; onChangeText: (v: string) => void;
+  placeholder: string; c: ThemeTokens;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[styles.field, { borderColor: focused ? c.dawn : c.line }]}>
+      <Text style={[styles.fieldLabel, { color: focused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>{label}</Text>
+      <TextInput
+        style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+        placeholder={placeholder}
+        placeholderTextColor={c.textMuted}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+    </View>
+  );
+}
 
 export default function ResetPassword() {
   const router = useRouter();
+  const c = useTheme();
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleReset = async () => {
-    if (!password || !confirmPassword) { Alert.alert("Error", "Please fill in both fields."); return; }
-    if (password.length < 6) { Alert.alert("Error", "Password must be at least 6 characters."); return; }
-    if (password !== confirmPassword) { Alert.alert("Error", "Passwords don't match."); return; }
+    if (!password || !confirmPassword) {
+      Alert.alert("Missing fields", "Please fill in both fields.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Password too short", "Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Passwords don't match", "Make sure both fields are the same.");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
-    if (error) { Alert.alert("Error", error.message); return; }
-    Alert.alert("Password Updated!", "You can now log in with your new password.", [{ text: "OK", onPress: () => router.replace("/") }]);
+    if (error) {
+      Alert.alert("Error", error.message);
+      return;
+    }
+    Alert.alert("Password updated", "You can now sign in with your new password.", [
+      { text: "OK", onPress: () => router.replace("/") },
+    ]);
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: c.paper }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <View style={styles.inner}>
-        <FadeIn>
-          <View style={styles.lockIconWrap}>
-            <Ionicons name="lock-closed-outline" size={28} color={Colors.primary} />
-          </View>
-          <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>Enter your new password below.</Text>
-        </FadeIn>
+        <View style={styles.heading}>
+          <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>New password</Text>
+          <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>Choose something you haven't used before.</Text>
+        </View>
 
-        <FadeIn delay={100}>
-          <Text style={styles.inputLabel}>NEW PASSWORD</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="New Password"
-            placeholderTextColor={Colors.textTertiary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </FadeIn>
+        <View style={styles.form}>
+          <Field label="NEW PASSWORD" value={password} onChangeText={setPassword} placeholder="Min. 6 characters" c={c} />
+          <View style={{ height: 12 }} />
+          <Field label="CONFIRM PASSWORD" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" c={c} />
+        </View>
 
-        <FadeIn delay={150}>
-          <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm New Password"
-            placeholderTextColor={Colors.textTertiary}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-        </FadeIn>
+        <PrimaryButton
+          title="Update password"
+          onPress={handleReset}
+          loading={loading}
+          style={styles.submitBtn}
+        />
 
-        <FadeIn delay={200}>
-          <PrimaryButton
-            title={loading ? "Updating..." : "Update Password"}
-            onPress={handleReset}
-            loading={loading}
-            icon="lock-closed"
-            style={{ marginBottom: Spacing.xxl }}
-          />
-          <PressableScale
-            onPress={() => router.replace("/")}
-            style={styles.backLink}
-          >
-            <Text style={styles.backLinkText}>Back to Login</Text>
-          </PressableScale>
-        </FadeIn>
+        <PressableScale
+          onPress={() => router.replace("/")}
+          style={styles.backPress}
+        >
+          <Text style={[styles.backText, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Back to sign in</Text>
+        </PressableScale>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
+  root: { flex: 1 },
   inner: {
     flex: 1,
+    paddingHorizontal: 28,
+    paddingTop: 96,
+    paddingBottom: 48,
     justifyContent: "center",
-    padding: Spacing.xl,
   },
-  lockIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: Spacing.lg,
-  },
+  heading: { marginBottom: 40 },
   title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    textAlign: "center",
-    letterSpacing: -0.5,
-    marginBottom: 6,
+    fontSize: 46,
+    letterSpacing: -2,
+    lineHeight: 48,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    marginBottom: Spacing.xxl,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  inputLabel: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.xs,
-    fontWeight: "700",
+  form: { marginBottom: 28 },
+  field: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 13,
+  },
+  fieldLabel: {
+    fontSize: 10,
     letterSpacing: 0.8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  input: {
-    backgroundColor: Colors.bgInput,
-    borderRadius: Radius.md,
-    padding: 16,
-    fontSize: FontSizes.base,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
+  fieldInput: {
+    fontSize: 16,
+    paddingVertical: 0,
+    height: 26,
   },
-  backLink: {
+  submitBtn: {
+    alignSelf: "stretch",
+  },
+  backPress: {
     alignSelf: "center",
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.base,
+    marginTop: 24,
+    paddingVertical: 8,
   },
-  backLinkText: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
+  backText: {
+    fontSize: 14,
   },
 });

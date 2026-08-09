@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,23 +6,18 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  Pressable,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { deletedGroups } from "../../lib/deletedGroups";
-import { Colors, Spacing, Radius, FontSizes, Shadows, Gradients } from "../../lib/theme";
-import {
-  FadeIn,
-  ScaleIn,
-  PressableScale,
-  IconButton,
-  LoadingScreen,
-} from "../../components/UI";
 import { SCHOOL } from "../../lib/config";
+import { useTheme, Fonts } from "../../lib/theme";
+import { LoadingScreen, PressableScale, FadeIn, TimeBadge, EmptyState } from "../../components/UI";
 
 interface GroupInfo {
   id: string;
@@ -36,6 +31,8 @@ interface GroupInfo {
 
 export default function HomeTab() {
   const router = useRouter();
+  const c = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [role, setRole] = useState<"student" | "parent" | null>(null);
@@ -48,6 +45,14 @@ export default function HomeTab() {
   const [parentNames, setParentNames] = useState<Record<string, string>>({});
   const [todaySlot, setTodaySlot] = useState<any>(null);
   const [todayDriverName, setTodayDriverName] = useState<string | null>(null);
+  const [todayAfternoonSlot, setTodayAfternoonSlot] = useState<any>(null);
+  const [todayAfternoonDriverName, setTodayAfternoonDriverName] = useState<string | null>(null);
+  const [todayParentSlots, setTodayParentSlots] = useState<any[]>([]);
+  const [todayParentGroupName, setTodayParentGroupName] = useState<string | null>(null);
+  const [nextDriveDay, setNextDriveDay] = useState<string | null>(null);
+  const [nextDriveType, setNextDriveType] = useState<string | null>(null);
+  const bodyOpacity = useRef(new Animated.Value(0)).current;
+  const bodySlide = useRef(new Animated.Value(16)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +69,6 @@ export default function HomeTab() {
         return;
       }
 
-      // Check if student
       const { data: student } = await supabase
         .from("students")
         .select("id, name, saved_pickup_lat, saved_pickup_address")
@@ -81,7 +85,6 @@ export default function HomeTab() {
         setPickupAddress(student.saved_pickup_address || null);
         await loadStudentData(student);
       } else {
-        // Check if parent
         const { data: parent } = await supabase
           .from("parents")
           .select("id, name, student_id")
@@ -97,6 +100,12 @@ export default function HomeTab() {
 
       setLoading(false);
       setRefreshing(false);
+      if (!isRefresh) {
+        Animated.parallel([
+          Animated.timing(bodyOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
+          Animated.timing(bodySlide, { toValue: 0, duration: 380, useNativeDriver: true }),
+        ]).start();
+      }
     } catch (err: any) {
       setLoading(false);
       setRefreshing(false);
@@ -154,7 +163,6 @@ export default function HomeTab() {
     });
     setGroups(uniqueGroups);
 
-    // Load schedules
     const today = new Date();
     const dow = today.getDay();
     const monday = new Date(today);
@@ -193,19 +201,22 @@ export default function HomeTab() {
           (parents || []).forEach((p: any) => { pNames[p.id] = p.name; });
         }
 
-        // Find today's ride
         const todaySlots = (slots || []).filter((s: any) => s.day_of_week === todayName);
         const morning = todaySlots.find((s: any) => s.slot_type === "morning");
         if (morning?.driver_parent_id && !todaySlot) {
           setTodaySlot(morning);
           setTodayDriverName(pNames[morning.driver_parent_id] || "Assigned");
         }
+        const afternoon = todaySlots.find((s: any) => s.slot_type === "afternoon" || s.slot_type === "late_afternoon");
+        if (afternoon?.driver_parent_id && !todayAfternoonSlot) {
+          setTodayAfternoonSlot(afternoon);
+          setTodayAfternoonDriverName(pNames[afternoon.driver_parent_id] || "Assigned");
+        }
       }
     }
     setSchedulesByGroup(schedMap);
     setParentNames(pNames);
 
-    // Load invites
     const { data: invites } = await supabase
       .from("group_invites")
       .select(
@@ -287,6 +298,50 @@ export default function HomeTab() {
       return true;
     });
     setGroups(uniqueGroups);
+
+    // Find if parent is driving today
+    const today = new Date();
+    const dow = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+    const weekStart = monday.toISOString().split("T")[0];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const todayName = dayNames[today.getDay()];
+
+    const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+    const todayIdx = WEEKDAYS.indexOf(todayName);
+    let foundToday = false;
+    let foundNext = false;
+
+    for (const g of uniqueGroups) {
+      const { data: sched } = await supabase.from("weekly_schedules").select("id").eq("group_id", g.id).eq("week_start_date", weekStart).single();
+      if (sched) {
+        const { data: allSlots } = await supabase.from("schedule_slots").select("day_of_week, slot_type, driver_parent_id, departure_time").eq("schedule_id", sched.id);
+        const mySlots = (allSlots || []).filter((s: any) => s.driver_parent_id === parent.id);
+
+        if (!foundToday) {
+          const myTodaySlots = mySlots.filter((s: any) => s.day_of_week === todayName);
+          if (myTodaySlots.length > 0) {
+            setTodayParentSlots(myTodaySlots);
+            setTodayParentGroupName(g.name);
+            foundToday = true;
+          }
+        }
+
+        if (!foundNext) {
+          for (const futureDay of WEEKDAYS.slice(todayIdx + 1)) {
+            const futureDaySlots = mySlots.filter((s: any) => s.day_of_week === futureDay);
+            if (futureDaySlots.length > 0) {
+              setNextDriveDay(futureDay);
+              setNextDriveType(futureDaySlots[0].slot_type);
+              foundNext = true;
+              break;
+            }
+          }
+        }
+      }
+      if (foundToday && foundNext) break;
+    }
   };
 
   const handleInviteResponse = async (
@@ -330,853 +385,643 @@ export default function HomeTab() {
     return "Good evening";
   };
 
-  if (loading) return <LoadingScreen message="Loading your dashboard..." />;
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   const hasGroups = groups.length > 0;
 
+  const studentSteps = [
+    { title: "Create or join a carpool group", sub: "Open your group and tap Find Nearby Students" },
+    { title: "Each student's parent signs up", sub: "They link to their child's account" },
+    { title: "A fair weekly schedule gets built", sub: "Parents set availability, the app handles the rest" },
+  ];
+
+  const parentSteps = [
+    { title: "Your child creates or joins a group", sub: "They can find nearby students in the Discover tab" },
+    { title: "You'll see the group here", sub: "Once they join, your dashboard updates automatically" },
+    { title: "Set availability and the app handles the rest", sub: "A fair weekly driving schedule is built automatically" },
+  ];
+
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: c.paper }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => loadData(true)}
-          tintColor={Colors.primary}
+          tintColor={c.dawn}
         />
       }
     >
-      {/* ─── Hero Header ─── */}
-      <LinearGradient
-        colors={Gradients.hero as any}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <ScaleIn>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.heroName}>{userName || (role === "student" ? "Student" : "Parent")}</Text>
+      {/* ── Header ── */}
+      <FadeIn>
+        <View style={styles.header}>
+          <Text style={[styles.greeting, { color: c.textMuted, fontFamily: Fonts.bodySemiBold }]}>{getGreeting()}</Text>
+          <Text style={[styles.heroName, { color: c.textPrimary, fontFamily: Fonts.display }]}>
+            {userName || (role === "student" ? "Student" : "Parent")}
+          </Text>
           {role === "parent" && childName && (
-            <Text style={styles.heroSub}>Linked to {childName}</Text>
+            <Text style={[styles.heroSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>Linked to {childName}</Text>
           )}
-        </ScaleIn>
-      </LinearGradient>
+        </View>
+      </FadeIn>
 
-      <View style={styles.body}>
-        {/* ─── Today's Ride (student) ─── */}
-        {role === "student" && todaySlot && todayDriverName && (
-          <FadeIn delay={80}>
-            <View style={styles.todayCard}>
-              <View style={styles.todayAccent} />
-              <View style={styles.todayBody}>
-                <View style={styles.todayTop}>
-                  <Ionicons name="car" size={18} color={Colors.primary} />
-                  <Text style={styles.todayLabel}>Today's Ride</Text>
+      <Animated.View style={[styles.body, { opacity: bodyOpacity, transform: [{ translateY: bodySlide }] }]}>
+        {/* ── Today's Ride (student: AM + PM) ── */}
+        {role === "student" && (todaySlot || todayAfternoonSlot) && (
+          <FadeIn>
+            <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              <Text style={[styles.cardLabel, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>TODAY'S RIDE</Text>
+              {todaySlot && (
+                <View style={styles.todaySlotRow}>
+                  <TimeBadge
+                    time={todaySlot.departure_time ? todaySlot.departure_time.slice(0, 5) : "AM"}
+                    period="morning"
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>{todayDriverName}</Text>
+                    {todaySlot.departure_time && (
+                      <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{todaySlot.departure_time.slice(0, 5)} pickup</Text>
+                    )}
+                  </View>
                 </View>
-                <Text style={styles.todayDriver}>{todayDriverName}</Text>
-                {todaySlot.departure_time && (
-                  <Text style={styles.todayTime}>
-                    {todaySlot.departure_time.slice(0, 5)} pickup
-                  </Text>
-                )}
-              </View>
+              )}
+              {todayAfternoonSlot && (
+                <>
+                  {todaySlot && <View style={[styles.slotDivider, { backgroundColor: c.line }]} />}
+                  <View style={styles.todaySlotRow}>
+                    <TimeBadge
+                      time={todayAfternoonSlot.departure_time ? todayAfternoonSlot.departure_time.slice(0, 5) : (todayAfternoonSlot.slot_type === "late_afternoon" ? "LATE" : "PM")}
+                      period="afternoon"
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>{todayAfternoonDriverName}</Text>
+                      {todayAfternoonSlot.departure_time && (
+                        <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{todayAfternoonSlot.departure_time.slice(0, 5)} pickup</Text>
+                      )}
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
           </FadeIn>
         )}
 
-        {/* ─── No child linked (parent) ─── */}
+        {/* ── Parent: am I driving today? ── */}
+        {role === "parent" && groups.length > 0 && (
+          <FadeIn>
+            <View style={[styles.card, {
+              backgroundColor: todayParentSlots.length > 0 ? c.dawnFaded : c.paperElevated,
+              borderColor: todayParentSlots.length > 0 ? c.dawnBorder : c.line,
+            }]}>
+              <Text style={[styles.cardLabel, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>YOUR DRIVE TODAY</Text>
+              {todayParentSlots.length > 0 ? (
+                <>
+                  {todayParentGroupName && (
+                    <Text style={[styles.cardSub, { color: c.textSecondary, marginBottom: 8, fontFamily: Fonts.body }]}>{todayParentGroupName}</Text>
+                  )}
+                  {todayParentSlots.map((slot: any, i: number) => (
+                    <View key={i} style={i > 0 ? { marginTop: 10 } : {}}>
+                      <View style={styles.todaySlotRow}>
+                        <TimeBadge
+                          time={slot.departure_time ? slot.departure_time.slice(0, 5) : "--:--"}
+                          period={slot.slot_type === "morning" ? "morning" : "afternoon"}
+                        />
+                        <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>
+                          {slot.slot_type === "morning" ? "To school" : slot.slot_type === "afternoon" ? "From school" : "Late pickup"}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              ) : (
+                <Text style={[styles.cardTitle, { color: c.textSecondary, fontFamily: Fonts.bodyMedium }]}>Not your turn today</Text>
+              )}
+            </View>
+          </FadeIn>
+        )}
+
+        {/* ── No child linked (parent) ── */}
         {role === "parent" && !childName && (
-          <FadeIn delay={80}>
-            <View style={styles.warningCard}>
-              <Ionicons name="warning-outline" size={20} color={Colors.warm} style={{ marginBottom: 8 }} />
-              <Text style={styles.warningTitle}>No child linked</Text>
-              <Text style={styles.warningText}>
-                Your account isn't linked to a student yet. Make sure your child
-                signs up first with their school email.
+          <FadeIn>
+            <View style={[styles.card, { backgroundColor: c.rustFaded, borderColor: c.rustBorder }]}>
+              <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>No child linked</Text>
+              <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+                Your account isn't linked to a student yet. Make sure your child signs up first with their school email.
               </Text>
             </View>
           </FadeIn>
         )}
 
-        {/* ─── Pending Invites ─── */}
-        {pendingInvites.length > 0 &&
-          pendingInvites.map((invite: any, i: number) => (
-            <FadeIn key={invite.id} delay={100 + i * 60}>
-              <View style={styles.inviteCard}>
-                <View style={styles.inviteAccent} />
-                <View style={styles.inviteBody}>
-                  <View style={styles.inviteContent}>
-                    <Ionicons name="mail-outline" size={18} color={Colors.primary} style={{ marginBottom: 4 }} />
-                    <Text style={styles.inviteLabel}>Invite</Text>
-                    <Text style={styles.inviteName}>
-                      {invite.carpool_groups?.name || "Carpool Group"}
-                    </Text>
-                    <Text style={styles.inviteFrom}>
-                      from {(invite.invited_by_student as any)?.name || "a classmate"}
-                    </Text>
-                  </View>
-                  <View style={styles.inviteBtns}>
-                    <PressableScale
-                      onPress={() => handleInviteResponse(invite.id, invite.group_id, true)}
-                      style={styles.joinBtn}
-                    >
-                      <Text style={styles.joinText}>Join</Text>
-                    </PressableScale>
-                    <PressableScale
-                      onPress={() => handleInviteResponse(invite.id, invite.group_id, false)}
-                      style={styles.declineBtn}
-                    >
-                      <Text style={styles.declineText}>Decline</Text>
-                    </PressableScale>
-                  </View>
+        {/* ── Pending Invites ── */}
+        {pendingInvites.map((invite: any, idx: number) => (
+          <FadeIn key={invite.id} delay={Math.min(idx, 6) * 40}>
+            <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              <View style={styles.inviteRow}>
+                <View style={styles.inviteInfo}>
+                  <Text style={[styles.cardLabel, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>INVITE</Text>
+                  <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>
+                    {invite.carpool_groups?.name || "Carpool Group"}
+                  </Text>
+                  <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+                    from {(invite.invited_by_student as any)?.name || "a classmate"}
+                  </Text>
+                </View>
+                <View style={styles.inviteActions}>
+                  <PressableScale
+                    onPress={() => handleInviteResponse(invite.id, invite.group_id, true)}
+                    style={[styles.joinBtn, { backgroundColor: c.dawn }]}
+                  >
+                    <Text style={[styles.joinText, { fontFamily: Fonts.bodySemiBold }]}>Join</Text>
+                  </PressableScale>
+                  <Pressable
+                    onPress={() => handleInviteResponse(invite.id, invite.group_id, false)}
+                    hitSlop={12}
+                  >
+                    <Text style={[styles.declineText, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Decline</Text>
+                  </Pressable>
                 </View>
               </View>
-            </FadeIn>
-          ))}
+            </View>
+          </FadeIn>
+        ))}
 
-        {/* ─── Group Cards ─── */}
+        {/* ── Next drive this week (parent, not driving today) ── */}
+        {role === "parent" && hasGroups && todayParentSlots.length === 0 && nextDriveDay && (
+          <FadeIn>
+            <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              <Text style={[styles.cardLabel, { color: nextDriveType === "morning" ? c.dawn : c.dusk, fontFamily: Fonts.bodyBold }]}>NEXT DRIVE</Text>
+              <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>
+                {nextDriveDay} {nextDriveType === "morning" ? "morning" : nextDriveType === "afternoon" ? "afternoon" : "late pickup"}
+              </Text>
+              <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>Not your turn today</Text>
+            </View>
+          </FadeIn>
+        )}
+
+        {/* ── Group Cards ── */}
         {hasGroups ? (
           groups.map((g, idx) => (
-            <FadeIn key={g.id} delay={140 + idx * 80}>
+            <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
               <PressableScale
                 onPress={() => router.push(`/my-group?groupId=${g.id}`)}
-                style={styles.groupCard}
+                style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}
               >
-                {/* Top row */}
-                <View style={styles.groupTop}>
-                  <View style={styles.groupAvatarWrap}>
-                    <Ionicons name="people" size={18} color={g.status === "active" ? Colors.primary : Colors.warm} />
-                  </View>
+                <View style={styles.groupHeader}>
                   <View style={styles.groupMeta}>
-                    <Text style={styles.groupName}>{g.name}</Text>
-                    <Text style={styles.groupSub}>
+                    <Text style={[styles.groupName, { color: c.textPrimary, fontFamily: Fonts.display }]}>{g.name}</Text>
+                    <Text style={[styles.groupSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
                       {g.memberCount} {g.memberCount === 1 ? "family" : "families"}
                       {"  ·  "}
                       {g.parentsJoined} parent{g.parentsJoined !== 1 ? "s" : ""}
                     </Text>
                   </View>
-                  <View
-                    style={[
+                  <View style={styles.groupRight}>
+                    <View style={[
                       styles.statusBadge,
-                      g.status === "active" ? styles.statusActive : styles.statusForming,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: g.status === "active" ? Colors.primary : Colors.warm },
-                      ]}
-                    />
-                    <Text
-                      style={[
+                      { backgroundColor: g.status === "active" ? c.dawnFaded : c.rustFaded },
+                    ]}>
+                      <Text style={[
                         styles.statusText,
-                        { color: g.status === "active" ? Colors.primary : Colors.warm },
-                      ]}
-                    >
-                      {g.status === "forming" ? "Forming" : "Active"}
-                    </Text>
+                        { color: g.status === "active" ? c.dawn : c.rust, fontFamily: Fonts.bodyBold },
+                      ]}>
+                        {g.status === "forming" ? "Forming" : "Active"}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ marginTop: 6 }} />
                   </View>
                 </View>
 
-                {/* Info rows */}
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>School</Text>
-                  <Text style={styles.infoValue}>{SCHOOL.name}</Text>
-                </View>
-
-                {pickupAddress && idx === 0 && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Pickup</Text>
-                    <Text style={styles.infoValue} numberOfLines={1}>{pickupAddress}</Text>
-                  </View>
-                )}
-
-                {/* Availability CTA for parents */}
                 {role === "parent" && !g.hasAvailability && (
                   <PressableScale
                     onPress={() => router.push(`/availability?groupId=${g.id}`)}
-                    style={styles.availCta}
+                    style={[styles.availCta, { backgroundColor: c.dawn }]}
                   >
-                    <Ionicons name="time-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.availCtaText}>Set your availability</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                    <Text style={[styles.availCtaText, { fontFamily: Fonts.bodySemiBold }]}>Set your availability</Text>
+                    <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
                   </PressableScale>
                 )}
-
-                {/* Icon button actions */}
-                <View style={styles.actionRow}>
-                  <IconButton
-                    icon="chatbubble-outline"
-                    label="Chat"
-                    onPress={() => router.push(`/group-chat?groupId=${g.id}`)}
-                  />
-                  <IconButton
-                    icon="calendar-outline"
-                    label={role === "parent" ? "Availability" : "Schedule"}
-                    onPress={() =>
-                      role === "parent"
-                        ? router.push(`/availability?groupId=${g.id}`)
-                        : router.push(`/student-schedule?groupId=${g.id}`)
-                    }
-                  />
-                  {g.status === "active" && (
-                    <IconButton
-                      icon="today-outline"
-                      label="This Week"
-                      onPress={() => router.push(`/weekly-schedule?groupId=${g.id}`)}
-                    />
-                  )}
-                  <IconButton
-                    icon="people-outline"
-                    label="Members"
-                    onPress={() => router.push(`/my-group?groupId=${g.id}`)}
-                  />
-                </View>
               </PressableScale>
             </FadeIn>
           ))
         ) : (
-          <FadeIn delay={140}>
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconWrap}>
-                <Ionicons name="people-outline" size={32} color={Colors.textTertiary} />
-              </View>
-              <Text style={styles.emptyTitle}>No carpool group yet</Text>
-              <Text style={styles.emptyText}>
-                {role === "student"
-                  ? "Create a group and invite nearby students, or wait for an invite."
-                  : "Your child hasn't joined a carpool group yet. They can create or join one from their app."}
-              </Text>
-              {role === "student" && (
-                <PressableScale
-                  onPress={() => router.push("/create-group")}
-                  style={styles.emptyBtn}
-                >
-                  <Text style={styles.emptyBtnText}>Create Group</Text>
-                </PressableScale>
-              )}
-            </View>
-          </FadeIn>
+          <EmptyState
+            icon="people-outline"
+            title="No carpool group yet"
+            message={
+              role === "student"
+                ? "Create a group and invite nearby students, or wait for an invite."
+                : "Your child hasn't joined a carpool group yet. They can create or join one from their app."
+            }
+            actionLabel={role === "student" ? "Create group" : undefined}
+            onAction={role === "student" ? () => router.push("/create-group") : undefined}
+          />
         )}
 
-        {/* ─── Quick Actions (student) ─── */}
-        {role === "student" && (
-          <FadeIn delay={hasGroups ? 220 + groups.length * 80 : 220}>
-            <Text style={styles.sectionLabel}>Quick actions</Text>
-            <View style={styles.quickGrid}>
-              <PressableScale
-                onPress={() => router.push("/create-group")}
-                style={[styles.quickTile, !hasGroups && styles.quickTilePrimary]}
-              >
-                <Ionicons
-                  name="add-circle-outline"
-                  size={26}
-                  color={!hasGroups ? "#FFFFFF" : Colors.primary}
-                  style={{ marginBottom: 8 }}
-                />
-                <Text style={[styles.quickTitle, !hasGroups && { color: "#FFFFFF" }]}>
-                  {hasGroups ? "New Group" : "Create Group"}
-                </Text>
-                <Text style={[styles.quickSub, !hasGroups && { color: "rgba(255,255,255,0.6)" }]}>
-                  Start a carpool
-                </Text>
-              </PressableScale>
-
-              {hasGroups && (
-                <PressableScale
-                  onPress={() => router.push("/setup-location")}
-                  style={styles.quickTile}
-                >
-                  <Ionicons
-                    name="location-outline"
-                    size={26}
-                    color={Colors.info}
-                    style={{ marginBottom: 8 }}
-                  />
-                  <Text style={styles.quickTitle}>Edit Pickup</Text>
-                  <Text style={styles.quickSub}>Change your spot</Text>
-                </PressableScale>
-              )}
-            </View>
-          </FadeIn>
-        )}
-
-        {/* ─── Parent Status Overview ─── */}
-        {role === "parent" && hasGroups && (
-          <FadeIn delay={180 + groups.length * 80}>
-            <Text style={styles.sectionLabel}>Status overview</Text>
-            <View style={styles.statusCard}>
-              {groups.map((g, idx) => (
-                <View key={g.id}>
-                  {idx > 0 && <View style={styles.statusDivider} />}
-                  <Text style={styles.statusGroupName}>{g.name}</Text>
-                  <View style={styles.statusRow}>
-                    <Ionicons
-                      name={g.hasAvailability ? "checkmark-circle" : "alert-circle-outline"}
-                      size={16}
-                      color={g.hasAvailability ? Colors.success : Colors.warm}
-                      style={{ marginRight: Spacing.md }}
-                    />
-                    <Text style={styles.statusRowText}>
-                      {g.hasAvailability ? "Availability set" : "Availability not set"}
-                    </Text>
-                  </View>
-                  <View style={styles.statusRow}>
-                    <Ionicons
-                      name={g.parentsJoined >= g.memberCount ? "checkmark-circle" : "alert-circle-outline"}
-                      size={16}
-                      color={g.parentsJoined >= g.memberCount ? Colors.success : Colors.warm}
-                      style={{ marginRight: Spacing.md }}
-                    />
-                    <Text style={styles.statusRowText}>
-                      {g.parentsJoined >= g.memberCount
-                        ? "All parents joined"
-                        : `${g.memberCount - g.parentsJoined} still need a parent`}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </FadeIn>
-        )}
-
-        {/* ─── Nudge (student, parents missing) ─── */}
+        {/* ── Waiting on parents nudge (student) ── */}
         {role === "student" && hasGroups && groups.some((g) => g.parentsJoined < g.memberCount) && (
-          <FadeIn delay={320}>
-            <View style={styles.nudge}>
-              <Ionicons name="alert-circle-outline" size={20} color={Colors.warm} style={{ marginTop: 1, marginRight: Spacing.md }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.nudgeTitle}>Waiting on parents</Text>
-                <Text style={styles.nudgeText}>
-                  Some families still need a parent to join. Remind them to download the app!
-                </Text>
-              </View>
-            </View>
-          </FadeIn>
-        )}
-
-        {/* ─── How HopIn works (empty state) ─── */}
-        {role === "student" && !hasGroups && (
-          <FadeIn delay={320}>
-            <Text style={styles.sectionLabel}>How HopIn works</Text>
-            <View style={styles.stepsCard}>
-              {([
-                { icon: "people-outline" as const, title: "Create or join a carpool group", sub: "Open your group and tap Find Nearby Students" },
-                { icon: "person-add-outline" as const, title: "Each student's parent signs up", sub: "They link to their child's account" },
-                { icon: "sparkles" as const, title: "AI builds a fair weekly schedule", sub: "Parents set availability, the app does the rest" },
-              ]).map((step, i) => (
-                <View key={i} style={[styles.stepRow, i === 2 && { marginBottom: 0 }]}>
-                  <View style={styles.stepNum}>
-                    <Ionicons name={step.icon} size={14} color={Colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.stepTitle}>{step.title}</Text>
-                    <Text style={styles.stepSub}>{step.sub}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </FadeIn>
-        )}
-
-        {/* ─── Parent steps (no group, child linked) ─── */}
-        {role === "parent" && !hasGroups && childName && (
-          <FadeIn delay={200}>
-            <Text style={styles.sectionLabel}>What happens next</Text>
-            <View style={styles.stepsCard}>
-              {([
-                { icon: "people-outline" as const, title: "Your child creates or joins a group", sub: "They can find nearby students in the Discover tab" },
-                { icon: "eye-outline" as const, title: "You'll see the group here", sub: "Once they join, your dashboard updates automatically" },
-                { icon: "sparkles" as const, title: "Set availability & the app handles the rest", sub: "AI builds a fair weekly driving schedule" },
-              ]).map((step, i) => (
-                <View key={i} style={[styles.stepRow, i === 2 && { marginBottom: 0 }]}>
-                  <View style={styles.stepNum}>
-                    <Ionicons name={step.icon} size={14} color={Colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.stepTitle}>{step.title}</Text>
-                    <Text style={styles.stepSub}>{step.sub}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </FadeIn>
-        )}
-
-        {/* ─── Tip ─── */}
-        <FadeIn delay={380}>
-          <View style={styles.tipCard}>
-            <Ionicons name="bulb-outline" size={16} color={Colors.textTertiary} style={{ marginRight: 8, marginTop: 1 }} />
-            <Text style={styles.tipText}>
-              {hasGroups
-                ? "Pull down to refresh. You can be in multiple groups — each one gets its own schedule."
-                : "Pull down to refresh. Once you create or join a group, more options appear here."}
+          <View style={[styles.notice, { borderColor: c.line, backgroundColor: c.paperElevated }]}>
+            <Text style={[styles.noticeTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>Waiting on parents</Text>
+            <Text style={[styles.noticeText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+              Some families still need a parent to join. Remind them to download the app.
             </Text>
           </View>
-        </FadeIn>
+        )}
+
+        {/* ── Quick actions (student) ── */}
+        {role === "student" && (
+          <View style={styles.linkSection}>
+            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACTIONS</Text>
+            <PressableScale
+              onPress={() => router.push("/create-group")}
+              style={[styles.linkRow, { borderColor: c.line, backgroundColor: c.paperElevated }]}
+            >
+              <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>
+                {hasGroups ? "New group" : "Create a group"}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+            </PressableScale>
+            {hasGroups && (
+              <PressableScale
+                onPress={() => router.push("/setup-location")}
+                style={[styles.linkRow, { borderColor: c.line, backgroundColor: c.paperElevated }]}
+              >
+                <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Edit pickup location</Text>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </PressableScale>
+            )}
+          </View>
+        )}
+
+        {/* ── Parent status overview ── */}
+        {role === "parent" && hasGroups && (
+          <View style={styles.linkSection}>
+            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>STATUS</Text>
+            {groups.map((g, idx) => (
+              <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
+                <View style={[styles.statusBlock, { borderColor: c.line, backgroundColor: c.paperElevated }]}>
+                  <Text style={[styles.statusGroupName, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{g.name}</Text>
+                  <Text style={[styles.statusLine, { color: g.hasAvailability ? c.dawn : c.rust, fontFamily: Fonts.bodyMedium }]}>
+                    {g.hasAvailability ? "Availability set" : "Availability not set"}
+                  </Text>
+                  <Text style={[styles.statusLine, { color: g.parentsJoined >= g.memberCount ? c.dawn : c.rust, fontFamily: Fonts.bodyMedium }]}>
+                    {g.parentsJoined >= g.memberCount
+                      ? "All parents joined"
+                      : `${g.memberCount - g.parentsJoined} still need a parent`}
+                  </Text>
+                </View>
+              </FadeIn>
+            ))}
+          </View>
+        )}
+
+        {/* ── How HopIn works (student, no groups) ── */}
+        {role === "student" && !hasGroups && (
+          <View style={styles.linkSection}>
+            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>HOW IT WORKS</Text>
+            <View style={[styles.stepsCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              {studentSteps.map((step, i) => (
+                <View key={i} style={[styles.stepRow, i < studentSteps.length - 1 && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
+                  <Text style={[styles.stepNum, { color: c.dawn, fontFamily: Fonts.mono }]}>{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.stepTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{step.title}</Text>
+                    <Text style={[styles.stepSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{step.sub}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── What happens next (parent, no groups, child linked) ── */}
+        {role === "parent" && !hasGroups && childName && (
+          <View style={styles.linkSection}>
+            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>WHAT HAPPENS NEXT</Text>
+            <View style={[styles.stepsCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              {parentSteps.map((step, i) => (
+                <View key={i} style={[styles.stepRow, i < parentSteps.length - 1 && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
+                  <Text style={[styles.stepNum, { color: c.dawn, fontFamily: Fonts.mono }]}>{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.stepTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{step.title}</Text>
+                    <Text style={[styles.stepSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{step.sub}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 24 }} />
-      </View>
+      </Animated.View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loader: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  content: {
+  container: { flex: 1 },
+  content: { paddingBottom: 40 },
+
+  header: {
+    paddingHorizontal: 28,
+    paddingTop: 72,
     paddingBottom: 40,
   },
-
-  /* Hero */
-  hero: {
-    paddingTop: 64,
-    paddingBottom: 28,
-    paddingHorizontal: Spacing.xl,
-  },
   greeting: {
-    fontSize: FontSizes.sm,
-    color: Colors.textTertiary,
-    fontWeight: "500",
-    marginBottom: 4,
-    letterSpacing: 0.2,
+    fontSize: 11,
+    fontWeight: "600",
+    marginBottom: 6,
+    letterSpacing: 1.5,
+    textTransform: "uppercase" as const,
   },
   heroName: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    fontSize: 48,
+    fontWeight: "900",
+    letterSpacing: -2,
+    lineHeight: 50,
   },
   heroSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "400",
+    marginTop: 6,
+  },
+
+  body: {
+    paddingHorizontal: 20,
+  },
+
+  card: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 12,
+  },
+  todaySlotRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  slotPill: {
+    borderRadius: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
     marginTop: 4,
   },
-
-  /* Body */
-  body: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
+  slotPillText: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.8,
   },
-
-  /* Today's Ride */
-  todayCard: {
-    flexDirection: "row",
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.lg,
-    overflow: "hidden",
-    ...Shadows?.md,
-  } as any,
-  todayAccent: {
-    width: 4,
-    backgroundColor: Colors.primary,
+  slotDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 14,
   },
-  todayBody: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  todayTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  todayLabel: {
-    fontSize: FontSizes.xs,
+  cardLabel: {
+    fontSize: 10,
     fontWeight: "700",
-    color: Colors.primary,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
-  todayDriver: {
-    fontSize: FontSizes.xl,
+  cardTitle: {
+    fontSize: 18,
     fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 2,
+    letterSpacing: -0.3,
+    marginBottom: 3,
   },
-  todayTime: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-  },
-
-  /* Warning */
-  warningCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.warmBorder,
-    padding: Spacing.lg,
-  },
-  warningTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  warningText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+  cardSub: {
+    fontSize: 14,
+    fontWeight: "400",
     lineHeight: 20,
   },
 
-  /* Invites */
-  inviteCard: {
-    flexDirection: "row",
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.md,
-    overflow: "hidden",
-    ...Shadows?.md,
-  } as any,
-  inviteAccent: {
-    width: 3,
-    backgroundColor: Colors.primary,
-  },
-  inviteBody: {
-    flex: 1,
+  inviteRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.base,
-    paddingLeft: Spacing.lg,
   },
-  inviteContent: {
-    flex: 1,
-  },
-  inviteLabel: {
-    fontSize: FontSizes.xs,
-    color: Colors.primary,
-    fontWeight: "600",
-    letterSpacing: 0.4,
-    marginBottom: 3,
-    textTransform: "uppercase",
-  },
-  inviteName: {
-    fontSize: FontSizes.md,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: 2,
-  },
-  inviteFrom: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-  },
-  inviteBtns: {
-    flexDirection: "column",
-    gap: 6,
-    marginLeft: Spacing.base,
+  inviteInfo: { flex: 1 },
+  inviteActions: {
+    alignItems: "center",
+    gap: 8,
+    marginLeft: 16,
   },
   joinBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.pill,
-    paddingVertical: 7,
+    borderRadius: 20,
+    paddingVertical: 8,
     paddingHorizontal: 20,
     alignItems: "center",
   },
   joinText: {
     color: "#FFFFFF",
-    fontSize: FontSizes.sm,
+    fontSize: 14,
     fontWeight: "600",
   },
-  declineBtn: {
-    paddingVertical: 4,
-    alignItems: "center",
-  },
   declineText: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
+    fontSize: 13,
     fontWeight: "500",
   },
 
-  /* Group Cards */
-  groupCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.lg,
-    padding: Spacing.lg,
-    ...Shadows?.md,
-  } as any,
-  groupTop: {
+  groupHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.base,
+    alignItems: "flex-start",
+    marginBottom: 14,
   },
-  groupAvatarWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: Colors.bgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
-  },
-  groupMeta: {
-    flex: 1,
-    marginRight: Spacing.md,
-  },
+  groupMeta: { flex: 1, marginRight: 12 },
+  groupRight: { alignItems: "flex-end" },
   groupName: {
-    fontSize: FontSizes.lg,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 3,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   groupSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "400",
   },
   statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: Radius.pill,
+    borderRadius: 6,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    gap: 6,
-  },
-  statusActive: {
-    backgroundColor: Colors.primaryFaded,
-  },
-  statusForming: {
-    backgroundColor: Colors.warmFaded,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   statusText: {
-    fontSize: FontSizes.xs,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
+
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
+    borderTopWidth: 1,
+    paddingTop: 10,
+    marginTop: 2,
     marginBottom: 6,
-    gap: Spacing.sm,
   },
   infoLabel: {
-    fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
-    fontWeight: "500",
-    width: 56,
+    fontSize: 11,
+    fontWeight: "600",
+    width: 52,
+    letterSpacing: 0.2,
   },
   infoValue: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    fontWeight: "500",
+    fontSize: 13,
+    fontWeight: "400",
     flex: 1,
   },
+
   availCta: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.sm,
+    borderRadius: 8,
     paddingVertical: 10,
-    paddingHorizontal: Spacing.base,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 4,
   },
   availCtaText: {
-    fontSize: FontSizes.sm,
+    fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
     flex: 1,
   },
+
   actionRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: Spacing.base,
-    paddingTop: Spacing.base,
+    alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    paddingTop: 12,
+    marginTop: 10,
+    gap: 10,
+  },
+  actionBtn: {
+    paddingVertical: 2,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  actionDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
   },
 
-  /* Empty State */
-  emptyCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.xxl,
-    marginBottom: Spacing.lg,
-    alignItems: "center",
-    ...Shadows?.md,
-  } as any,
-  emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: Colors.bgElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
-  },
   emptyTitle: {
-    fontSize: FontSizes.lg,
+    fontSize: 17,
     fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "400",
     lineHeight: 20,
-    marginBottom: Spacing.lg,
+    marginBottom: 16,
   },
-  emptyBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.pill,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-  },
-  emptyBtnText: {
-    color: "#FFFFFF",
-    fontSize: FontSizes.md,
-    fontWeight: "600",
-  },
-
-  /* Section Labels */
-  sectionLabel: {
-    fontSize: FontSizes.md,
-    fontWeight: "600",
-    color: Colors.textSecondary,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-
-  /* Quick Actions */
-  quickGrid: {
-    flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  quickTile: {
-    flex: 1,
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    minHeight: 110,
-    ...Shadows?.sm,
-  } as any,
-  quickTilePrimary: {
-    backgroundColor: Colors.primary,
-  },
-  quickTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: 3,
-  },
-  quickSub: {
-    fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
-  },
-
-  /* Status Overview (parent) */
-  statusCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-    ...Shadows?.md,
-  } as any,
-  statusGroupName: {
-    fontSize: FontSizes.sm,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  statusRow: {
-    flexDirection: "row",
+  primaryBtn: {
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: "center",
-    paddingVertical: 5,
   },
-  statusDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: Spacing.md,
-  },
-  statusRowText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    flex: 1,
+  primaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
 
-  /* Nudge */
-  nudge: {
-    backgroundColor: Colors.warmFaded,
-    borderRadius: Radius.lg,
-    padding: Spacing.base,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.warmBorder,
+  notice: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
   },
-  nudgeTitle: {
-    fontSize: FontSizes.sm,
+  noticeTitle: {
+    fontSize: 14,
     fontWeight: "600",
-    color: Colors.warm,
-    marginBottom: 3,
+    marginBottom: 4,
   },
-  nudgeText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
+  noticeText: {
+    fontSize: 13,
+    fontWeight: "400",
     lineHeight: 19,
   },
 
-  /* Steps */
+  linkSection: {
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginLeft: 2,
+  },
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  linkText: {
+    fontSize: 15,
+    fontWeight: "500",
+    flex: 1,
+  },
+
+  statusBlock: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  statusGroupName: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  statusLine: {
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+
   stepsCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-    ...Shadows?.md,
-  } as any,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
   stepRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: Spacing.lg,
+    padding: 16,
+    gap: 14,
   },
   stepNum: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.primaryFaded,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
-    marginTop: 1,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    lineHeight: 22,
+    width: 20,
   },
   stepTitle: {
-    fontSize: FontSizes.md,
+    fontSize: 14,
     fontWeight: "600",
-    color: Colors.textPrimary,
     marginBottom: 3,
+    lineHeight: 19,
   },
   stepSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    lineHeight: 19,
-  },
-
-  /* Tip */
-  tipCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.sm,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.base,
-    marginTop: Spacing.sm,
-    ...Shadows?.sm,
-  } as any,
-  tipText: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: Colors.textTertiary,
-    lineHeight: 19,
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 18,
   },
 });

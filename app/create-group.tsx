@@ -1,15 +1,34 @@
 import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes, Shadows } from "../lib/theme";
-import { FadeIn, PrimaryButton, BackButton, Card } from "../components/UI";
+import { useTheme, Fonts } from "../lib/theme";
+import { PrimaryButton, BackButton, FadeIn } from "../components/UI";
+
+const STEPS = [
+  "Create the group and name it",
+  "Invite 2–4 students from the discover screen",
+  "Each student's parent joins with their own account",
+  "Parents set when they can drive",
+  "The app builds a fair weekly schedule automatically",
+];
 
 export default function CreateGroup() {
   const router = useRouter();
+  const c = useTheme();
+
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [studentData, setStudentData] = useState<any>(null);
 
   useEffect(() => { loadStudent(); }, []);
@@ -23,7 +42,7 @@ export default function CreateGroup() {
   };
 
   const handleCreate = async () => {
-    if (!groupName.trim()) { Alert.alert("Error", "Please enter a group name."); return; }
+    if (!groupName.trim()) { Alert.alert("Missing name", "Please enter a group name."); return; }
     if (!studentData) return;
     setLoading(true);
 
@@ -40,149 +59,139 @@ export default function CreateGroup() {
     setLoading(false);
     if (memberError) { Alert.alert("Error", memberError.message); return; }
 
-    Alert.alert("Group Created!", "Now invite students from the discover screen to join your carpool.", [
-      { text: "Invite Students", onPress: () => router.replace("/discover") },
-      { text: "Go Home", onPress: () => router.replace("/(tabs)/home") },
+    Alert.alert("Group created", "Now invite students from your area to join your carpool.", [
+      { text: "Invite students", onPress: () => router.replace("/discover") },
+      { text: "Go home", onPress: () => router.replace("/(tabs)/home") },
     ]);
   };
 
-  const STEPS = [
-    { icon: "add-circle-outline" as const, text: "You create the group" },
-    { icon: "person-add-outline" as const, text: "Invite 2-4 students from your area" },
-    { icon: "people-outline" as const, text: "Each student's parent joins the app" },
-    { icon: "calendar-outline" as const, text: "Parents enter when they can drive" },
-    { icon: "sparkles" as const, text: "The app creates a fair weekly schedule" },
-  ];
-
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <View style={styles.inner}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: c.paper }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <BackButton onPress={() => router.back()} />
 
         <FadeIn>
-          <Text style={styles.title}>Create a Carpool Group</Text>
-          <Text style={styles.subtitle}>
-            Start a group and invite nearby students. Once everyone's parents join, the app will create a fair driving schedule.
-          </Text>
+          <View style={styles.heading}>
+            <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>Create a group</Text>
+            <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>
+              Invite nearby students and their parents to set up a shared schedule.
+            </Text>
+          </View>
         </FadeIn>
 
-        <FadeIn delay={150}>
-          <Text style={styles.label}>Group Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., North Park Crew"
-            placeholderTextColor={Colors.textTertiary}
-            value={groupName}
-            onChangeText={setGroupName}
-          />
+        {/* Group name field */}
+        <FadeIn delay={40}>
+          <View style={[styles.field, { borderColor: focused ? c.dawn : c.line }]}>
+            <Text style={[styles.fieldLabel, { color: focused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>GROUP NAME</Text>
+            <TextInput
+              style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+              placeholder="e.g. North Park Crew"
+              placeholderTextColor={c.textMuted}
+              value={groupName}
+              onChangeText={setGroupName}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
         </FadeIn>
 
-        <FadeIn delay={250}>
-          <View style={styles.stepsCard}>
-            <Text style={styles.stepsTitle}>How it works</Text>
-            <View style={styles.stepsDivider} />
+        {/* How it works */}
+        <FadeIn delay={80}>
+          <View style={[styles.stepsCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+            <Text style={[styles.stepsTitle, { color: c.textMuted, fontFamily: Fonts.bodySemiBold }]}>HOW IT WORKS</Text>
             {STEPS.map((step, i) => (
-              <View key={i} style={styles.stepRow}>
-                <View style={styles.stepNumWrap}>
-                  <Ionicons name={step.icon} size={14} color={Colors.primary} />
-                </View>
-                <Text style={styles.stepText}>{step.text}</Text>
+              <View key={i} style={[styles.stepRow, i < STEPS.length - 1 && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
+                <Text style={[styles.stepNum, { color: c.dawn, fontFamily: Fonts.displaySemiBold }]}>{i + 1}</Text>
+                <Text style={[styles.stepText, { color: c.textSecondary, fontFamily: Fonts.body }]}>{step}</Text>
               </View>
             ))}
           </View>
         </FadeIn>
 
-        <FadeIn delay={350}>
-          <PrimaryButton
-            title={loading ? "Creating..." : "Create Group"}
-            onPress={handleCreate}
-            loading={loading}
-            icon="add-circle-outline"
-          />
-        </FadeIn>
-      </View>
+        <PrimaryButton title="Create group" onPress={handleCreate} loading={loading} disabled={loading} />
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
+  root: { flex: 1 },
   inner: {
-    flex: 1,
-    padding: Spacing.xl,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: FontSizes.xxl,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: Spacing.xxl,
-  },
-  label: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.xs,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: Colors.bgInput,
-    borderRadius: Radius.md,
-    padding: 16,
-    fontSize: FontSizes.base,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xxl,
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 64,
+    paddingBottom: 48,
   },
 
-  // Steps card
-  stepsCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-    ...Shadows?.md,
-  } as any,
-  stepsTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSizes.md,
-    fontWeight: "700",
+  heading: { marginBottom: 32 },
+  title: {
+    fontSize: 46,
+    letterSpacing: -2,
+    lineHeight: 48,
+    marginBottom: 8,
   },
-  stepsDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: Spacing.md,
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  field: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 13,
+    marginBottom: 28,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  fieldInput: {
+    fontSize: 16,
+    paddingVertical: 0,
+    height: 26,
+  },
+
+  stepsCard: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 28,
+  },
+  stepsTitle: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   stepRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 14,
   },
-  stepNumWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: Colors.primaryFaded,
-    borderWidth: 1,
-    borderColor: Colors.primaryBorder,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
+  stepNum: {
+    fontSize: 18,
+    letterSpacing: -0.5,
+    lineHeight: 21,
+    width: 18,
   },
   stepText: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
+    fontSize: 14,
+    lineHeight: 20,
     flex: 1,
-    lineHeight: 18,
   },
 });

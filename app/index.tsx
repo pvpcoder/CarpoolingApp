@@ -9,59 +9,44 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from '@expo/vector-icons';
 import { supabase } from "../lib/supabase";
-import { Colors, Spacing, Radius, FontSizes } from "../lib/theme";
-import { PrimaryButton, PressableScale, FadeIn, ScaleIn } from "../components/UI";
+import { useTheme, Fonts } from "../lib/theme";
+import { PrimaryButton } from "../components/UI";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const c = useTheme();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
-  // Entrance animations
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.8)).current;
-  const formOpacity = useRef(new Animated.Value(0)).current;
-  const formTranslateY = useRef(new Animated.Value(30)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    // Staggered entrance
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          friction: 8,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(formOpacity, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(formTranslateY, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]),
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter your email and password.");
+      Alert.alert("Missing fields", "Enter your email and password to continue.");
       return;
     }
 
@@ -76,17 +61,11 @@ export default function LoginScreen() {
       if (error) {
         setLoading(false);
         if (error.message.includes("Invalid login credentials")) {
-          Alert.alert(
-            "Login Failed",
-            "Wrong email or password. Please try again."
-          );
+          Alert.alert("Incorrect credentials", "Check your email or password and try again.");
         } else if (error.message.includes("Email not confirmed")) {
-          Alert.alert(
-            "Email Not Verified",
-            "Please check your email and click the verification link."
-          );
+          Alert.alert("Email not verified", "Check your inbox and click the verification link we sent you.");
         } else {
-          Alert.alert("Login Failed", error.message);
+          Alert.alert("Sign in failed", error.message);
         }
         return;
       }
@@ -94,90 +73,73 @@ export default function LoginScreen() {
       const userId = data.user?.id;
       registerForPushNotifications(userId!);
 
-      const { data: student } = await supabase
-        .from("students")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle();
+      const { data: student } = await supabase.from("students").select("id").eq("id", userId).maybeSingle();
+      if (student) { setLoading(false); router.replace("/(tabs)/home"); return; }
 
-      if (student) {
+      const { data: parent } = await supabase.from("parents").select("id").eq("id", userId).maybeSingle();
+      if (parent) { setLoading(false); router.replace("/(tabs)/home"); return; }
+
+      const meta = data.user?.user_metadata;
+      if (meta?.role === "student") {
+        const { data: school } = await supabase.from("schools").select("id").eq("pdsb_code", "PILOT01").single();
+        const { error: profileError } = await supabase.from("students").insert({
+          id: userId, email: data.user?.email, name: meta.name, grade: meta.grade, school_id: school?.id,
+        });
         setLoading(false);
+        if (profileError) { Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }
         router.replace("/(tabs)/home");
         return;
       }
 
-      const { data: parent } = await supabase
-        .from("parents")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (parent) {
+      if (meta?.role === "parent") {
+        let studentId = null;
+        if (meta.child_email) {
+          const { data: linkedStudent } = await supabase.from("students").select("id").eq("email", meta.child_email).single();
+          if (linkedStudent) studentId = linkedStudent.id;
+        }
+        const { error: profileError } = await supabase.from("parents").insert({
+          id: userId, email: data.user?.email, name: meta.name, phone: meta.phone, student_id: studentId,
+        });
         setLoading(false);
+        if (profileError) { Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }
         router.replace("/(tabs)/home");
         return;
       }
 
       setLoading(false);
-      Alert.alert("Error", "Account not found. Please sign up first.");
+      Alert.alert("Not found", "No account found. Sign up to get started.");
     } catch (err: any) {
       setLoading(false);
-      if (
-        err?.message?.includes("Failed to fetch") ||
-        err?.message?.includes("Network request failed")
-      ) {
-        Alert.alert(
-          "No Internet",
-          "Please check your internet connection and try again."
-        );
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
+        Alert.alert("No connection", "Check your internet and try again.");
       } else {
-        Alert.alert("Error", "Something went wrong. Please try again.");
+        Alert.alert("Something went wrong", "Please try again.");
       }
     }
   };
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert(
-        "Enter Email",
-        "Please enter your email address first, then tap Forgot Password."
-      );
+      Alert.alert("Enter your email first", "Type your email above, then tap Forgot password.");
       return;
     }
-
     Alert.alert(
-      "Reset Password",
-      `Send a password reset link to ${email.trim().toLowerCase()}?`,
+      "Reset password",
+      `Send a reset link to ${email.trim().toLowerCase()}?`,
       [
-        { text: "Cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Send",
+          text: "Send link",
           onPress: async () => {
             try {
               const { error } = await supabase.auth.resetPasswordForEmail(
                 email.trim().toLowerCase(),
                 { redirectTo: "hopin://reset-password" }
               );
-              if (error) {
-                Alert.alert("Error", error.message);
-                return;
-              }
-              Alert.alert(
-                "Check Your Email",
-                "We sent you a password reset link. Open it to set a new password."
-              );
-            } catch (err: any) {
-              if (
-                err?.message?.includes("Failed to fetch") ||
-                err?.message?.includes("Network request failed")
-              ) {
-                Alert.alert(
-                  "No Internet",
-                  "Please check your internet connection and try again."
-                );
-              } else {
-                Alert.alert("Error", "Something went wrong. Please try again.");
-              }
+              if (error) { Alert.alert("Error", error.message); return; }
+              Alert.alert("Check your inbox", "We sent a password reset link to your email.");
+            } catch {
+              Alert.alert("Something went wrong", "Please try again.");
             }
           },
         },
@@ -187,190 +149,149 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.root, { backgroundColor: c.paper }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.inner}>
-        {/* Logo area */}
-        <Animated.View
-          style={[
-            styles.logoContainer,
-            { opacity: logoOpacity, transform: [{ scale: logoScale }] },
-          ]}
-        >
-          <View style={styles.logoGlow}>
-            <View style={styles.logoIcon}>
-              <Ionicons name="navigate" size={36} color="#FFFFFF" />
-            </View>
-          </View>
-          <Text style={styles.title}>HopIn</Text>
-          <Text style={styles.subtitle}>SMARTER SCHOOL COMMUTES</Text>
-        </Animated.View>
+      <Animated.View
+        style={[styles.inner, { opacity, transform: [{ translateY }] }]}
+      >
+        {/* Wordmark */}
+        <View style={styles.wordmark}>
+          <Text style={[styles.brand, { color: c.textPrimary, fontFamily: Fonts.display }]}>HopIn</Text>
+          <Text style={[styles.tagline, { color: c.textMuted, fontFamily: Fonts.bodySemiBold }]}>PDSB carpool groups</Text>
+        </View>
 
         {/* Form */}
-        <Animated.View
-          style={[
-            styles.formContainer,
-            {
-              opacity: formOpacity,
-              transform: [{ translateY: formTranslateY }],
-            },
-          ]}
-        >
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
+        <View style={styles.form}>
+          <View style={[styles.field, { borderColor: emailFocused ? c.dawn : c.line }]}>
+            <Text style={[styles.fieldLabel, { color: emailFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
+              EMAIL
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
               placeholder="123456@pdsb.net"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={c.textMuted}
               value={email}
               onChangeText={setEmail}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
+          <View style={[styles.field, { borderColor: passwordFocused ? c.dawn : c.line, marginTop: 12 }]}>
+            <Text style={[styles.fieldLabel, { color: passwordFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
+              PASSWORD
+            </Text>
             <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor={Colors.textMuted}
+              style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+              placeholder="••••••••"
+              placeholderTextColor={c.textMuted}
               value={password}
               onChangeText={setPassword}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
               secureTextEntry
             />
           </View>
 
-          <PressableScale onPress={handleForgotPassword} style={styles.forgotBtn}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </PressableScale>
+          <Pressable onPress={handleForgotPassword} style={styles.forgotRow} hitSlop={12}>
+            <Text style={[styles.forgotText, { color: c.textSecondary, fontFamily: Fonts.bodyMedium }]}>Forgot password?</Text>
+          </Pressable>
 
           <PrimaryButton
-            title="Sign In"
+            title="Sign in"
             onPress={handleLogin}
             loading={loading}
-            disabled={loading}
-            style={styles.ctaButton}
+            style={styles.signInBtn}
           />
+        </View>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <PressableScale onPress={() => router.push("/signup")} style={styles.signupBtn}>
-            <Text style={styles.signupText}>
-              Don't have an account?{"  "}
-              <Text style={styles.signupLink}>Create one</Text>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={[styles.footerDivider, { backgroundColor: c.line }]} />
+          <Pressable onPress={() => router.push("/signup")} hitSlop={12}>
+            <Text style={[styles.footerText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+              New to HopIn?{"  "}
+              <Text style={{ color: c.dawn, fontFamily: Fonts.bodySemiBold }}>Create account</Text>
             </Text>
-          </PressableScale>
-        </Animated.View>
-      </View>
+          </Pressable>
+        </View>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: Colors.bg,
   },
   inner: {
     flex: 1,
-    justifyContent: "center",
     paddingHorizontal: 28,
+    paddingTop: 96,
+    paddingBottom: 48,
   },
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 64,
+
+  wordmark: {
+    marginBottom: 72,
   },
-  logoGlow: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    backgroundColor: Colors.primaryGlow,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
+  brand: {
+    fontSize: 68,
+    letterSpacing: -3,
+    lineHeight: 70,
+    marginBottom: 10,
   },
-  logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+  tagline: {
+    fontSize: 10,
+    letterSpacing: 2.5,
+    textTransform: "uppercase" as const,
   },
-  title: {
-    fontSize: 40,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    letterSpacing: -1.5,
-    marginBottom: 8,
+
+  form: {},
+  field: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 13,
   },
-  subtitle: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: Colors.textTertiary,
-    letterSpacing: 1.5,
+  fieldLabel: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
-  formContainer: {
-    width: "100%",
+  fieldInput: {
+    fontSize: 16,
+    paddingVertical: 0,
+    height: 26,
   },
-  inputGroup: {
-    marginBottom: Spacing.base,
-  },
-  inputLabel: {
-    fontSize: FontSizes.xs,
-    fontWeight: "600",
-    color: Colors.textTertiary,
-    letterSpacing: 0.3,
-    marginBottom: 6,
-    marginLeft: 2,
-  },
-  input: {
-    backgroundColor: Colors.bgInput,
-    borderRadius: Radius.md,
-    height: 54,
-    paddingHorizontal: 18,
-    fontSize: FontSizes.base,
-    color: Colors.textPrimary,
-  },
-  forgotBtn: {
+
+  forgotRow: {
     alignSelf: "flex-end",
-    paddingVertical: Spacing.xs,
-    marginBottom: Spacing.lg,
+    marginTop: 16,
+    marginBottom: 28,
   },
   forgotText: {
-    color: Colors.textTertiary,
-    fontSize: FontSizes.sm,
-    fontWeight: "500",
+    fontSize: 14,
   },
-  ctaButton: {
-    marginTop: Spacing.xs,
-    height: 54,
-    borderRadius: Radius.md,
+
+  signInBtn: {
+    alignSelf: "stretch",
   },
-  divider: {
+
+  footer: {
+    marginTop: "auto" as any,
     alignItems: "center",
-    marginVertical: 28,
+    gap: 24,
   },
-  dividerLine: {
-    width: 40,
+  footerDivider: {
+    width: 32,
     height: 1,
-    backgroundColor: Colors.border,
   },
-  signupBtn: {
-    alignSelf: "center",
-    paddingVertical: Spacing.sm,
+  footerText: {
+    fontSize: 14,
   },
-  signupText: {
-    color: Colors.textMuted,
-    fontSize: FontSizes.sm,
-    fontWeight: "400",
-  },
-  signupLink: {
-    color: Colors.textSecondary,
-    fontWeight: "600",
-  },
-})
+});
