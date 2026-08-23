@@ -6,6 +6,7 @@ import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import * as Sentry from "@sentry/react-native";
+import Constants from "expo-constants";
 import { useFonts, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
@@ -16,6 +17,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    environment: Constants.expoConfig?.extra?.appEnv ?? "production",
     sendDefaultPii: false,
     tracesSampleRate: 0.2,
   });

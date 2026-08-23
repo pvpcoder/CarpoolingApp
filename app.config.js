@@ -1,4 +1,7 @@
-require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
+// APP_ENV=staging npm start points the app at the staging Supabase project
+// (.env.staging) instead of production (.env) — see .env.staging.example.
+const envFile = process.env.APP_ENV === "staging" ? ".env.staging" : ".env";
+require("dotenv").config({ path: require("path").resolve(__dirname, envFile) });
 
   module.exports = {
     expo: {
@@ -43,6 +46,7 @@ require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
       extra: {
           googleApiKey: process.env.GOOGLE_API_KEY,
           debug_googleKey: process.env.GOOGLE_API_KEY ? "LOADED" : "MISSING",
+          appEnv: process.env.APP_ENV === "staging" ? "staging" : "production",
           eas: {
             projectId: process.env.EAS_PROJECT_ID,
           },

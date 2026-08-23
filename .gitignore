@@ -41,5 +41,6 @@ yarn-error.*
 /android
 
 .env
+.env.staging
 
 .claude/
