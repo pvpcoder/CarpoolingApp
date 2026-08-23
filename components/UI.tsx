@@ -383,17 +383,70 @@ export function TitleRule({ style }: { style?: StyleProp<ViewStyle> }) {
   return <View style={[s.titleRule, { backgroundColor: c.dawn }, style]} />;
 }
 
+// Precomputed points along the arc (piecewise, smooth enough for a slow-
+// moving dot) so a single Animated.Value can drive position without a
+// trig-capable interpolator — cx/cy at progress p, for the same M 10 55
+// A 40 40 0 0 1 90 55 path SunArc draws.
+const ARC_STEPS = 24;
+const arcProgressStops: number[] = [];
+const arcCxStops: number[] = [];
+const arcCyStops: number[] = [];
+for (let i = 0; i <= ARC_STEPS; i++) {
+  const p = i / ARC_STEPS;
+  const theta = Math.PI * (1 + p);
+  arcProgressStops.push(p);
+  arcCxStops.push(50 + 40 * Math.cos(theta));
+  arcCyStops.push(55 + 40 * Math.sin(theta));
+}
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 // ─── Ambient background watermark (large, faint SunArc) ────────
 // Meant as a sibling behind a screen's ScrollView, not inside its scrolling
-// content — fills otherwise-dead space with a quiet, on-brand presence.
-// Static: an arc (not rotationally symmetric like the old ring) spinning in
-// a full circle just reads as a glitch, not "the sun's path" — so it sits
-// still instead of animating for no functional reason.
+// content — fills otherwise-dead space with a quiet, on-brand presence. A
+// small sun-colored dot slowly traces the arc back and forth — literally
+// the sun crossing the sky — rather than the whole shape rotating (which
+// just looks broken for an asymmetric arc).
 export function Watermark({ size = 320 }: { size?: number }) {
+  const c = useTheme();
+  const reducedMotion = useReducedMotion();
+  const gradientId = useRef(`watermark-${Math.random().toString(36).slice(2)}`).current;
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, { toValue: 1, duration: 6000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(progress, { toValue: 0, duration: 6000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reducedMotion]);
+
+  const cx = progress.interpolate({ inputRange: arcProgressStops, outputRange: arcCxStops });
+  const cy = progress.interpolate({ inputRange: arcProgressStops, outputRange: arcCyStops });
+
   return (
     <View pointerEvents="none" style={[s.watermark, { width: size, height: size, right: -size * 0.3, bottom: -size * 0.3 }]}>
-      <View style={{ opacity: 0.08 }}>
-        <SunArc size={size} />
+      <View style={{ opacity: 0.14 }}>
+        <Svg width={size} height={size} viewBox="0 0 100 65">
+          <Defs>
+            <LinearGradient id={gradientId} x1="10" y1="0" x2="90" y2="0" gradientUnits="userSpaceOnUse">
+              <Stop offset="0" stopColor={c.dawn} />
+              <Stop offset="1" stopColor={c.dusk} />
+            </LinearGradient>
+          </Defs>
+          <Path d={ARC_PATH} stroke={`url(#${gradientId})`} strokeWidth={2} strokeLinecap="round" fill="none" />
+          <Circle cx="10" cy="55" r="3" fill={c.dawn} />
+          <Circle cx="90" cy="55" r="3" fill={c.dusk} />
+          {!reducedMotion && (
+            <>
+              <AnimatedCircle cx={cx} cy={cy} r="9" fill={c.dusk} opacity={0.35} />
+              <AnimatedCircle cx={cx} cy={cy} r="4.5" fill={c.dusk} />
+            </>
+          )}
+        </Svg>
       </View>
     </View>
   );
