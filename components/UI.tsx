@@ -12,6 +12,7 @@ import {
   TextStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { useTheme, Spacing, Radius, FontSizes, Fonts, Shadows } from "../lib/theme";
 import { useReducedMotion } from "../lib/motion";
 
@@ -325,54 +326,53 @@ export function TimeBadge({ time, period, pulse = false }: { time: string; perio
 }
 
 // ─── Sun arc — the HopIn signature mark ────────────────────────
-// A dawn-to-dusk ring built from plain Views (no SVG dependency): four
-// independently-colored borders on a circle, rotated so the seam reads as a
-// diagonal split from the morning color to the afternoon color.
+// A real vector arc tracing sunrise (dawn dot) to sunset (dusk dot), with a
+// gradient stroke between them — literally the sun's path across the day,
+// which is what the whole color system represents. When `animated`, the
+// arc actually draws itself stroke-first (SVG dash-offset), rather than
+// faking motion with a scale/rotate trick.
+const ARC_PATH = "M 10 55 A 40 40 0 0 1 90 55";
+const ARC_LENGTH = Math.PI * 40; // semicircle circumference, r=40
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
 export function SunArc({ size = 40, animated = false }: { size?: number; animated?: boolean }) {
   const c = useTheme();
   const reducedMotion = useReducedMotion();
-  const scale = useRef(new Animated.Value(animated && !reducedMotion ? 0.6 : 1)).current;
-  const rotate = useRef(new Animated.Value(animated && !reducedMotion ? -1 : 0)).current;
+  const gradientId = useRef(`sunarc-${Math.random().toString(36).slice(2)}`).current;
+  const progress = useRef(new Animated.Value(animated && !reducedMotion ? 0 : 1)).current;
   const opacity = useRef(new Animated.Value(animated ? 0 : 1)).current;
 
   useEffect(() => {
     if (!animated) return;
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }),
-      Animated.spring(rotate, { toValue: 0, friction: 8, tension: 90, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(progress, { toValue: 1, duration: reducedMotion ? 1 : 900, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
     ]).start();
   }, [animated]);
 
-  const borderWidth = Math.max(2, Math.round(size * 0.08));
-  const dotSize = Math.max(6, Math.round(size * 0.16));
+  const strokeDashoffset = progress.interpolate({ inputRange: [0, 1], outputRange: [ARC_LENGTH, 0] });
 
   return (
-    <Animated.View
-      style={{
-        width: size,
-        height: size,
-        opacity,
-        transform: [
-          { scale },
-          { rotate: rotate.interpolate({ inputRange: [-1, 0], outputRange: ["-45deg", "45deg"] }) },
-        ],
-      }}
-    >
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth,
-          borderTopColor: c.dawn,
-          borderLeftColor: c.dawn,
-          borderRightColor: c.dusk,
-          borderBottomColor: c.dusk,
-        }}
-      />
-      <View style={{ position: "absolute", top: -dotSize / 2, left: size / 2 - dotSize / 2, width: dotSize, height: dotSize, borderRadius: dotSize / 2, backgroundColor: c.dawn }} />
-      <View style={{ position: "absolute", bottom: -dotSize / 2, left: size / 2 - dotSize / 2, width: dotSize, height: dotSize, borderRadius: dotSize / 2, backgroundColor: c.dusk }} />
+    <Animated.View style={{ width: size, height: size, opacity }}>
+      <Svg width={size} height={size} viewBox="0 0 100 65">
+        <Defs>
+          <LinearGradient id={gradientId} x1="10" y1="0" x2="90" y2="0" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor={c.dawn} />
+            <Stop offset="1" stopColor={c.dusk} />
+          </LinearGradient>
+        </Defs>
+        <AnimatedPath
+          d={ARC_PATH}
+          stroke={`url(#${gradientId})`}
+          strokeWidth={4}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={`${ARC_LENGTH}, ${ARC_LENGTH}`}
+          strokeDashoffset={strokeDashoffset}
+        />
+        <Circle cx="10" cy="55" r="4" fill={c.dawn} />
+        <Circle cx="90" cy="55" r="4" fill={c.dusk} />
+      </Svg>
     </Animated.View>
   );
 }

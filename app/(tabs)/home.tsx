@@ -653,6 +653,12 @@ export default function HomeTab() {
         {/* ── Quick actions (student) ── */}
         {role === "student" && (
           <ListSection style={{ marginTop: 4 }}>
+            {groups.find((g) => g.isAdmin) && (
+              <ListRow
+                label="Find nearby students"
+                onPress={() => router.push(`/discover?groupId=${groups.find((g) => g.isAdmin)!.id}`)}
+              />
+            )}
             <ListRow
               label={hasGroups ? "New group" : "Create a group"}
               onPress={() => router.push("/create-group")}
