@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useTheme, Radius, Fonts } from "../lib/theme";
+import { computeBasicSchedule } from "../lib/scheduling";
 import { PrimaryButton, SecondaryButton, BackButton, FadeIn, Card, SunArc, ScaleIn } from "../components/UI";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
@@ -154,41 +155,7 @@ export default function WeeklySchedule() {
     setGenerating(true);
     const { data: availability } = await supabase.from("parent_availability").select("parent_id, day_of_week, can_drive_morning, can_drive_afternoon").eq("group_id", groupId);
     const { data: exceptions } = await supabase.from("student_exceptions").select("student_id, day_of_week, exception_type, custom_pickup_time").eq("group_id", groupId).eq("is_recurring", true);
-    const availMap: Record<string, { morning: string[]; afternoon: string[] }> = {};
-    DAYS.forEach((d) => { availMap[d] = { morning: [], afternoon: [] }; });
-    (availability || []).forEach((a: any) => {
-      if (a.can_drive_morning) availMap[a.day_of_week].morning.push(a.parent_id);
-      if (a.can_drive_afternoon) availMap[a.day_of_week].afternoon.push(a.parent_id);
-    });
-    const assignCount: Record<string, number> = {};
-    members.forEach((m: any) => { if (m.parent_id) assignCount[m.parent_id] = 0; });
-    const newSlots: any[] = [];
-    DAYS.forEach((day) => {
-      const am = [...availMap[day].morning].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-      if (am.length > 0) { assignCount[am[0]] = (assignCount[am[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: am[0], departure_time: "07:30:00", status: "confirmed" }); }
-      else { newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: null, departure_time: "07:30:00", status: "needs_coverage" }); }
-      const pm = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-      if (pm.length > 0) { assignCount[pm[0]] = (assignCount[pm[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: pm[0], departure_time: "14:45:00", status: "confirmed" }); }
-      else { newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: null, departure_time: "14:45:00", status: "needs_coverage" }); }
-      const lateExceptions = (exceptions || []).filter((e: any) => e.day_of_week === day && e.exception_type === "late_pickup");
-      if (lateExceptions.length === 1) {
-        // Single kid with late pickup — their own parent must drive, regardless of fairness
-        const family = members.find((m: any) => m.student_id === lateExceptions[0].student_id);
-        const forcedParentId = family?.parent_id || null;
-        if (forcedParentId) {
-          assignCount[forcedParentId] = (assignCount[forcedParentId] || 0) + 1;
-          newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: forcedParentId, departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" });
-        } else {
-          // Parent not in group yet — fair fallback
-          const late = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-          if (late.length > 0) { assignCount[late[0]] = (assignCount[late[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: late[0], departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" }); }
-        }
-      } else if (lateExceptions.length > 1) {
-        // Multiple kids with late pickup — assign fairly
-        const late = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
-        if (late.length > 0) { assignCount[late[0]] = (assignCount[late[0]] || 0) + 1; newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: late[0], departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" }); }
-      }
-    });
+    const newSlots = computeBasicSchedule(DAYS, availability || [], exceptions || [], members);
     const today = new Date();
     const dayOfWeek = today.getDay();
     const monday = new Date(today);
