@@ -12,6 +12,7 @@ import { useFonts, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from "@expo-
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
 import { supabase } from "../lib/supabase";
+import { linkParentToChildByEmail } from "../lib/parentLinking";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -74,18 +75,15 @@ function RootLayout() {
             school_id: school?.id,
           });
         } else if (meta.role === "parent") {
-          let studentId = null;
-          if (meta.child_email) {
-            const { data: linked } = await supabase.from("students").select("id").eq("email", meta.child_email).single();
-            if (linked) studentId = linked.id;
-          }
           await supabase.from("parents").insert({
             id: userId,
             email: data.user.email,
             name: meta.name,
             phone: meta.phone,
-            student_id: studentId,
           });
+          if (meta.child_email) {
+            await linkParentToChildByEmail(userId, meta.child_email);
+          }
         }
       }
 

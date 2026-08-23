@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { registerForPushNotifications } from "../../lib/notifications";
+import { linkParentToChildByEmail } from "../../lib/parentLinking";
 import { useTheme, Fonts } from "../../lib/theme";
 import { LoadingScreen, FadeIn, Watermark, TitleRule, ListSection, ListRow, ToggleSwitch } from "../../components/UI";
 
@@ -26,12 +27,15 @@ export default function ProfileTab() {
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState<"student" | "parent" | null>(null);
-  const [childName, setChildName] = useState<string | null>(null);
+  const [linkedChildren, setLinkedChildren] = useState<{ id: string; name: string }[]>([]);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [isLinkingChild, setIsLinkingChild] = useState(false);
+  const [linkChildEmail, setLinkChildEmail] = useState("");
+  const [linkingBusy, setLinkingBusy] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -62,21 +66,18 @@ export default function ProfileTab() {
       } else {
         const { data: parent } = await supabase
           .from("parents")
-          .select("id, name, student_id")
+          .select("id, name")
           .eq("id", user.id)
           .single();
         if (parent) {
           setUserRole("parent");
           setUserName(parent.name || "");
 
-          if (parent.student_id) {
-            const { data: child } = await supabase
-              .from("students")
-              .select("name")
-              .eq("id", parent.student_id)
-              .single();
-            setChildName(child?.name || null);
-          }
+          const { data: links } = await supabase
+            .from("parent_student_links")
+            .select("students ( id, name )")
+            .eq("parent_id", user.id);
+          setLinkedChildren((links || []).map((l: any) => l.students).filter(Boolean));
         }
       }
 
@@ -92,6 +93,21 @@ export default function ProfileTab() {
         ]);
       }
     }
+  };
+
+  const handleLinkChild = async () => {
+    if (!linkChildEmail.trim() || !userId) { setIsLinkingChild(false); return; }
+    setLinkingBusy(true);
+    const result = await linkParentToChildByEmail(userId, linkChildEmail);
+    setLinkingBusy(false);
+    if (!result.success) {
+      Alert.alert("Couldn't link child", result.error || "Please try again.");
+      return;
+    }
+    setLinkChildEmail("");
+    setIsLinkingChild(false);
+    Alert.alert("Linked", `${result.studentName || "Student"} is now linked to your account.`);
+    loadSettings();
   };
 
   const handleSaveName = async () => {
@@ -266,7 +282,35 @@ export default function ProfileTab() {
         {/* Account — account-level only. Group actions (leave, invite,
             schedule, chat) live on the group's own screen, not here. */}
         <ListSection label="ACCOUNT">
-          {childName && <ListRow label="Linked child" value={childName} />}
+          {userRole === "parent" && linkedChildren.map((child, i) => (
+            <ListRow key={child.id || i} label={linkedChildren.length > 1 ? `Linked child ${i + 1}` : "Linked child"} value={child.name} />
+          ))}
+          {userRole === "parent" && isLinkingChild && (
+            <View style={styles.linkChildRow}>
+              <TextInput
+                style={[styles.linkChildInput, { color: c.textPrimary, borderColor: c.dawn, fontFamily: Fonts.body }]}
+                value={linkChildEmail}
+                onChangeText={setLinkChildEmail}
+                placeholder="Child's school email"
+                placeholderTextColor={c.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleLinkChild}
+              />
+              <Pressable onPress={handleLinkChild} disabled={linkingBusy} style={[styles.editNameSave, { backgroundColor: c.dawn }]}>
+                <Text style={[styles.editNameSaveText, { fontFamily: Fonts.bodyBold }]}>{linkingBusy ? "…" : "Link"}</Text>
+              </Pressable>
+              <Pressable onPress={() => { setIsLinkingChild(false); setLinkChildEmail(""); }} hitSlop={12} style={{ padding: 8 }}>
+                <Ionicons name="close" size={18} color={c.textMuted} />
+              </Pressable>
+            </View>
+          )}
+          {userRole === "parent" && !isLinkingChild && (
+            <ListRow label={linkedChildren.length > 0 ? "Link another child" : "Link a child"} onPress={() => setIsLinkingChild(true)} />
+          )}
           <ListRow label="Change password" onPress={handleResetPassword} />
           {userRole === "student" && (
             <ListRow label="Pickup location" onPress={() => router.push("/setup-location")} />
@@ -376,6 +420,21 @@ const styles = StyleSheet.create({
   editNameSaveText: {
     color: "#FFFFFF",
     fontSize: 13,
+  },
+  linkChildRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  linkChildInput: {
+    flex: 1,
+    fontSize: 15,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   profileEmail: {
     fontSize: 13,

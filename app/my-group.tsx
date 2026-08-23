@@ -69,11 +69,8 @@ export default function MyGroup() {
       const { data: membership } = await supabase.from("group_members").select("role").eq("group_id", groupId).eq("student_id", user.id).eq("status", "active").single();
       setIsAdmin(membership?.role === "admin");
     } else {
-      const { data: parent } = await supabase.from("parents").select("student_id").eq("id", user.id).single();
-      if (parent?.student_id) {
-        const { data: membership } = await supabase.from("group_members").select("role").eq("group_id", groupId).eq("student_id", parent.student_id).eq("status", "active").single();
-        setIsAdmin(membership?.role === "admin");
-      }
+      const { data: memberships } = await supabase.from("group_members").select("role").eq("group_id", groupId).eq("parent_id", user.id).eq("status", "active");
+      setIsAdmin((memberships || []).some((m: any) => m.role === "admin"));
     }
 
     const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at").eq("id", groupId).single();

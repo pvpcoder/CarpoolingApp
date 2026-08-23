@@ -37,7 +37,7 @@ export default function HomeTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [role, setRole] = useState<"student" | "parent" | null>(null);
   const [userName, setUserName] = useState("");
-  const [childName, setChildName] = useState<string | null>(null);
+  const [linkedChildren, setLinkedChildren] = useState<{ id: string; name: string }[]>([]);
   const [pickupAddress, setPickupAddress] = useState<string | null>(null);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
@@ -91,7 +91,7 @@ export default function HomeTab() {
       } else {
         const { data: parent } = await supabase
           .from("parents")
-          .select("id, name, student_id")
+          .select("id, name")
           .eq("id", user.id)
           .single();
 
@@ -231,66 +231,69 @@ export default function HomeTab() {
   };
 
   const loadParentData = async (parent: any) => {
-    if (!parent.student_id) return;
+    const { data: links } = await supabase
+      .from("parent_student_links")
+      .select("students ( id, name )")
+      .eq("parent_id", parent.id);
 
-    const { data: child } = await supabase
-      .from("students")
-      .select("name, saved_pickup_address")
-      .eq("id", parent.student_id)
-      .single();
-    setChildName(child?.name || null);
-    setPickupAddress(child?.saved_pickup_address || null);
-
-    const { data: memberships } = await supabase
-      .from("group_members")
-      .select(`group_id, carpool_groups ( id, name, status )`)
-      .eq("student_id", parent.student_id)
-      .eq("status", "active");
+    const children = (links || [])
+      .map((l: any) => l.students)
+      .filter(Boolean) as { id: string; name: string }[];
+    setLinkedChildren(children);
+    if (children.length === 0) return;
 
     const localDeleted = deletedGroups.getAll();
     const groupList: GroupInfo[] = [];
 
-    for (const membership of memberships || []) {
-      const group = (membership as any).carpool_groups;
-      if (!group || group.status === "deleted") continue;
-      if (localDeleted.includes(group.id)) continue;
-
-      const { data: existingMember } = await supabase
+    for (const child of children) {
+      const { data: memberships } = await supabase
         .from("group_members")
-        .select("id")
-        .eq("group_id", group.id)
-        .eq("student_id", parent.student_id)
-        .single();
-
-      if (existingMember) {
-        await supabase
-          .from("group_members")
-          .update({ parent_id: parent.id })
-          .eq("id", existingMember.id);
-      }
-
-      const { data: members } = await supabase
-        .from("group_members")
-        .select("id, parent_id")
-        .eq("group_id", group.id)
+        .select(`group_id, carpool_groups ( id, name, status )`)
+        .eq("student_id", child.id)
         .eq("status", "active");
 
-      const { data: availability } = await supabase
-        .from("parent_availability")
-        .select("id")
-        .eq("parent_id", parent.id)
-        .eq("group_id", group.id)
-        .limit(1);
+      for (const membership of memberships || []) {
+        const group = (membership as any).carpool_groups;
+        if (!group || group.status === "deleted") continue;
+        if (localDeleted.includes(group.id)) continue;
 
-      groupList.push({
-        id: group.id,
-        name: group.name,
-        status: group.status,
-        memberCount: (members || []).length,
-        parentsJoined: (members || []).filter((m: any) => m.parent_id).length,
-        isAdmin: false,
-        hasAvailability: (availability || []).length > 0,
-      });
+        const { data: existingMember } = await supabase
+          .from("group_members")
+          .select("id")
+          .eq("group_id", group.id)
+          .eq("student_id", child.id)
+          .single();
+
+        if (existingMember) {
+          await supabase
+            .from("group_members")
+            .update({ parent_id: parent.id })
+            .eq("id", existingMember.id);
+        }
+
+        const { data: members } = await supabase
+          .from("group_members")
+          .select("id, parent_id")
+          .eq("group_id", group.id)
+          .eq("status", "active");
+
+        const { data: availability } = await supabase
+          .from("parent_availability")
+          .select("id")
+          .eq("parent_id", parent.id)
+          .eq("group_id", group.id)
+          .limit(1);
+
+        groupList.push({
+          id: group.id,
+          name: group.name,
+          status: group.status,
+          memberCount: (members || []).length,
+          parentsJoined: (members || []).filter((m: any) => m.parent_id).length,
+          isAdmin: false,
+          hasAvailability: (availability || []).length > 0,
+        });
+      }
     }
 
     const seen = new Set<string>();
@@ -428,8 +431,10 @@ export default function HomeTab() {
             {userName || (role === "student" ? "Student" : "Parent")}
           </Text>
           <TitleRule />
-          {role === "parent" && childName && (
-            <Text style={[styles.heroSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>Linked to {childName}</Text>
+          {role === "parent" && linkedChildren.length > 0 && (
+            <Text style={[styles.heroSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+              Linked to {linkedChildren.map((ch) => ch.name).join(", ")}
+            </Text>
           )}
         </View>
       </FadeIn>
@@ -513,12 +518,12 @@ export default function HomeTab() {
         )}
 
         {/* ── No child linked (parent) ── */}
-        {role === "parent" && !childName && (
+        {role === "parent" && linkedChildren.length === 0 && (
           <FadeIn>
             <View style={[styles.card, { backgroundColor: c.rustFaded, borderColor: c.rustBorder }]}>
               <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>No child linked</Text>
               <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
-                Your account isn't linked to a student yet. Make sure your child signs up first with their school email.
+                Your account isn't linked to a student yet. Make sure your child signs up first with their school email, then link them from Profile.
               </Text>
             </View>
           </FadeIn>
@@ -693,7 +698,7 @@ export default function HomeTab() {
         )}
 
         {/* ── What happens next (parent, no groups, child linked) ── */}
-        {role === "parent" && !hasGroups && childName && (
+        {role === "parent" && !hasGroups && linkedChildren.length > 0 && (
           <View style={styles.linkSection}>
             <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>WHAT HAPPENS NEXT</Text>
             <View style={[styles.stepsCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>

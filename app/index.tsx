@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
+import { linkParentToChildByEmail } from "../lib/parentLinking";
 import { useTheme, Fonts } from "../lib/theme";
 import { PrimaryButton, ScaleIn, FadeIn, Watermark, TitleRule } from "../components/UI";
 
@@ -73,16 +74,14 @@ export default function LoginScreen() {
       }
 
       if (meta?.role === "parent") {
-        let studentId = null;
-        if (meta.child_email) {
-          const { data: linkedStudent } = await supabase.from("students").select("id").eq("email", meta.child_email).single();
-          if (linkedStudent) studentId = linkedStudent.id;
-        }
         const { error: profileError } = await supabase.from("parents").insert({
-          id: userId, email: data.user?.email, name: meta.name, phone: meta.phone, student_id: studentId,
+          id: userId, email: data.user?.email, name: meta.name, phone: meta.phone,
         });
+        if (profileError) { setLoading(false); Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }
+        if (meta.child_email) {
+          await linkParentToChildByEmail(userId!, meta.child_email);
+        }
         setLoading(false);
-        if (profileError) { Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }
         router.replace("/(tabs)/home");
         return;
       }
