@@ -356,6 +356,11 @@ export default function MyGroup() {
           title={group?.status === "active" ? "View weekly schedule" : "Generate schedule"}
           onPress={() => router.push(`/weekly-schedule?groupId=${groupId}`)}
         />
+        <SecondaryButton
+          title="Group chat"
+          icon="chatbubble-ellipses-outline"
+          onPress={() => router.push(`/group-chat?groupId=${groupId}`)}
+        />
       </View>
 
       {/* Leave / Delete */}

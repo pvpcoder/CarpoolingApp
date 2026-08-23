@@ -37,7 +37,7 @@ require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
       web: {
         favicon: "./assets/favicon.png",
       },
-      plugins: ["expo-router", "expo-secure-store", "expo-font"],
+      plugins: ["expo-router", "expo-secure-store", "expo-font", "@sentry/react-native/expo"],
       extra: {
           googleApiKey: process.env.GOOGLE_API_KEY,
           debug_googleKey: process.env.GOOGLE_API_KEY ? "LOADED" : "MISSING",

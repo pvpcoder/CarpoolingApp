@@ -1,9 +1,10 @@
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useCallback } from "react";
-import { View } from "react-native";
+import { View, Text } from "react-native";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
+import * as Sentry from "@sentry/react-native";
 import { useFonts, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
@@ -11,7 +12,15 @@ import { supabase } from "../lib/supabase";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function RootLayout() {
+if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    sendDefaultPii: false,
+    tracesSampleRate: 0.2,
+  });
+}
+
+function RootLayout() {
   const router = useRouter();
 
   const [fontsLoaded] = useFonts({
@@ -118,3 +127,26 @@ export default function RootLayout() {
     </View>
   );
 }
+
+function ErrorFallback() {
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "#14161C" }}>
+      <Text style={{ color: "#F2F0EA", fontSize: 18, fontWeight: "700", marginBottom: 8, textAlign: "center" }}>
+        Something went wrong
+      </Text>
+      <Text style={{ color: "#A7A498", fontSize: 14, textAlign: "center" }}>
+        Please close and reopen the app. We've been notified.
+      </Text>
+    </View>
+  );
+}
+
+function RootLayoutWithErrorBoundary() {
+  return (
+    <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
+      <RootLayout />
+    </Sentry.ErrorBoundary>
+  );
+}
+
+export default Sentry.wrap(RootLayoutWithErrorBoundary);
