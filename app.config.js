@@ -17,11 +17,13 @@ require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
       },
       ios: {
         supportsTablet: true,
+        bundleIdentifier: "com.pvpp.hopin",
         config: {
           googleMapsApiKey: process.env.GOOGLE_API_KEY,
         },
       },
       android: {
+        package: "com.pvpp.hopin",
         adaptiveIcon: {
           foregroundImage: "./assets/adaptive-icon.png",
           backgroundColor: "#0A0E17",
