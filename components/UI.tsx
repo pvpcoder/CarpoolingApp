@@ -46,7 +46,7 @@ export function FadeIn({
     <MotiView
       from={{ opacity: 0, translateY: reducedMotion ? 0 : distance }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: "timing", duration, delay, easing: Easing.out(Easing.cubic) }}
+      transition={{ type: "timing", duration, delay }}
       style={style}
     >
       {children}
@@ -100,7 +100,7 @@ export function PressableScale({
         "worklet";
         return { scale: pressed && !reducedMotion ? scaleTo : 1, opacity: pressed ? 0.9 : 1 };
       }}
-      transition={{ type: "timing", duration: 130, easing: Easing.out(Easing.quad) }}
+      transition={{ type: "spring", damping: 16, stiffness: 500 }}
       style={style as any}
     >
       {children}
