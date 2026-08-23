@@ -385,31 +385,16 @@ export function TitleRule({ style }: { style?: StyleProp<ViewStyle> }) {
 
 // ─── Ambient background watermark (large, faint SunArc) ────────
 // Meant as a sibling behind a screen's ScrollView, not inside its scrolling
-// content — fills otherwise-dead space with a quiet, on-brand presence and
-// slowly rotates (the sun's path across the day) rather than sitting inert.
+// content — fills otherwise-dead space with a quiet, on-brand presence.
+// Static: an arc (not rotationally symmetric like the old ring) spinning in
+// a full circle just reads as a glitch, not "the sun's path" — so it sits
+// still instead of animating for no functional reason.
 export function Watermark({ size = 320 }: { size?: number }) {
-  const reducedMotion = useReducedMotion();
-  const rotate = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    const loop = Animated.loop(
-      Animated.timing(rotate, { toValue: 1, duration: 60000, easing: Easing.linear, useNativeDriver: true })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [reducedMotion]);
-
   return (
     <View pointerEvents="none" style={[s.watermark, { width: size, height: size, right: -size * 0.3, bottom: -size * 0.3 }]}>
-      <Animated.View
-        style={{
-          opacity: 0.08,
-          transform: [{ rotate: rotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }],
-        }}
-      >
+      <View style={{ opacity: 0.08 }}>
         <SunArc size={size} />
-      </Animated.View>
+      </View>
     </View>
   );
 }
