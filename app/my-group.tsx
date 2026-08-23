@@ -98,7 +98,10 @@ export default function MyGroup() {
             if (userRole === "student") {
               await supabase.from("group_members").update({ status: "left" }).eq("group_id", groupId).eq("student_id", user.id);
             } else {
-              await supabase.from("group_members").update({ status: "left" }).eq("group_id", groupId).eq("parent_id", user.id);
+              // Parents don't get their own row — they share the family's row
+              // with the student. Null parent_id instead of marking the row
+              // "left", so the student's membership isn't removed too.
+              await supabase.from("group_members").update({ parent_id: null }).eq("group_id", groupId).eq("parent_id", user.id);
             }
             Alert.alert("Done", "You've left the group.", [{ text: "OK", onPress: () => router.replace("/(tabs)/home") }]);
           } catch {

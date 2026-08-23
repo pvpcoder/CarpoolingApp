@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
   Alert,
@@ -9,22 +10,28 @@ import {
   Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
+import { registerForPushNotifications } from "../../lib/notifications";
 import { useTheme, Fonts } from "../../lib/theme";
-import { LoadingScreen, FadeIn, Watermark, TitleRule, ListSection, ListRow } from "../../components/UI";
+import { LoadingScreen, FadeIn, Watermark, TitleRule, ListSection, ListRow, ToggleSwitch } from "../../components/UI";
 
 export default function ProfileTab() {
   const router = useRouter();
   const c = useTheme();
 
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState<"student" | "parent" | null>(null);
   const [childName, setChildName] = useState<string | null>(null);
-  const [groupName, setGroupName] = useState<string | null>(null);
-  const [groupId, setGroupId] = useState<string | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -37,7 +44,11 @@ export default function ProfileTab() {
         handleLogout(router);
         return;
       }
+      setUserId(user.id);
       setUserEmail(user.email || "");
+
+      const { data: tokenRow } = await supabase.from("push_tokens").select("id").eq("user_id", user.id).limit(1).maybeSingle();
+      setNotificationsEnabled(!!tokenRow);
 
       const { data: student } = await supabase
         .from("students")
@@ -48,18 +59,6 @@ export default function ProfileTab() {
       if (student) {
         setUserRole("student");
         setUserName(student.name || "");
-
-        const { data: membership } = await supabase
-          .from("group_members")
-          .select("group_id, carpool_groups ( id, name )")
-          .eq("student_id", student.id)
-          .eq("status", "active")
-          .limit(1);
-        if (membership && membership.length > 0) {
-          const g = (membership[0] as any).carpool_groups;
-          setGroupName(g.name);
-          setGroupId(g.id);
-        }
       } else {
         const { data: parent } = await supabase
           .from("parents")
@@ -77,18 +76,6 @@ export default function ProfileTab() {
               .eq("id", parent.student_id)
               .single();
             setChildName(child?.name || null);
-
-            const { data: membership } = await supabase
-              .from("group_members")
-              .select("group_id, carpool_groups ( id, name )")
-              .eq("student_id", parent.student_id)
-              .eq("status", "active")
-              .limit(1);
-            if (membership && membership.length > 0) {
-              const g = (membership[0] as any).carpool_groups;
-              setGroupName(g.name);
-              setGroupId(g.id);
-            }
           }
         }
       }
@@ -107,54 +94,39 @@ export default function ProfileTab() {
     }
   };
 
+  const handleSaveName = async () => {
+    if (!editName.trim() || editName.trim() === userName || !userId) { setIsEditingName(false); return; }
+    setSavingName(true);
+    const table = userRole === "student" ? "students" : "parents";
+    const { error } = await supabase.from(table).update({ name: editName.trim() }).eq("id", userId);
+    setSavingName(false);
+    if (error) { Alert.alert("Error", "Couldn't update your name."); return; }
+    setUserName(editName.trim());
+    setIsEditingName(false);
+  };
+
+  const handleToggleNotifications = async (next: boolean) => {
+    if (!userId || notificationsBusy) return;
+    setNotificationsBusy(true);
+    if (next) {
+      await registerForPushNotifications(userId);
+      const { data: tokenRow } = await supabase.from("push_tokens").select("id").eq("user_id", userId).limit(1).maybeSingle();
+      setNotificationsEnabled(!!tokenRow);
+      if (!tokenRow) {
+        Alert.alert("Couldn't enable notifications", "Check that notifications are allowed for this app in your device settings.");
+      }
+    } else {
+      await supabase.from("push_tokens").delete().eq("user_id", userId);
+      setNotificationsEnabled(false);
+    }
+    setNotificationsBusy(false);
+  };
+
   const confirmLogout = () => {
     Alert.alert("Sign out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       { text: "Sign out", style: "destructive", onPress: () => handleLogout(router) },
     ]);
-  };
-
-  const confirmLeaveGroup = () => {
-    if (!groupId) return;
-    Alert.alert(
-      "Leave group",
-      "You'll need a new invite to rejoin.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Leave",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const user = await getValidUser();
-              if (!user) return;
-              if (groupId) {
-                const { deletedGroups } = require("../../lib/deletedGroups");
-                deletedGroups.add(groupId);
-              }
-              if (userRole === "student") {
-                await supabase
-                  .from("group_members")
-                  .update({ status: "left" })
-                  .eq("group_id", groupId)
-                  .eq("student_id", user.id);
-              } else {
-                await supabase
-                  .from("group_members")
-                  .update({ parent_id: null })
-                  .eq("group_id", groupId)
-                  .eq("parent_id", user.id);
-              }
-              Alert.alert("Done", "You've left the group.");
-              setGroupName(null);
-              setGroupId(null);
-            } catch {
-              Alert.alert("Error", "Couldn't leave group. Try again.");
-            }
-          },
-        },
-      ]
-    );
   };
 
   const confirmDeleteAccount = () => {
@@ -250,7 +222,36 @@ export default function ProfileTab() {
           <View style={[styles.initials, { backgroundColor: c.dawnFaded }]}>
             <Text style={[styles.initialsText, { color: c.dawn, fontFamily: Fonts.display }]}>{initials}</Text>
           </View>
-          <Text style={[styles.profileName, { color: c.textPrimary, fontFamily: Fonts.display }]}>{userName || "User"}</Text>
+
+          {isEditingName ? (
+            <View style={styles.editNameRow}>
+              <TextInput
+                style={[styles.editNameInput, { color: c.textPrimary, borderColor: c.dawn, fontFamily: Fonts.display }]}
+                value={editName}
+                onChangeText={setEditName}
+                autoFocus
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+              />
+              <Pressable onPress={handleSaveName} disabled={savingName} style={[styles.editNameSave, { backgroundColor: c.dawn }]}>
+                <Text style={[styles.editNameSaveText, { fontFamily: Fonts.bodyBold }]}>{savingName ? "…" : "Save"}</Text>
+              </Pressable>
+              <Pressable onPress={() => setIsEditingName(false)} hitSlop={12} style={{ padding: 8 }}>
+                <Ionicons name="close" size={18} color={c.textMuted} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => { setEditName(userName); setIsEditingName(true); }}
+              style={styles.nameRow}
+              hitSlop={8}
+            >
+              <Text style={[styles.profileName, { color: c.textPrimary, fontFamily: Fonts.display }]}>{userName || "User"}</Text>
+              <Ionicons name="pencil-outline" size={16} color={c.textMuted} style={{ marginLeft: 8, marginBottom: 6 }} />
+            </Pressable>
+          )}
+
           <TitleRule />
           <Text style={[styles.profileEmail, { color: c.textMuted, fontFamily: Fonts.body }]}>{userEmail}</Text>
           <View style={[styles.roleTag, { backgroundColor: c.dawnFaded, borderColor: c.dawnBorder }]}>
@@ -262,28 +263,30 @@ export default function ProfileTab() {
       </FadeIn>
 
       <View style={styles.body}>
-        {/* Account + group section, merged — splitting a couple rows each
-            into two separately-labeled boxes was the monotony problem in
-            miniature */}
+        {/* Account — account-level only. Group actions (leave, invite,
+            schedule, chat) live on the group's own screen, not here. */}
         <ListSection label="ACCOUNT">
           {childName && <ListRow label="Linked child" value={childName} />}
-          {groupName && (
-            <ListRow label="Carpool group" value={groupName} onPress={() => router.push(`/my-group?groupId=${groupId}`)} />
-          )}
           <ListRow label="Change password" onPress={handleResetPassword} />
           {userRole === "student" && (
             <ListRow label="Pickup location" onPress={() => router.push("/setup-location")} />
           )}
-          {groupName && userRole === "parent" && groupId && (
-            <ListRow label="My availability" onPress={() => router.push(`/availability?groupId=${groupId}`)} />
-          )}
-          {groupName && <ListRow label="Leave group" onPress={confirmLeaveGroup} danger chevron={false} />}
+        </ListSection>
+
+        {/* Preferences */}
+        <ListSection label="PREFERENCES">
+          <View style={styles.toggleRow}>
+            <Text style={[styles.listRowLabelStandin, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Push notifications</Text>
+            <ToggleSwitch value={notificationsEnabled} onValueChange={handleToggleNotifications} />
+          </View>
         </ListSection>
 
         {/* About — a quiet unlabeled footer list, not a third identical section */}
         <ListSection>
           <ListRow label="Version" value="1.0.0" />
           <ListRow label="Contact support" onPress={() => Linking.openURL("mailto:support@hopin.app")} />
+          <ListRow label="Privacy Policy" onPress={() => Alert.alert("Coming soon", "Our privacy policy is being finalized.")} />
+          <ListRow label="Terms of Service" onPress={() => Alert.alert("Coming soon", "Our terms of service are being finalized.")} />
         </ListSection>
 
         {/* Sign out */}
@@ -338,12 +341,41 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    alignSelf: "flex-start",
+  },
   profileName: {
     fontSize: 36,
     fontWeight: "900",
     letterSpacing: -1.2,
     lineHeight: 38,
     marginBottom: 4,
+  },
+  editNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  editNameInput: {
+    flex: 1,
+    fontSize: 22,
+    letterSpacing: -0.5,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  editNameSave: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  editNameSaveText: {
+    color: "#FFFFFF",
+    fontSize: 13,
   },
   profileEmail: {
     fontSize: 13,
@@ -365,6 +397,17 @@ const styles = StyleSheet.create({
 
   body: {
     paddingHorizontal: 20,
+  },
+
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+  },
+  listRowLabelStandin: {
+    fontSize: 16,
   },
 
   signOutBtn: {
