@@ -4,6 +4,7 @@ import { useEffect, useCallback } from "react";
 import { View, Text } from "react-native";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import * as Sentry from "@sentry/react-native";
 import { useFonts, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
@@ -93,6 +94,30 @@ function RootLayout() {
 
     // App already open when deep link arrives
     const sub = Linking.addEventListener("url", ({ url }) => handleDeepLink(url));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const routeFromNotification = (data: any) => {
+      if (!data) return;
+      if (data.type === "message" && data.groupId) {
+        router.push(`/group-chat?groupId=${data.groupId}`);
+      } else if (data.type === "swap" && data.groupId) {
+        router.push(`/weekly-schedule?groupId=${data.groupId}`);
+      } else if (data.type === "invite") {
+        router.push("/(tabs)/home");
+      }
+    };
+
+    // App opened from a killed state by tapping a notification
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) routeFromNotification(response.notification.request.content.data);
+    });
+
+    // App already open (foreground or backgrounded) when a notification is tapped
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      routeFromNotification(response.notification.request.content.data);
+    });
     return () => sub.remove();
   }, []);
 

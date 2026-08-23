@@ -211,7 +211,7 @@ export default function WeeklySchedule() {
       { text: "Request swap", onPress: async () => {
         const { error } = await supabase.from("swap_requests").insert({ slot_id: slotId, requesting_parent_id: currentUserId, status: "open", message: "Can someone cover this slot?" });
         if (error) { Alert.alert("Error", error.message); return; }
-        notifyGroupMembers(groupId as string, currentUserId!, "Swap Request", `${parentMap[currentUserId!] || "A parent"} needs someone to cover a driving slot.`);
+        notifyGroupMembers(groupId as string, currentUserId!, "Swap Request", `${parentMap[currentUserId!] || "A parent"} needs someone to cover a driving slot.`, "swap");
         Alert.alert("Swap requested", "Other parents will see your request.");
         loadSchedule();
       }},
@@ -227,7 +227,7 @@ export default function WeeklySchedule() {
         if (swapError) { Alert.alert("Error", swapError.message); return; }
         const { error: slotError } = await supabase.from("schedule_slots").update({ driver_parent_id: currentUserId, status: "swapped" }).eq("id", slotId);
         if (slotError) { Alert.alert("Error", slotError.message); return; }
-        notifyGroupMembers(groupId as string, currentUserId!, "Swap Covered", `${parentMap[currentUserId!] || "A parent"} is covering the slot.`);
+        notifyGroupMembers(groupId as string, currentUserId!, "Swap Covered", `${parentMap[currentUserId!] || "A parent"} is covering the slot.`, "swap");
         Alert.alert("Thanks!", "You've been assigned as the driver for this slot.");
         loadSchedule();
       }},

@@ -121,7 +121,7 @@ export default function Discover() {
     const { error } = await supabase.from("group_invites").insert({ group_id: myGroupId, invited_by: myData.id, invited_student_id: studentId, status: "pending" });
     setInviting(null);
     if (error) { Alert.alert("Error", error.message); return; }
-    sendPushNotification([studentId], "Carpool Invite", `${myData.name} invited you to join their carpool group.`);
+    sendPushNotification([studentId], "Carpool Invite", `${myData.name} invited you to join their carpool group.`, { type: "invite" });
     Alert.alert("Invite sent", "They'll see your invite when they open the app.");
     loadData();
   };

@@ -106,7 +106,8 @@ export async function notifyGroupMembers(
   groupId: string,
   senderId: string,
   title: string,
-  body: string
+  body: string,
+  type: "message" | "swap" = "message"
 ) {
   const { data: members } = await supabase
     .from("group_members")
@@ -121,5 +122,5 @@ export async function notifyGroupMembers(
     .filter((id: any) => id && id !== senderId);
 
   const unique = [...new Set(userIds)];
-  await sendPushNotification(unique, title, body, { groupId });
+  await sendPushNotification(unique, title, body, { groupId, type });
 }
