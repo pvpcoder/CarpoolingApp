@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   Alert,
   RefreshControl,
   Pressable,
-  Animated,
 } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -51,8 +51,12 @@ export default function HomeTab() {
   const [todayParentGroupName, setTodayParentGroupName] = useState<string | null>(null);
   const [nextDriveDay, setNextDriveDay] = useState<string | null>(null);
   const [nextDriveType, setNextDriveType] = useState<string | null>(null);
-  const bodyOpacity = useRef(new Animated.Value(0)).current;
-  const bodySlide = useRef(new Animated.Value(16)).current;
+  const bodyOpacity = useSharedValue(0);
+  const bodySlide = useSharedValue(16);
+  const bodyStyle = useAnimatedStyle(() => ({
+    opacity: bodyOpacity.value,
+    transform: [{ translateY: bodySlide.value }],
+  }));
 
   useFocusEffect(
     useCallback(() => {
@@ -101,10 +105,8 @@ export default function HomeTab() {
       setLoading(false);
       setRefreshing(false);
       if (!isRefresh) {
-        Animated.parallel([
-          Animated.timing(bodyOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
-          Animated.timing(bodySlide, { toValue: 0, duration: 380, useNativeDriver: true }),
-        ]).start();
+        bodyOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) });
+        bodySlide.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.cubic) });
       }
     } catch (err: any) {
       setLoading(false);
@@ -432,7 +434,7 @@ export default function HomeTab() {
         </View>
       </FadeIn>
 
-      <Animated.View style={[styles.body, { opacity: bodyOpacity, transform: [{ translateY: bodySlide }] }]}>
+      <Animated.View style={[styles.body, bodyStyle]}>
         {/* ── Today's Ride (student: AM + PM) ── */}
         {role === "student" && (todaySlot || todayAfternoonSlot) && (
           <FadeIn>

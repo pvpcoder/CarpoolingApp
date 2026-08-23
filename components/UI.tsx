@@ -1,7 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import {
-  Animated,
-  Easing,
   TouchableOpacity,
   View,
   Text,
@@ -13,6 +11,19 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import { MotiView } from "moti";
+import { MotiPressable } from "moti/interactions";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedProps,
+  withTiming,
+  withSpring,
+  withRepeat,
+  withSequence,
+  interpolate,
+  Easing,
+} from "react-native-reanimated";
 import { useTheme, Spacing, Radius, FontSizes, Fonts, Shadows } from "../lib/theme";
 import { useReducedMotion } from "../lib/motion";
 
@@ -31,20 +42,15 @@ export function FadeIn({
   style?: StyleProp<ViewStyle>;
 }) {
   const reducedMotion = useReducedMotion();
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(reducedMotion ? 0 : distance)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration, delay, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration, delay, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
   return (
-    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
+    <MotiView
+      from={{ opacity: 0, translateY: reducedMotion ? 0 : distance }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: "timing", duration, delay, easing: Easing.out(Easing.cubic) }}
+      style={style}
+    >
       {children}
-    </Animated.View>
+    </MotiView>
   );
 }
 
@@ -59,26 +65,19 @@ export function ScaleIn({
   style?: StyleProp<ViewStyle>;
 }) {
   const reducedMotion = useReducedMotion();
-  const scale = useRef(new Animated.Value(reducedMotion ? 1 : 0.92)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, delay, friction: 10, tension: 80, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 320, delay, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
   return (
-    <Animated.View style={[{ opacity, transform: [{ scale }] }, style]}>
+    <MotiView
+      from={{ opacity: 0, scale: reducedMotion ? 1 : 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", delay, damping: 14, stiffness: 140 }}
+      style={style}
+    >
       {children}
-    </Animated.View>
+    </MotiView>
   );
 }
 
 // ─── Pressable with spring press feedback ─────────────────────
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
-
 export function PressableScale({
   onPress,
   disabled,
@@ -93,28 +92,19 @@ export function PressableScale({
   scaleTo?: number;
 }) {
   const reducedMotion = useReducedMotion();
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    if (reducedMotion) return;
-    Animated.spring(scale, { toValue: scaleTo, friction: 9, tension: 300, useNativeDriver: true }).start();
-  };
-  const handlePressOut = () => {
-    if (reducedMotion) return;
-    Animated.spring(scale, { toValue: 1, friction: 6, tension: 300, useNativeDriver: true }).start();
-  };
-
   return (
-    <AnimatedTouchable
-      activeOpacity={0.85}
+    <MotiPressable
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       disabled={disabled}
-      style={[style, { transform: [{ scale }] }]}
+      animate={({ pressed }: { pressed: boolean }) => {
+        "worklet";
+        return { scale: pressed && !reducedMotion ? scaleTo : 1, opacity: pressed ? 0.9 : 1 };
+      }}
+      transition={{ type: "timing", duration: 130, easing: Easing.out(Easing.quad) }}
+      style={style as any}
     >
       {children}
-    </AnimatedTouchable>
+    </MotiPressable>
   );
 }
 
@@ -278,22 +268,19 @@ export function BackButton({ onPress }: { onPress: () => void }) {
 export function ToggleSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
   const c = useTheme();
   const reducedMotion = useReducedMotion();
-  const translate = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const progress = useSharedValue(value ? 1 : 0);
 
   useEffect(() => {
-    Animated.spring(translate, { toValue: value ? 1 : 0, useNativeDriver: true, friction: 8, tension: 200, ...(reducedMotion ? { friction: 100 } : {}) }).start();
+    progress.value = reducedMotion ? (value ? 1 : 0) : withSpring(value ? 1 : 0, { damping: 15, stiffness: 220 });
   }, [value]);
+
+  const thumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: 2 + progress.value * 16 }],
+  }));
 
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={() => onValueChange(!value)} style={[s.switchTrack, { backgroundColor: value ? c.dawn : c.line }]}>
-      <Animated.View
-        style={[
-          s.switchThumb,
-          {
-            transform: [{ translateX: translate.interpolate({ inputRange: [0, 1], outputRange: [2, 18] }) }],
-          },
-        ]}
-      />
+      <Animated.View style={[s.switchThumb, thumbStyle]} />
     </TouchableOpacity>
   );
 }
@@ -303,23 +290,28 @@ export function TimeBadge({ time, period, pulse = false }: { time: string; perio
   const c = useTheme();
   const reducedMotion = useReducedMotion();
   const dotColor = period === "morning" ? c.dawn : c.dusk;
-  const dotOpacity = useRef(new Animated.Value(1)).current;
+  const opacity = useSharedValue(1);
 
   useEffect(() => {
-    if (!pulse || reducedMotion) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(dotOpacity, { toValue: 0.35, duration: 1100, useNativeDriver: true }),
-        Animated.timing(dotOpacity, { toValue: 1, duration: 1100, useNativeDriver: true }),
-      ])
+    if (!pulse || reducedMotion) {
+      opacity.value = 1;
+      return;
+    }
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.35, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1,
+      false
     );
-    loop.start();
-    return () => loop.stop();
   }, [pulse, reducedMotion]);
+
+  const dotStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
     <View style={s.timeBadge}>
-      <Animated.View style={[s.timeDot, { backgroundColor: dotColor, opacity: pulse ? dotOpacity : 1 }]} />
+      <Animated.View style={[s.timeDot, { backgroundColor: dotColor }, pulse && dotStyle]} />
       <Text style={[s.timeBadgeText, { color: c.textPrimary, fontFamily: Fonts.mono }]}>{time}</Text>
     </View>
   );
@@ -329,31 +321,33 @@ export function TimeBadge({ time, period, pulse = false }: { time: string; perio
 // A real vector arc tracing sunrise (dawn dot) to sunset (dusk dot), with a
 // gradient stroke between them — literally the sun's path across the day,
 // which is what the whole color system represents. When `animated`, the
-// arc actually draws itself stroke-first (SVG dash-offset), rather than
-// faking motion with a scale/rotate trick.
+// arc actually draws itself stroke-first (SVG dash-offset, worklet-driven
+// on the UI thread via Reanimated), rather than faking motion.
 const ARC_PATH = "M 10 55 A 40 40 0 0 1 90 55";
 const ARC_LENGTH = Math.PI * 40; // semicircle circumference, r=40
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export function SunArc({ size = 40, animated = false }: { size?: number; animated?: boolean }) {
   const c = useTheme();
   const reducedMotion = useReducedMotion();
   const gradientId = useRef(`sunarc-${Math.random().toString(36).slice(2)}`).current;
-  const progress = useRef(new Animated.Value(animated && !reducedMotion ? 0 : 1)).current;
-  const opacity = useRef(new Animated.Value(animated ? 0 : 1)).current;
+  const progress = useSharedValue(animated && !reducedMotion ? 0 : 1);
+  const opacity = useSharedValue(animated ? 0 : 1);
 
   useEffect(() => {
     if (!animated) return;
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.timing(progress, { toValue: 1, duration: reducedMotion ? 1 : 900, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-    ]).start();
+    opacity.value = withTiming(1, { duration: 200 });
+    progress.value = withTiming(1, { duration: reducedMotion ? 1 : 900, easing: Easing.out(Easing.cubic) });
   }, [animated]);
 
-  const strokeDashoffset = progress.interpolate({ inputRange: [0, 1], outputRange: [ARC_LENGTH, 0] });
+  const containerStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const pathAnimatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: ARC_LENGTH * (1 - progress.value),
+  }));
 
   return (
-    <Animated.View style={{ width: size, height: size, opacity }}>
+    <Animated.View style={[{ width: size, height: size }, containerStyle]}>
       <Svg width={size} height={size} viewBox="0 0 100 65">
         <Defs>
           <LinearGradient id={gradientId} x1="10" y1="0" x2="90" y2="0" gradientUnits="userSpaceOnUse">
@@ -368,7 +362,7 @@ export function SunArc({ size = 40, animated = false }: { size?: number; animate
           strokeLinecap="round"
           fill="none"
           strokeDasharray={`${ARC_LENGTH}, ${ARC_LENGTH}`}
-          strokeDashoffset={strokeDashoffset}
+          animatedProps={pathAnimatedProps}
         />
         <Circle cx="10" cy="55" r="4" fill={c.dawn} />
         <Circle cx="90" cy="55" r="4" fill={c.dusk} />
@@ -384,9 +378,9 @@ export function TitleRule({ style }: { style?: StyleProp<ViewStyle> }) {
 }
 
 // Precomputed points along the arc (piecewise, smooth enough for a slow-
-// moving dot) so a single Animated.Value can drive position without a
-// trig-capable interpolator — cx/cy at progress p, for the same M 10 55
-// A 40 40 0 0 1 90 55 path SunArc draws.
+// moving dot) so Reanimated's interpolate — which is linear, not
+// trig-aware — can drive position along the same M 10 55 A 40 40 0 0 1
+// 90 55 path SunArc draws.
 const ARC_STEPS = 24;
 const arcProgressStops: number[] = [];
 const arcCxStops: number[] = [];
@@ -398,7 +392,6 @@ for (let i = 0; i <= ARC_STEPS; i++) {
   arcCxStops.push(50 + 40 * Math.cos(theta));
   arcCyStops.push(55 + 40 * Math.sin(theta));
 }
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // ─── Ambient background watermark (large, faint SunArc) ────────
 // Meant as a sibling behind a screen's ScrollView, not inside its scrolling
@@ -410,22 +403,24 @@ export function Watermark({ size = 320 }: { size?: number }) {
   const c = useTheme();
   const reducedMotion = useReducedMotion();
   const gradientId = useRef(`watermark-${Math.random().toString(36).slice(2)}`).current;
-  const progress = useRef(new Animated.Value(0)).current;
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     if (reducedMotion) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progress, { toValue: 1, duration: 6000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(progress, { toValue: 0, duration: 6000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ])
+    progress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 6000, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 6000, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1,
+      false
     );
-    loop.start();
-    return () => loop.stop();
   }, [reducedMotion]);
 
-  const cx = progress.interpolate({ inputRange: arcProgressStops, outputRange: arcCxStops });
-  const cy = progress.interpolate({ inputRange: arcProgressStops, outputRange: arcCyStops });
+  const dotAnimatedProps = useAnimatedProps(() => ({
+    cx: interpolate(progress.value, arcProgressStops, arcCxStops),
+    cy: interpolate(progress.value, arcProgressStops, arcCyStops),
+  }));
 
   return (
     <View pointerEvents="none" style={[s.watermark, { width: size, height: size, right: -size * 0.3, bottom: -size * 0.3 }]}>
@@ -442,8 +437,8 @@ export function Watermark({ size = 320 }: { size?: number }) {
           <Circle cx="90" cy="55" r="3" fill={c.dusk} />
           {!reducedMotion && (
             <>
-              <AnimatedCircle cx={cx} cy={cy} r="9" fill={c.dusk} opacity={0.35} />
-              <AnimatedCircle cx={cx} cy={cy} r="4.5" fill={c.dusk} />
+              <AnimatedCircle animatedProps={dotAnimatedProps} r="9" fill={c.dusk} opacity={0.35} />
+              <AnimatedCircle animatedProps={dotAnimatedProps} r="4.5" fill={c.dusk} />
             </>
           )}
         </Svg>

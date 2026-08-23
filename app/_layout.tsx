@@ -2,6 +2,7 @@ import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useCallback } from "react";
 import { View, Text } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
@@ -126,6 +127,7 @@ function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <View style={{ flex: 1 }} onLayout={onLayout}>
       <StatusBar style="auto" />
       <Stack
@@ -152,6 +154,7 @@ function RootLayout() {
         <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
       </Stack>
     </View>
+    </GestureHandlerRootView>
   );
 }
 
