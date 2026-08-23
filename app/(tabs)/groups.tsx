@@ -16,8 +16,8 @@ import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { deletedGroups } from "../../lib/deletedGroups";
 import { SCHOOL } from "../../lib/config";
-import { useTheme, Fonts } from "../../lib/theme";
-import { LoadingScreen, PressableScale, FadeIn, EmptyState } from "../../components/UI";
+import { useTheme, Fonts, Shadows } from "../../lib/theme";
+import { LoadingScreen, PressableScale, FadeIn, EmptyState, Watermark, TitleRule, ListSection, ListRow } from "../../components/UI";
 
 interface GroupInfo {
   id: string;
@@ -200,22 +200,25 @@ export default function GroupsTab() {
   const groupsNeedingAvailability = groups.filter((g) => !g.hasAvailability);
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.paper }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => loadGroups(true)}
-          tintColor={c.dawn}
-        />
-      }
-    >
+    <View style={[styles.root, { backgroundColor: c.paper }]}>
+      <Watermark />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadGroups(true)}
+            tintColor={c.dawn}
+          />
+        }
+      >
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>
           {role === "parent" && childName ? `${childName}'s Groups` : "My Groups"}
         </Text>
+        <TitleRule />
         <Text style={[styles.subtitle, { color: c.textSecondary, fontFamily: Fonts.body }]}>
           {role === "student"
             ? "Manage your carpool groups"
@@ -225,7 +228,8 @@ export default function GroupsTab() {
 
       <Animated.View style={[styles.body, { opacity: bodyOpacity, transform: [{ translateY: bodySlide }] }]}>
         {hasGroups ? (
-          <View style={[styles.groupList, { borderColor: c.line }]}>
+          <View style={[styles.groupListShadowWrap, Shadows?.sm as object]}>
+          <View style={[styles.groupList, { borderColor: c.line, borderLeftColor: c.dawn }]}>
             {groups.map((g, idx) => (
               <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
                 {idx > 0 && <View style={[styles.rowDivider, { backgroundColor: c.line }]} />}
@@ -264,6 +268,7 @@ export default function GroupsTab() {
               </FadeIn>
             ))}
           </View>
+          </View>
         ) : (
           <View style={{ marginBottom: 24 }}>
             <EmptyState
@@ -280,27 +285,18 @@ export default function GroupsTab() {
 
         {/* Student actions */}
         {role === "student" && (
-          <View style={styles.actions}>
-            <Text style={[styles.actionsLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACTIONS</Text>
+          <ListSection style={{ marginBottom: 16 }}>
             {hasGroups && groups[0]?.id && (
-              <PressableScale
+              <ListRow
+                label="Find nearby students"
                 onPress={() => router.push(`/discover?groupId=${groups[0].id}`)}
-                style={[styles.linkRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
-              >
-                <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Find nearby students</Text>
-                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-              </PressableScale>
+              />
             )}
-            <PressableScale
+            <ListRow
+              label={hasGroups ? "Create another group" : "Create a group"}
               onPress={() => router.push("/create-group")}
-              style={[styles.linkRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
-            >
-              <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>
-                {hasGroups ? "Create another group" : "Create a group"}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-            </PressableScale>
-          </View>
+            />
+          </ListSection>
         )}
 
         {/* Parent availability CTAs */}
@@ -326,7 +322,8 @@ export default function GroupsTab() {
       </Animated.View>
 
       <View style={{ height: 24 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -336,6 +333,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  root: { flex: 1 },
   container: { flex: 1 },
   content: { paddingBottom: 40 },
 
@@ -361,11 +359,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
+  groupListShadowWrap: {
+    borderRadius: 12,
+    marginBottom: 24,
+  },
   groupList: {
     borderWidth: 1.5,
+    borderLeftWidth: 3,
     borderRadius: 12,
     overflow: "hidden",
-    marginBottom: 24,
   },
   rowDivider: {
     height: StyleSheet.hairlineWidth,

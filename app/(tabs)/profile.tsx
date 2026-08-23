@@ -8,12 +8,11 @@ import {
   Linking,
   Pressable,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { useTheme, Fonts } from "../../lib/theme";
-import { LoadingScreen, FadeIn } from "../../components/UI";
+import { LoadingScreen, FadeIn, Watermark, TitleRule, ListSection, ListRow } from "../../components/UI";
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -238,11 +237,13 @@ export default function ProfileTab() {
     : "?";
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.paper }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[styles.root, { backgroundColor: c.paper }]}>
+      <Watermark />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Header */}
       <FadeIn>
         <View style={styles.header}>
@@ -250,6 +251,7 @@ export default function ProfileTab() {
             <Text style={[styles.initialsText, { color: c.dawn, fontFamily: Fonts.display }]}>{initials}</Text>
           </View>
           <Text style={[styles.profileName, { color: c.textPrimary, fontFamily: Fonts.display }]}>{userName || "User"}</Text>
+          <TitleRule />
           <Text style={[styles.profileEmail, { color: c.textMuted, fontFamily: Fonts.body }]}>{userEmail}</Text>
           <View style={[styles.roleTag, { backgroundColor: c.dawnFaded, borderColor: c.dawnBorder }]}>
             <Text style={[styles.roleTagText, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>
@@ -260,102 +262,29 @@ export default function ProfileTab() {
       </FadeIn>
 
       <View style={styles.body}>
-        {/* Account section */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACCOUNT</Text>
-        <View style={[styles.section, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
-          {childName && (
-            <>
-              <View style={styles.row}>
-                <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Linked child</Text>
-                <Text style={[styles.rowValue, { color: c.textSecondary, fontFamily: Fonts.body }]}>{childName}</Text>
-              </View>
-              <View style={[styles.divider, { backgroundColor: c.line }]} />
-            </>
-          )}
-
+        {/* Account + group section, merged — splitting a couple rows each
+            into two separately-labeled boxes was the monotony problem in
+            miniature */}
+        <ListSection label="ACCOUNT">
+          {childName && <ListRow label="Linked child" value={childName} />}
           {groupName && (
-            <>
-              <Pressable
-                onPress={() => router.push(`/my-group?groupId=${groupId}`)}
-                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Carpool group</Text>
-                <View style={styles.rowRight}>
-                  <Text style={[styles.rowValue, { color: c.textSecondary, fontFamily: Fonts.body }]} numberOfLines={1}>
-                    {groupName}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ marginLeft: 6 }} />
-                </View>
-              </Pressable>
-              <View style={[styles.divider, { backgroundColor: c.line }]} />
-            </>
+            <ListRow label="Carpool group" value={groupName} onPress={() => router.push(`/my-group?groupId=${groupId}`)} />
           )}
-
-          <Pressable
-            onPress={handleResetPassword}
-            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Change password</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-          </Pressable>
-
+          <ListRow label="Change password" onPress={handleResetPassword} />
           {userRole === "student" && (
-            <>
-              <View style={[styles.divider, { backgroundColor: c.line }]} />
-              <Pressable
-                onPress={() => router.push("/setup-location")}
-                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Pickup location</Text>
-                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-              </Pressable>
-            </>
+            <ListRow label="Pickup location" onPress={() => router.push("/setup-location")} />
           )}
-        </View>
+          {groupName && userRole === "parent" && groupId && (
+            <ListRow label="My availability" onPress={() => router.push(`/availability?groupId=${groupId}`)} />
+          )}
+          {groupName && <ListRow label="Leave group" onPress={confirmLeaveGroup} danger chevron={false} />}
+        </ListSection>
 
-        {/* Group section */}
-        {groupName && (
-          <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>GROUP</Text>
-            <View style={[styles.section, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
-              {userRole === "parent" && groupId && (
-                <>
-                  <Pressable
-                    onPress={() => router.push(`/availability?groupId=${groupId}`)}
-                    style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>My availability</Text>
-                    <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-                  </Pressable>
-                  <View style={[styles.divider, { backgroundColor: c.line }]} />
-                </>
-              )}
-              <Pressable
-                onPress={confirmLeaveGroup}
-                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Text style={[styles.rowLabel, { color: c.rust, fontFamily: Fonts.bodyMedium }]}>Leave group</Text>
-              </Pressable>
-            </View>
-          </>
-        )}
-
-        {/* About section */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ABOUT</Text>
-        <View style={[styles.section, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
-          <View style={styles.row}>
-            <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Version</Text>
-            <Text style={[styles.rowValue, { color: c.textSecondary, fontFamily: Fonts.mono }]}>1.0.0</Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: c.line }]} />
-          <Pressable
-            onPress={() => Linking.openURL("mailto:support@hopin.app")}
-            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text style={[styles.rowLabel, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Contact support</Text>
-            <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-          </Pressable>
-        </View>
+        {/* About — a quiet unlabeled footer list, not a third identical section */}
+        <ListSection>
+          <ListRow label="Version" value="1.0.0" />
+          <ListRow label="Contact support" onPress={() => Linking.openURL("mailto:support@hopin.app")} />
+        </ListSection>
 
         {/* Sign out */}
         <Pressable
@@ -376,7 +305,8 @@ export default function ProfileTab() {
       </View>
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -386,6 +316,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  root: { flex: 1 },
   container: { flex: 1 },
   content: { paddingBottom: 40 },
 
@@ -434,44 +365,6 @@ const styles = StyleSheet.create({
 
   body: {
     paddingHorizontal: 20,
-  },
-
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginTop: 24,
-    marginLeft: 2,
-  },
-  section: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 18,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: "500",
-    flex: 1,
-  },
-  rowValue: {
-    fontSize: 14,
-    fontWeight: "400",
-    maxWidth: 160,
-  },
-  rowRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: 18,
   },
 
   signOutBtn: {

@@ -1,5 +1,5 @@
 import { registerForPushNotifications } from "../lib/notifications";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useTheme, Fonts } from "../lib/theme";
-import { PrimaryButton } from "../components/UI";
+import { PrimaryButton, ScaleIn, FadeIn, Watermark, TitleRule } from "../components/UI";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,24 +24,6 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -148,79 +129,81 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: c.paper }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <Animated.View
-        style={[styles.inner, { opacity, transform: [{ translateY }] }]}
+    <View style={[styles.root, { backgroundColor: c.paper }]}>
+      <Watermark />
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Wordmark */}
-        <View style={styles.wordmark}>
-          <Text style={[styles.brand, { color: c.textPrimary, fontFamily: Fonts.display }]}>HopIn</Text>
-          <Text style={[styles.tagline, { color: c.textMuted, fontFamily: Fonts.bodySemiBold }]}>PDSB carpool groups</Text>
-        </View>
+        <View style={styles.inner}>
+          {/* Wordmark */}
+          <ScaleIn style={styles.wordmark}>
+            <Text style={[styles.brand, { color: c.textPrimary, fontFamily: Fonts.display }]}>HopIn</Text>
+            <TitleRule />
+            <Text style={[styles.tagline, { color: c.textMuted, fontFamily: Fonts.body }]}>PDSB carpool groups</Text>
+          </ScaleIn>
 
-        {/* Form */}
-        <View style={styles.form}>
-          <View style={[styles.field, { borderColor: emailFocused ? c.dawn : c.line }]}>
-            <Text style={[styles.fieldLabel, { color: emailFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
-              EMAIL
-            </Text>
-            <TextInput
-              style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
-              placeholder="123456@pdsb.net"
-              placeholderTextColor={c.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
+          {/* Form */}
+          <FadeIn delay={80} style={styles.form}>
+            <View style={[styles.field, { borderColor: emailFocused ? c.dawn : c.line }]}>
+              <Text style={[styles.fieldLabel, { color: emailFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
+                EMAIL
+              </Text>
+              <TextInput
+                style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+                placeholder="123456@pdsb.net"
+                placeholderTextColor={c.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={[styles.field, { borderColor: passwordFocused ? c.dawn : c.line, marginTop: 12 }]}>
+              <Text style={[styles.fieldLabel, { color: passwordFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
+                PASSWORD
+              </Text>
+              <TextInput
+                style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+                placeholder="••••••••"
+                placeholderTextColor={c.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                secureTextEntry
+              />
+            </View>
+
+            <Pressable onPress={handleForgotPassword} style={styles.forgotRow} hitSlop={12}>
+              <Text style={[styles.forgotText, { color: c.textSecondary, fontFamily: Fonts.bodyMedium }]}>Forgot password?</Text>
+            </Pressable>
+
+            <PrimaryButton
+              title="Sign in"
+              onPress={handleLogin}
+              loading={loading}
+              style={styles.signInBtn}
             />
-          </View>
+          </FadeIn>
 
-          <View style={[styles.field, { borderColor: passwordFocused ? c.dawn : c.line, marginTop: 12 }]}>
-            <Text style={[styles.fieldLabel, { color: passwordFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
-              PASSWORD
-            </Text>
-            <TextInput
-              style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
-              placeholder="••••••••"
-              placeholderTextColor={c.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => setPasswordFocused(true)}
-              onBlur={() => setPasswordFocused(false)}
-              secureTextEntry
-            />
-          </View>
-
-          <Pressable onPress={handleForgotPassword} style={styles.forgotRow} hitSlop={12}>
-            <Text style={[styles.forgotText, { color: c.textSecondary, fontFamily: Fonts.bodyMedium }]}>Forgot password?</Text>
-          </Pressable>
-
-          <PrimaryButton
-            title="Sign in"
-            onPress={handleLogin}
-            loading={loading}
-            style={styles.signInBtn}
-          />
+          {/* Footer */}
+          <FadeIn delay={140} style={styles.footer}>
+            <View style={[styles.footerDivider, { backgroundColor: c.line }]} />
+            <Pressable onPress={() => router.push("/signup")} hitSlop={12}>
+              <Text style={[styles.footerText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+                New to HopIn?{"  "}
+                <Text style={{ color: c.dawn, fontFamily: Fonts.bodySemiBold }}>Create account</Text>
+              </Text>
+            </Pressable>
+          </FadeIn>
         </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <View style={[styles.footerDivider, { backgroundColor: c.line }]} />
-          <Pressable onPress={() => router.push("/signup")} hitSlop={12}>
-            <Text style={[styles.footerText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
-              New to HopIn?{"  "}
-              <Text style={{ color: c.dawn, fontFamily: Fonts.bodySemiBold }}>Create account</Text>
-            </Text>
-          </Pressable>
-        </View>
-      </Animated.View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -245,9 +228,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   tagline: {
-    fontSize: 10,
-    letterSpacing: 2.5,
-    textTransform: "uppercase" as const,
+    fontSize: 14,
+    letterSpacing: -0.1,
   },
 
   form: {},

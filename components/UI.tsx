@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
+  Easing,
   TouchableOpacity,
   View,
   Text,
@@ -297,12 +298,27 @@ export function ToggleSwitch({ value, onValueChange }: { value: boolean; onValue
 }
 
 // ─── Time badge (AM/PM dot + mono time) ────────────────────────
-export function TimeBadge({ time, period }: { time: string; period: "morning" | "afternoon" }) {
+export function TimeBadge({ time, period, pulse = false }: { time: string; period: "morning" | "afternoon"; pulse?: boolean }) {
   const c = useTheme();
+  const reducedMotion = useReducedMotion();
   const dotColor = period === "morning" ? c.dawn : c.dusk;
+  const dotOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!pulse || reducedMotion) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotOpacity, { toValue: 0.35, duration: 1100, useNativeDriver: true }),
+        Animated.timing(dotOpacity, { toValue: 1, duration: 1100, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse, reducedMotion]);
+
   return (
     <View style={s.timeBadge}>
-      <View style={[s.timeDot, { backgroundColor: dotColor }]} />
+      <Animated.View style={[s.timeDot, { backgroundColor: dotColor, opacity: pulse ? dotOpacity : 1 }]} />
       <Text style={[s.timeBadgeText, { color: c.textPrimary, fontFamily: Fonts.mono }]}>{time}</Text>
     </View>
   );
@@ -358,6 +374,96 @@ export function SunArc({ size = 40, animated = false }: { size?: number; animate
       <View style={{ position: "absolute", top: -dotSize / 2, left: size / 2 - dotSize / 2, width: dotSize, height: dotSize, borderRadius: dotSize / 2, backgroundColor: c.dawn }} />
       <View style={{ position: "absolute", bottom: -dotSize / 2, left: size / 2 - dotSize / 2, width: dotSize, height: dotSize, borderRadius: dotSize / 2, backgroundColor: c.dusk }} />
     </Animated.View>
+  );
+}
+
+// ─── Title rule — small signature accent under a primary heading ──
+export function TitleRule({ style }: { style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  return <View style={[s.titleRule, { backgroundColor: c.dawn }, style]} />;
+}
+
+// ─── Ambient background watermark (large, faint SunArc) ────────
+// Meant as a sibling behind a screen's ScrollView, not inside its scrolling
+// content — fills otherwise-dead space with a quiet, on-brand presence and
+// slowly rotates (the sun's path across the day) rather than sitting inert.
+export function Watermark({ size = 320 }: { size?: number }) {
+  const reducedMotion = useReducedMotion();
+  const rotate = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const loop = Animated.loop(
+      Animated.timing(rotate, { toValue: 1, duration: 60000, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reducedMotion]);
+
+  return (
+    <View pointerEvents="none" style={[s.watermark, { width: size, height: size, right: -size * 0.3, bottom: -size * 0.3 }]}>
+      <Animated.View
+        style={{
+          opacity: 0.08,
+          transform: [{ rotate: rotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }],
+        }}
+      >
+        <SunArc size={size} />
+      </Animated.View>
+    </View>
+  );
+}
+
+// ─── Grouped list section (replaces one-box-per-row patterns) ──
+// Dividers are inserted automatically between whatever children actually
+// render (falsy conditional children are dropped by React.Children.toArray),
+// so callers never have to track which row happens to be "last".
+export function ListSection({ label, children, style }: { label?: string; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  const rows = React.Children.toArray(children);
+  return (
+    <View style={style}>
+      {label && <Text style={[s.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>{label}</Text>}
+      <View style={[s.listSection, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+        {rows.map((row, i) => (
+          <React.Fragment key={i}>
+            {row}
+            {i < rows.length - 1 && <View style={[s.listDivider, { backgroundColor: c.line }]} />}
+          </React.Fragment>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export function ListRow({
+  label,
+  value,
+  onPress,
+  danger,
+  chevron = true,
+}: {
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  danger?: boolean;
+  chevron?: boolean;
+}) {
+  const c = useTheme();
+  const content = (
+    <View style={s.listRow}>
+      <Text style={[s.listRowLabel, { color: danger ? c.rust : c.textPrimary, fontFamily: Fonts.bodyMedium }]}>{label}</Text>
+      <View style={s.listRowRight}>
+        {value && <Text style={[s.listRowValue, { color: c.textSecondary, fontFamily: Fonts.body }]} numberOfLines={1}>{value}</Text>}
+        {onPress && chevron && <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ marginLeft: 6 }} />}
+      </View>
+    </View>
+  );
+  if (!onPress) return content;
+  return (
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      {content}
+    </TouchableOpacity>
   );
 }
 
@@ -479,6 +585,31 @@ const s = StyleSheet.create({
   timeBadge: { flexDirection: "row", alignItems: "center", gap: 6 },
   timeDot: { width: 7, height: 7, borderRadius: 3.5 },
   timeBadgeText: { fontSize: FontSizes.sm },
+  watermark: { position: "absolute" },
+  titleRule: { width: 28, height: 2, borderRadius: 1, marginTop: 8, marginBottom: 4 },
+  sectionLabel: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.sm,
+    marginLeft: 2,
+  },
+  listSection: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: Spacing.md,
+  },
+  listDivider: { height: StyleSheet.hairlineWidth },
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: Spacing.lg,
+  },
+  listRowLabel: { fontSize: FontSizes.base },
+  listRowRight: { flexDirection: "row", alignItems: "center", flexShrink: 1, marginLeft: Spacing.md },
+  listRowValue: { fontSize: FontSizes.md, flexShrink: 1, textAlign: "right" },
   loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingLogo: { fontSize: 24, letterSpacing: -0.5, textAlign: "center", marginTop: 16 },
   loadingMessage: { fontSize: FontSizes.sm, marginTop: Spacing.md },

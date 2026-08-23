@@ -16,8 +16,8 @@ import { supabase } from "../lib/supabase";
 import { getValidUser } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
 import { SCHOOL } from "../lib/config";
-import { useTheme, Fonts } from "../lib/theme";
-import { PrimaryButton, SecondaryButton, DangerButton, PressableScale, BackButton, FadeIn, LoadingScreen } from "../components/UI";
+import { useTheme, Fonts, Shadows } from "../lib/theme";
+import { PrimaryButton, SecondaryButton, DangerButton, PressableScale, BackButton, FadeIn, LoadingScreen, Watermark, TitleRule } from "../components/UI";
 
 const openDirections = (address: string, lat?: number, lng?: number) => {
   let url: string;
@@ -167,10 +167,12 @@ export default function MyGroup() {
   const familiesWithParents = members.filter((m: any) => m.parents);
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.paper }]}
-      contentContainerStyle={styles.content}
-    >
+    <View style={[styles.root, { backgroundColor: c.paper }]}>
+      <Watermark />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
       <BackButton onPress={() => router.back()} />
 
       {/* Title */}
@@ -206,6 +208,7 @@ export default function MyGroup() {
           )}
         </View>
       )}
+      <TitleRule style={{ marginBottom: 14 }} />
       <View style={styles.meta}>
         <View style={[styles.statusBadge, { backgroundColor: group?.status === "active" ? c.dawnFaded : c.rustFaded }]}>
           <Text style={[styles.statusText, { color: group?.status === "active" ? c.dawn : c.rust, fontFamily: Fonts.bodyBold }]}>
@@ -224,9 +227,11 @@ export default function MyGroup() {
 
       {/* School */}
       <FadeIn>
-        <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
-          <Text style={[styles.cardLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>SCHOOL</Text>
-          <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>{SCHOOL.name}</Text>
+        <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }, Shadows?.sm as object]}>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="school-outline" size={15} color={c.textMuted} />
+            <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold, marginBottom: 0 }]}>{SCHOOL.name}</Text>
+          </View>
           <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{SCHOOL.address}</Text>
           <PressableScale
             onPress={() => openDirections(SCHOOL.address, SCHOOL.lat, SCHOOL.lng)}
@@ -264,8 +269,7 @@ export default function MyGroup() {
       )}
 
       {/* Families */}
-      <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>FAMILIES</Text>
-      <View style={[styles.memberList, { borderColor: c.line }]}>
+      <View style={[styles.memberList, { borderColor: c.line, marginTop: 4 }]}>
         {members.map((member: any, i: number) => (
           <FadeIn key={member.id} delay={Math.min(i, 6) * 40}>
             {i > 0 && <View style={[styles.divider, { backgroundColor: c.line }]} />}
@@ -384,11 +388,13 @@ export default function MyGroup() {
       </View>
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 64, paddingBottom: 48 },
 
@@ -447,10 +453,11 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 12,
   },
-  cardLabel: {
-    fontSize: 10,
-    letterSpacing: 0.8,
-    marginBottom: 6,
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 3,
   },
   cardTitle: {
     fontSize: 16,
@@ -493,12 +500,6 @@ const styles = StyleSheet.create({
   },
   linkText: { fontSize: 15, flex: 1 },
 
-  sectionLabel: {
-    fontSize: 10,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginLeft: 2,
-  },
   memberList: {
     borderWidth: 1.5,
     borderRadius: 12,

@@ -16,8 +16,8 @@ import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { deletedGroups } from "../../lib/deletedGroups";
 import { SCHOOL } from "../../lib/config";
-import { useTheme, Fonts } from "../../lib/theme";
-import { LoadingScreen, PressableScale, FadeIn, TimeBadge, EmptyState } from "../../components/UI";
+import { useTheme, Fonts, Shadows } from "../../lib/theme";
+import { LoadingScreen, PressableScale, FadeIn, TimeBadge, EmptyState, Watermark, TitleRule, ListSection, ListRow } from "../../components/UI";
 
 interface GroupInfo {
   id: string;
@@ -404,18 +404,20 @@ export default function HomeTab() {
   ];
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: c.paper }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => loadData(true)}
-          tintColor={c.dawn}
-        />
-      }
-    >
+    <View style={[styles.root, { backgroundColor: c.paper }]}>
+      <Watermark />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            tintColor={c.dawn}
+          />
+        }
+      >
       {/* ── Header ── */}
       <FadeIn>
         <View style={styles.header}>
@@ -423,6 +425,7 @@ export default function HomeTab() {
           <Text style={[styles.heroName, { color: c.textPrimary, fontFamily: Fonts.display }]}>
             {userName || (role === "student" ? "Student" : "Parent")}
           </Text>
+          <TitleRule />
           {role === "parent" && childName && (
             <Text style={[styles.heroSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>Linked to {childName}</Text>
           )}
@@ -440,6 +443,7 @@ export default function HomeTab() {
                   <TimeBadge
                     time={todaySlot.departure_time ? todaySlot.departure_time.slice(0, 5) : "AM"}
                     period="morning"
+                    pulse
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>{todayDriverName}</Text>
@@ -456,6 +460,7 @@ export default function HomeTab() {
                     <TimeBadge
                       time={todayAfternoonSlot.departure_time ? todayAfternoonSlot.departure_time.slice(0, 5) : (todayAfternoonSlot.slot_type === "late_afternoon" ? "LATE" : "PM")}
                       period="afternoon"
+                      pulse
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>{todayAfternoonDriverName}</Text>
@@ -489,6 +494,7 @@ export default function HomeTab() {
                         <TimeBadge
                           time={slot.departure_time ? slot.departure_time.slice(0, 5) : "--:--"}
                           period={slot.slot_type === "morning" ? "morning" : "afternoon"}
+                          pulse
                         />
                         <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>
                           {slot.slot_type === "morning" ? "To school" : slot.slot_type === "afternoon" ? "From school" : "Late pickup"}
@@ -568,7 +574,7 @@ export default function HomeTab() {
             <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
               <PressableScale
                 onPress={() => router.push(`/my-group?groupId=${g.id}`)}
-                style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+                style={[styles.card, styles.primaryCard, { backgroundColor: c.paperElevated, borderColor: c.line, borderLeftColor: c.dawn }, Shadows?.sm as object]}
               >
                 <View style={styles.groupHeader}>
                   <View style={styles.groupMeta}>
@@ -594,6 +600,19 @@ export default function HomeTab() {
                     <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ marginTop: 6 }} />
                   </View>
                 </View>
+
+                {role === "parent" && (
+                  <View style={[styles.groupStatusRow, { borderTopColor: c.line }]}>
+                    <Text style={[styles.statusLine, { color: g.hasAvailability ? c.dawn : c.rust, fontFamily: Fonts.bodyMedium }]}>
+                      {g.hasAvailability ? "Availability set" : "Availability not set"}
+                    </Text>
+                    <Text style={[styles.statusLine, { color: g.parentsJoined >= g.memberCount ? c.dawn : c.rust, fontFamily: Fonts.bodyMedium }]}>
+                      {g.parentsJoined >= g.memberCount
+                        ? "All parents joined"
+                        : `${g.memberCount - g.parentsJoined} still need a parent`}
+                    </Text>
+                  </View>
+                )}
 
                 {role === "parent" && !g.hasAvailability && (
                   <PressableScale
@@ -633,49 +652,18 @@ export default function HomeTab() {
 
         {/* ── Quick actions (student) ── */}
         {role === "student" && (
-          <View style={styles.linkSection}>
-            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>ACTIONS</Text>
-            <PressableScale
+          <ListSection style={{ marginTop: 4 }}>
+            <ListRow
+              label={hasGroups ? "New group" : "Create a group"}
               onPress={() => router.push("/create-group")}
-              style={[styles.linkRow, { borderColor: c.line, backgroundColor: c.paperElevated }]}
-            >
-              <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>
-                {hasGroups ? "New group" : "Create a group"}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-            </PressableScale>
+            />
             {hasGroups && (
-              <PressableScale
+              <ListRow
+                label="Edit pickup location"
                 onPress={() => router.push("/setup-location")}
-                style={[styles.linkRow, { borderColor: c.line, backgroundColor: c.paperElevated }]}
-              >
-                <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Edit pickup location</Text>
-                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-              </PressableScale>
+              />
             )}
-          </View>
-        )}
-
-        {/* ── Parent status overview ── */}
-        {role === "parent" && hasGroups && (
-          <View style={styles.linkSection}>
-            <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>STATUS</Text>
-            {groups.map((g, idx) => (
-              <FadeIn key={g.id} delay={Math.min(idx, 6) * 40}>
-                <View style={[styles.statusBlock, { borderColor: c.line, backgroundColor: c.paperElevated }]}>
-                  <Text style={[styles.statusGroupName, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{g.name}</Text>
-                  <Text style={[styles.statusLine, { color: g.hasAvailability ? c.dawn : c.rust, fontFamily: Fonts.bodyMedium }]}>
-                    {g.hasAvailability ? "Availability set" : "Availability not set"}
-                  </Text>
-                  <Text style={[styles.statusLine, { color: g.parentsJoined >= g.memberCount ? c.dawn : c.rust, fontFamily: Fonts.bodyMedium }]}>
-                    {g.parentsJoined >= g.memberCount
-                      ? "All parents joined"
-                      : `${g.memberCount - g.parentsJoined} still need a parent`}
-                  </Text>
-                </View>
-              </FadeIn>
-            ))}
-          </View>
+          </ListSection>
         )}
 
         {/* ── How HopIn works (student, no groups) ── */}
@@ -716,7 +704,8 @@ export default function HomeTab() {
 
         <View style={{ height: 24 }} />
       </Animated.View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -726,6 +715,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  root: { flex: 1 },
   container: { flex: 1 },
   content: { paddingBottom: 40 },
 
@@ -762,6 +752,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 18,
     marginBottom: 12,
+  },
+  primaryCard: {
+    borderLeftWidth: 3,
+  },
+  groupStatusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 12,
+    marginTop: 12,
   },
   todaySlotRow: {
     flexDirection: "row",
@@ -962,32 +962,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 8,
     marginLeft: 2,
-  },
-  linkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    marginBottom: 8,
-  },
-  linkText: {
-    fontSize: 15,
-    fontWeight: "500",
-    flex: 1,
-  },
-
-  statusBlock: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-  },
-  statusGroupName: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
   },
   statusLine: {
     fontSize: 13,
