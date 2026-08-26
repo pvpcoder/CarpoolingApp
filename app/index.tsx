@@ -64,9 +64,8 @@ export default function LoginScreen() {
 
       const meta = data.user?.user_metadata;
       if (meta?.role === "student") {
-        const { data: school } = await supabase.from("schools").select("id").eq("pdsb_code", "PILOT01").single();
         const { error: profileError } = await supabase.from("students").insert({
-          id: userId, email: data.user?.email, name: meta.name, grade: meta.grade, school_id: school?.id,
+          id: userId, email: data.user?.email, name: meta.name, grade: meta.grade, school_id: meta.school_id,
         });
         setLoading(false);
         if (profileError) { Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }

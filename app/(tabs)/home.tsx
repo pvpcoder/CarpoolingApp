@@ -15,7 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { deletedGroups } from "../../lib/deletedGroups";
-import { SCHOOL } from "../../lib/config";
 import { useTheme, Fonts, Shadows } from "../../lib/theme";
 import { LoadingScreen, PressableScale, FadeIn, TimeBadge, EmptyState, Watermark, TitleRule, ListSection, ListRow } from "../../components/UI";
 import { track } from "../../lib/analytics";

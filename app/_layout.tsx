@@ -67,13 +67,12 @@ function RootLayout() {
 
       if (!existingStudent && !existingParent && meta?.role) {
         if (meta.role === "student") {
-          const { data: school } = await supabase.from("schools").select("id").eq("pdsb_code", "PILOT01").single();
           await supabase.from("students").insert({
             id: userId,
             email: data.user.email,
             name: meta.name,
             grade: meta.grade,
-            school_id: school?.id,
+            school_id: meta.school_id,
           });
         } else if (meta.role === "parent") {
           await supabase.from("parents").insert({
