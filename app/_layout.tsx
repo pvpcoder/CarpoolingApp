@@ -13,6 +13,7 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { SpaceMono_400Regular, SpaceMono_700Bold } from "@expo-google-fonts/space-mono";
 import { supabase } from "../lib/supabase";
 import { linkParentToChildByEmail } from "../lib/parentLinking";
+import { track } from "../lib/analytics";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -85,6 +86,7 @@ function RootLayout() {
             await linkParentToChildByEmail(userId, meta.child_email);
           }
         }
+        track(userId, "signup_completed", { role: meta.role });
       }
 
       router.replace("/(tabs)/home");

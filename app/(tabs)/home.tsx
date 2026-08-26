@@ -18,6 +18,7 @@ import { deletedGroups } from "../../lib/deletedGroups";
 import { SCHOOL } from "../../lib/config";
 import { useTheme, Fonts, Shadows } from "../../lib/theme";
 import { LoadingScreen, PressableScale, FadeIn, TimeBadge, EmptyState, Watermark, TitleRule, ListSection, ListRow } from "../../components/UI";
+import { track } from "../../lib/analytics";
 
 interface GroupInfo {
   id: string;
@@ -375,6 +376,7 @@ export default function HomeTab() {
           Alert.alert("Error", "Couldn't join the group: " + joinError.message);
           return;
         }
+        track(user.id, "group_joined", { group_id: groupId });
         Alert.alert("Joined!", "You're now part of the carpool group.");
       }
       loadData();

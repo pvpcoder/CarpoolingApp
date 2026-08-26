@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useTheme, Fonts } from "../lib/theme";
 import { PrimaryButton, BackButton, FadeIn } from "../components/UI";
+import { track } from "../lib/analytics";
 
 const STEPS = [
   "Create the group and name it",
@@ -58,6 +59,8 @@ export default function CreateGroup() {
 
     setLoading(false);
     if (memberError) { Alert.alert("Error", memberError.message); return; }
+
+    track(studentData.id, "group_created", { group_id: group.id });
 
     Alert.alert("Group created", "Now invite students from your area to join your carpool.", [
       { text: "Invite students", onPress: () => router.replace("/discover") },

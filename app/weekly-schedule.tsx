@@ -16,6 +16,7 @@ import { supabase } from "../lib/supabase";
 import { useTheme, Radius, Fonts } from "../lib/theme";
 import { computeBasicSchedule } from "../lib/scheduling";
 import { PrimaryButton, SecondaryButton, BackButton, FadeIn, Card, SunArc, ScaleIn } from "../components/UI";
+import { track } from "../lib/analytics";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -147,6 +148,7 @@ export default function WeeklySchedule() {
       if (slotError) throw new Error(slotError.message);
       setGenerating(false);
       setJustGenerated(true);
+      track(currentUserId, "schedule_generated", { group_id: groupId, method: "ai" });
       Alert.alert("Schedule generated", "A fair driving schedule has been created for your group.");
       loadSchedule();
     } catch (err: any) {
@@ -174,6 +176,7 @@ export default function WeeklySchedule() {
     if (newSchedule) { await supabase.from("schedule_slots").insert(newSlots.map((s) => ({ ...s, schedule_id: newSchedule.id }))); }
     setGenerating(false);
     setJustGenerated(true);
+    track(currentUserId, "schedule_generated", { group_id: groupId, method: "basic" });
     setAiExplanation("Generated using basic fair-split algorithm.");
     loadSchedule();
   };
@@ -185,6 +188,7 @@ export default function WeeklySchedule() {
       { text: "Request swap", onPress: async () => {
         const { error } = await supabase.from("swap_requests").insert({ slot_id: slotId, requesting_parent_id: currentUserId, status: "open", message: "Can someone cover this slot?" });
         if (error) { Alert.alert("Error", error.message); return; }
+        track(currentUserId, "swap_requested", { group_id: groupId, slot_id: slotId });
         notifyGroupMembers(groupId as string, currentUserId!, "Swap Request", `${parentMap[currentUserId!] || "A parent"} needs someone to cover a driving slot.`, "swap");
         Alert.alert("Swap requested", "Other parents will see your request.");
         loadSchedule();
@@ -207,6 +211,7 @@ export default function WeeklySchedule() {
           loadSchedule();
           return;
         }
+        track(currentUserId, "swap_covered", { group_id: groupId, swap_id: swapId });
         notifyGroupMembers(groupId as string, currentUserId!, "Swap Covered", `${parentMap[currentUserId!] || "A parent"} is covering the slot.`, "swap");
         Alert.alert("Thanks!", "You've been assigned as the driver for this slot.");
         loadSchedule();

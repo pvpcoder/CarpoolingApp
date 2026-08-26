@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { linkParentToChildByEmail } from "../lib/parentLinking";
+import { track } from "../lib/analytics";
 import { useTheme, Fonts } from "../lib/theme";
 import { PrimaryButton, ScaleIn, FadeIn, Watermark, TitleRule } from "../components/UI";
 
@@ -56,10 +57,10 @@ export default function LoginScreen() {
       registerForPushNotifications(userId!);
 
       const { data: student } = await supabase.from("students").select("id").eq("id", userId).maybeSingle();
-      if (student) { setLoading(false); router.replace("/(tabs)/home"); return; }
+      if (student) { track(userId, "login", { role: "student" }); setLoading(false); router.replace("/(tabs)/home"); return; }
 
       const { data: parent } = await supabase.from("parents").select("id").eq("id", userId).maybeSingle();
-      if (parent) { setLoading(false); router.replace("/(tabs)/home"); return; }
+      if (parent) { track(userId, "login", { role: "parent" }); setLoading(false); router.replace("/(tabs)/home"); return; }
 
       const meta = data.user?.user_metadata;
       if (meta?.role === "student") {
@@ -69,6 +70,7 @@ export default function LoginScreen() {
         });
         setLoading(false);
         if (profileError) { Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }
+        track(userId, "signup_completed", { role: "student" });
         router.replace("/(tabs)/home");
         return;
       }
@@ -81,6 +83,7 @@ export default function LoginScreen() {
         if (meta.child_email) {
           await linkParentToChildByEmail(userId!, meta.child_email);
         }
+        track(userId, "signup_completed", { role: "parent" });
         setLoading(false);
         router.replace("/(tabs)/home");
         return;

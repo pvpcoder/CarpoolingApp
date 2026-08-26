@@ -17,6 +17,7 @@ import { registerForPushNotifications } from "../../lib/notifications";
 import { linkParentToChildByEmail } from "../../lib/parentLinking";
 import { getOrCreateCalendarFeedUrl, toWebcalUrl } from "../../lib/calendarFeed";
 import * as Clipboard from "expo-clipboard";
+import { track } from "../../lib/analytics";
 import { useTheme, Fonts } from "../../lib/theme";
 import { LoadingScreen, FadeIn, Watermark, TitleRule, ListSection, ListRow, ToggleSwitch } from "../../components/UI";
 
@@ -109,6 +110,7 @@ export default function ProfileTab() {
     }
     setLinkChildEmail("");
     setIsLinkingChild(false);
+    track(userId, "child_linked");
     Alert.alert("Linked", `${result.studentName || "Student"} is now linked to your account.`);
     loadSettings();
   };
@@ -133,8 +135,11 @@ export default function ProfileTab() {
       setNotificationsEnabled(!!tokenRow);
       if (!tokenRow) {
         Alert.alert("Couldn't enable notifications", "Check that notifications are allowed for this app in your device settings.");
+      } else {
+        track(userId, "notifications_toggled", { enabled: true });
       }
     } else {
+      track(userId, "notifications_toggled", { enabled: false });
       await supabase.from("push_tokens").delete().eq("user_id", userId);
       setNotificationsEnabled(false);
     }
@@ -147,6 +152,7 @@ export default function ProfileTab() {
     try {
       const feedUrl = await getOrCreateCalendarFeedUrl(userId);
       const webcalUrl = toWebcalUrl(feedUrl);
+      track(userId, "calendar_subscribed");
       Alert.alert(
         "Subscribe to your schedule",
         "Add this feed to your phone's calendar app so it stays up to date automatically as new weeks are scheduled.",
