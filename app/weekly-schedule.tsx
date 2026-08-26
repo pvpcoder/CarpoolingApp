@@ -34,6 +34,7 @@ export default function WeeklySchedule() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isParent, setIsParent] = useState(false);
   const [swapRequests, setSwapRequests] = useState<any[]>([]);
+  const [swapVolunteers, setSwapVolunteers] = useState<any[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [justGenerated, setJustGenerated] = useState(false);
 
@@ -48,6 +49,7 @@ export default function WeeklySchedule() {
     setSchedule(null);
     setSlots([]);
     setSwapRequests([]);
+    setSwapVolunteers([]);
     loadSchedule(weekOffset);
   }, [weekOffset]);
 
@@ -94,6 +96,11 @@ export default function WeeklySchedule() {
       if (slotIds.length > 0) {
         const { data: swaps } = await supabase.from("swap_requests").select("id, slot_id, requesting_parent_id, covering_parent_id, status, message").in("slot_id", slotIds);
         setSwapRequests(swaps || []);
+        const swapIds = (swaps || []).map((s: any) => s.id);
+        if (swapIds.length > 0) {
+          const { data: volunteers } = await supabase.from("swap_volunteers").select("id, swap_request_id, parent_id, created_at").in("swap_request_id", swapIds).order("created_at");
+          setSwapVolunteers(volunteers || []);
+        }
       }
     }
     setLoading(false);
@@ -185,17 +192,44 @@ export default function WeeklySchedule() {
     ]);
   };
 
-  const handleCoverSwap = async (swapId: string, slotId: string) => {
+  const handleCoverSwap = async (swapId: string) => {
     if (!currentUserId) return;
     Alert.alert("Cover this slot", "You'll be assigned as the driver for this slot.", [
       { text: "Cancel" },
       { text: "I'll cover it", onPress: async () => {
-        const { error: swapError } = await supabase.from("swap_requests").update({ covering_parent_id: currentUserId, status: "covered" }).eq("id", swapId);
-        if (swapError) { Alert.alert("Error", swapError.message); return; }
-        const { error: slotError } = await supabase.from("schedule_slots").update({ driver_parent_id: currentUserId, status: "swapped" }).eq("id", slotId);
-        if (slotError) { Alert.alert("Error", slotError.message); return; }
+        const { error } = await supabase.rpc("claim_swap", { swap_id: swapId });
+        if (error) {
+          if (error.message?.includes("already_covered")) {
+            Alert.alert("Too late", "Another parent already covered this slot.");
+          } else {
+            Alert.alert("Error", error.message);
+          }
+          loadSchedule();
+          return;
+        }
         notifyGroupMembers(groupId as string, currentUserId!, "Swap Covered", `${parentMap[currentUserId!] || "A parent"} is covering the slot.`, "swap");
         Alert.alert("Thanks!", "You've been assigned as the driver for this slot.");
+        loadSchedule();
+      }},
+    ]);
+  };
+
+  const handleVolunteer = async (swapId: string) => {
+    if (!currentUserId) return;
+    const { error } = await supabase.from("swap_volunteers").insert({ swap_request_id: swapId, parent_id: currentUserId });
+    if (error) { Alert.alert("Error", error.message); return; }
+    Alert.alert("You're on the backup list", "If the current driver can't make it, you'll be assigned automatically.");
+    loadSchedule();
+  };
+
+  const handleReleaseSwap = async (swapId: string) => {
+    if (!currentUserId) return;
+    Alert.alert("Can't drive anymore?", "If a backup volunteered, they'll be assigned automatically. Otherwise the slot goes back to needing coverage.", [
+      { text: "Cancel" },
+      { text: "Release slot", style: "destructive", onPress: async () => {
+        const { error } = await supabase.rpc("release_swap", { swap_id: swapId });
+        if (error) { Alert.alert("Error", error.message); return; }
+        notifyGroupMembers(groupId as string, currentUserId!, "Swap Update", `${parentMap[currentUserId!] || "A parent"} can no longer cover a slot.`, "swap");
         loadSchedule();
       }},
     ]);
@@ -362,16 +396,37 @@ export default function WeeklySchedule() {
                         );
                       } else {
                         return (
-                          <TouchableOpacity key={`swap-${slot.id}`} style={[styles.coverBtn, { borderColor: c.dawn }]} onPress={() => handleCoverSwap(swap.id, slot.id)} activeOpacity={0.7}>
+                          <TouchableOpacity key={`swap-${slot.id}`} style={[styles.coverBtn, { borderColor: c.dawn }]} onPress={() => handleCoverSwap(swap.id)} activeOpacity={0.7}>
                             <Text style={[styles.coverBtnText, { color: c.dawn, fontFamily: Fonts.bodySemiBold }]}>Cover {getSlotLabel(slot.slot_type)} on {slot.day_of_week}</Text>
                           </TouchableOpacity>
                         );
                       }
                     } else if (swap && swap.status === "covered") {
                       const covered = isMorningSlot(slot.slot_type);
+                      const isCoveringParent = swap.covering_parent_id === currentUserId;
+                      const iAmVolunteering = swapVolunteers.some((v: any) => v.swap_request_id === swap.id && v.parent_id === currentUserId);
+                      const backupCount = swapVolunteers.filter((v: any) => v.swap_request_id === swap.id).length;
                       return (
-                        <View key={`swap-${slot.id}`} style={[styles.swapNote, { backgroundColor: covered ? c.dawnFaded : c.duskFaded }]}>
-                          <Text style={[styles.swapNoteText, { color: covered ? c.dawn : c.dusk, fontFamily: Fonts.bodyMedium }]}>Covered by {parentMap[swap.covering_parent_id] || "another parent"}</Text>
+                        <View key={`swap-${slot.id}`}>
+                          <View style={[styles.swapNote, { backgroundColor: covered ? c.dawnFaded : c.duskFaded }]}>
+                            <Text style={[styles.swapNoteText, { color: covered ? c.dawn : c.dusk, fontFamily: Fonts.bodyMedium }]}>Covered by {parentMap[swap.covering_parent_id] || "another parent"}</Text>
+                          </View>
+                          {isCoveringParent && (
+                            <TouchableOpacity onPress={() => handleReleaseSwap(swap.id)} activeOpacity={0.7} style={{ paddingTop: 2, paddingBottom: 6 }}>
+                              <Text style={[styles.cantDrive, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Can't drive this slot after all?</Text>
+                            </TouchableOpacity>
+                          )}
+                          {!isCoveringParent && swap.requesting_parent_id !== currentUserId && (
+                            iAmVolunteering ? (
+                              <Text style={[styles.cantDrive, { color: c.textMuted, fontFamily: Fonts.bodyMedium, textDecorationLine: "none", paddingBottom: 6 }]}>
+                                You're a backup{backupCount > 1 ? ` (${backupCount} on the list)` : ""}
+                              </Text>
+                            ) : (
+                              <TouchableOpacity onPress={() => handleVolunteer(swap.id)} activeOpacity={0.7} style={{ paddingBottom: 6 }}>
+                                <Text style={[styles.cantDrive, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Volunteer as backup</Text>
+                              </TouchableOpacity>
+                            )
+                          )}
                         </View>
                       );
                     } else if (isMySlot && !swap) {
