@@ -69,6 +69,11 @@ serve(async (req) => {
     // needs explicit cleanup or a deleted user's device keeps getting pushes.
     await admin.from("push_tokens").delete().eq("user_id", userId);
 
+    // api_usage_logs.user_id references auth.users(id) with no cascade -
+    // anyone who ever generated a schedule has a row here, and it would
+    // block deleteUser() below with a foreign-key violation.
+    await admin.from("api_usage_logs").delete().eq("user_id", userId);
+
     const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
     if (authDeleteError) throw authDeleteError;
 

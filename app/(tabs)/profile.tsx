@@ -205,7 +205,9 @@ export default function ProfileTab() {
                       if (error) throw error;
                       await supabase.auth.signOut();
                       router.replace("/");
-                    } catch {
+                    } catch (err: any) {
+                      const detail = await err?.context?.json?.().catch(() => null);
+                      console.log("delete-account failed:", detail?.error || err?.message || err);
                       Alert.alert("Error", "Couldn't delete account. Please try again or contact support.");
                     }
                   },
