@@ -317,7 +317,7 @@ export function TimeBadge({ time, period, pulse = false }: { time: string; perio
   );
 }
 
-// ─── Sun arc — the HopIn signature mark ────────────────────────
+// ─── Sun arc — the SchoolLoop signature mark ───────────────────
 // A real vector arc tracing sunrise (dawn dot) to sunset (dusk dot), with a
 // gradient stroke between them — literally the sun's path across the day,
 // which is what the whole color system represents. When `animated`, the
@@ -509,7 +509,7 @@ export function LoadingScreen({ message }: { message?: string }) {
         <SunArc size={48} />
       </ScaleIn>
       <FadeIn delay={150}>
-        <Text style={[s.loadingLogo, { color: c.textPrimary, fontFamily: Fonts.display }]}>HopIn</Text>
+        <Text style={[s.loadingLogo, { color: c.textPrimary, fontFamily: Fonts.display }]}>SchoolLoop</Text>
       </FadeIn>
       <ActivityIndicator size="small" color={c.dawn} style={{ marginTop: 20 }} />
       {message && <Text style={[s.loadingMessage, { color: c.textMuted, fontFamily: Fonts.body }]}>{message}</Text>}

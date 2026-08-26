@@ -1,7 +1,7 @@
 /**
- * HopIn Design System — "Departure Board"
+ * SchoolLoop Design System — "Departure Board"
  *
- * Every day in HopIn has a morning leg and an afternoon leg, each needing a
+ * Every day in SchoolLoop has a morning leg and an afternoon leg, each needing a
  * driver. `dawn` and `dusk` are the only saturated colors in the system and
  * are used functionally: every AM element is `dawn`, every PM element is
  * `dusk` — never swapped decoratively.

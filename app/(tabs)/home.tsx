@@ -680,7 +680,7 @@ export default function HomeTab() {
           </ListSection>
         )}
 
-        {/* ── How HopIn works (student, no groups) ── */}
+        {/* ── How SchoolLoop works (student, no groups) ── */}
         {role === "student" && !hasGroups && (
           <View style={styles.linkSection}>
             <Text style={[styles.sectionLabel, { color: c.textMuted, fontFamily: Fonts.bodyBold }]}>HOW IT WORKS</Text>

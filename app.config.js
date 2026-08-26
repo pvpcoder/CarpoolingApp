@@ -5,9 +5,9 @@ require("dotenv").config({ path: require("path").resolve(__dirname, envFile) });
 
   module.exports = {
     expo: {
-      name: "HopIn",
+      name: "SchoolLoop",
       slug: "CarpoolingApp",
-      scheme: "hopin",
+      scheme: "schoolloop",
       version: "1.0.0",
       orientation: "portrait",
       icon: "./assets/icon.png",
@@ -20,13 +20,13 @@ require("dotenv").config({ path: require("path").resolve(__dirname, envFile) });
       },
       ios: {
         supportsTablet: true,
-        bundleIdentifier: "com.pvpp.hopin",
+        bundleIdentifier: "com.pvpp.schoolloop",
         config: {
           googleMapsApiKey: process.env.GOOGLE_API_KEY,
         },
       },
       android: {
-        package: "com.pvpp.hopin",
+        package: "com.pvpp.schoolloop",
         adaptiveIcon: {
           foregroundImage: "./assets/adaptive-icon.png",
           backgroundColor: "#0A0E17",

@@ -170,11 +170,11 @@ export default function Discover() {
           <EmptyState
             icon="people-outline"
             title="No students nearby yet"
-            message="You're one of the first from your school. Invite classmates and their families to join HopIn."
-            actionLabel="Share HopIn with classmates"
+            message="You're one of the first from your school. Invite classmates and their families to join SchoolLoop."
+            actionLabel="Share SchoolLoop with classmates"
             onAction={() => Share.share({
-              message: "Hey! I'm setting up a carpool for school using HopIn. Sign up so we can share driving duties: https://hopin.app",
-              title: "Join my carpool on HopIn",
+              message: "Hey! I'm setting up a carpool for school using SchoolLoop. Sign up so we can share driving duties: https://schoolloop.app",
+              title: "Join my carpool on SchoolLoop",
             })}
           />
         </View>

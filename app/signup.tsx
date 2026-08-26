@@ -198,7 +198,7 @@ export default function SignupScreen() {
           <BackButton onPress={() => router.back()} />
 
           <View style={styles.heading}>
-            <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>Join HopIn</Text>
+            <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>Join SchoolLoop</Text>
             <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>I'm a…</Text>
           </View>
 

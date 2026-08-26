@@ -46,7 +46,7 @@ function RootLayout() {
 
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
-      // Supabase email confirmation arrives as hopin://#access_token=...&refresh_token=...
+      // Supabase email confirmation arrives as schoolloop://#access_token=...&refresh_token=...
       const hash = url.split("#")[1];
       if (!hash) return;
 

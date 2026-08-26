@@ -154,7 +154,7 @@ serve(async (req) => {
             events.push(
               [
                 "BEGIN:VEVENT",
-                foldLine(`UID:slot-${slot.id}@hopin.app`),
+                foldLine(`UID:slot-${slot.id}@schoolloop.app`),
                 `DTSTAMP:${icsDate(new Date())}`,
                 `DTSTART:${icsDate(start)}`,
                 `DTEND:${icsDate(end)}`,
@@ -171,10 +171,10 @@ serve(async (req) => {
     const ics = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//HopIn//Carpool Schedule//EN",
+      "PRODID:-//SchoolLoop//Carpool Schedule//EN",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
-      "X-WR-CALNAME:HopIn Carpool",
+      "X-WR-CALNAME:SchoolLoop Carpool",
       "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
       "X-PUBLISHED-TTL:PT1H",
       ...events,
@@ -184,7 +184,7 @@ serve(async (req) => {
     return new Response(ics, {
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
-        "Content-Disposition": "inline; filename=hopin-carpool.ics",
+        "Content-Disposition": "inline; filename=schoolloop-carpool.ics",
       },
     });
   } catch (err) {

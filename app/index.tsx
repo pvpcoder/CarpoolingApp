@@ -117,7 +117,7 @@ export default function LoginScreen() {
             try {
               const { error } = await supabase.auth.resetPasswordForEmail(
                 email.trim().toLowerCase(),
-                { redirectTo: "hopin://reset-password" }
+                { redirectTo: "schoolloop://reset-password" }
               );
               if (error) { Alert.alert("Error", error.message); return; }
               Alert.alert("Check your inbox", "We sent a password reset link to your email.");
@@ -140,7 +140,7 @@ export default function LoginScreen() {
         <View style={styles.inner}>
           {/* Wordmark */}
           <ScaleIn style={styles.wordmark}>
-            <Text style={[styles.brand, { color: c.textPrimary, fontFamily: Fonts.display }]}>HopIn</Text>
+            <Text style={[styles.brand, { color: c.textPrimary, fontFamily: Fonts.display }]}>SchoolLoop</Text>
             <TitleRule />
             <Text style={[styles.tagline, { color: c.textMuted, fontFamily: Fonts.body }]}>PDSB carpool groups</Text>
           </ScaleIn>
@@ -198,7 +198,7 @@ export default function LoginScreen() {
             <View style={[styles.footerDivider, { backgroundColor: c.line }]} />
             <Pressable onPress={() => router.push("/signup")} hitSlop={12}>
               <Text style={[styles.footerText, { color: c.textSecondary, fontFamily: Fonts.body }]}>
-                New to HopIn?{"  "}
+                New to SchoolLoop?{"  "}
                 <Text style={{ color: c.dawn, fontFamily: Fonts.bodySemiBold }}>Create account</Text>
               </Text>
             </Pressable>
@@ -224,9 +224,9 @@ const styles = StyleSheet.create({
     marginBottom: 72,
   },
   brand: {
-    fontSize: 68,
-    letterSpacing: -3,
-    lineHeight: 70,
+    fontSize: 46,
+    letterSpacing: -2,
+    lineHeight: 48,
     marginBottom: 10,
   },
   tagline: {

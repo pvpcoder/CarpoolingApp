@@ -359,7 +359,7 @@ export default function ProfileTab() {
         {/* About — a quiet unlabeled footer list, not a third identical section */}
         <ListSection>
           <ListRow label="Version" value="1.0.0" />
-          <ListRow label="Contact support" onPress={() => Linking.openURL("mailto:support@hopin.app")} />
+          <ListRow label="Contact support" onPress={() => Linking.openURL("mailto:support@schoolloop.app")} />
           <ListRow label="Privacy Policy" onPress={() => Alert.alert("Coming soon", "Our privacy policy is being finalized.")} />
           <ListRow label="Terms of Service" onPress={() => Alert.alert("Coming soon", "Our terms of service are being finalized.")} />
         </ListSection>
