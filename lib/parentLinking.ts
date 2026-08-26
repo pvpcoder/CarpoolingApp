@@ -19,7 +19,10 @@ export async function linkParentToChildByEmail(
     .maybeSingle();
 
   if (!student) {
-    return { success: false, error: "No student found with that email." };
+    return {
+      success: false,
+      error: "No student found with that email. Their account isn't created until they've confirmed their email and logged into the app at least once - if they just signed up, ask them to log in first, then try linking again.",
+    };
   }
 
   const { error } = await supabase
