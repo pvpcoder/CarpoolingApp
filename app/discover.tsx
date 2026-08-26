@@ -75,8 +75,15 @@ export default function Discover() {
 
     let query = supabase.from("students").select("id, name, grade, saved_pickup_lat, saved_pickup_lng, saved_pickup_address").neq("id", me.id).not("saved_pickup_lat", "is", null);
     if (me.school_id) query = query.eq("school_id", me.school_id);
-    const { data: others } = await query;
-    if (!others) { setLoading(false); return; }
+    const { data: allOthers } = await query;
+    if (!allOthers) { setLoading(false); return; }
+
+    let others = allOthers;
+    if (myGroupId) {
+      const { data: existingMembers } = await supabase.from("group_members").select("student_id").eq("group_id", myGroupId).eq("status", "active");
+      const memberIds = new Set((existingMembers || []).map((m: any) => m.student_id));
+      others = allOthers.filter((s: any) => !memberIds.has(s.id));
+    }
 
     const withDistance = others.map((s: any) => ({
       ...s,

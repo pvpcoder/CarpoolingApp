@@ -63,7 +63,7 @@ export default function CreateGroup() {
     track(studentData.id, "group_created", { group_id: group.id });
 
     Alert.alert("Group created", "Now invite students from your area to join your carpool.", [
-      { text: "Invite students", onPress: () => router.replace("/discover") },
+      { text: "Invite students", onPress: () => router.replace(`/discover?groupId=${group.id}`) },
       { text: "Go home", onPress: () => router.replace("/(tabs)/home") },
     ]);
   };
