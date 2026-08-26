@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getValidUser } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
+import { SCHOOL } from "../lib/config";
 import { useTheme, Fonts, Shadows } from "../lib/theme";
 import { PrimaryButton, SecondaryButton, DangerButton, PressableScale, BackButton, FadeIn, LoadingScreen, Watermark, TitleRule } from "../components/UI";
 
@@ -72,7 +73,7 @@ export default function MyGroup() {
       setIsAdmin((memberships || []).some((m: any) => m.role === "admin"));
     }
 
-    const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at, schools ( name, address, lat, lng )").eq("id", groupId).single();
+    const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at").eq("id", groupId).single();
     setGroup(groupData);
 
     const { data: memberData } = await supabase.from("group_members").select("id, role, student_id, joined_at, students ( name, grade, saved_pickup_address, saved_pickup_lat, saved_pickup_lng ), parents ( name, phone, email )").eq("group_id", groupId).eq("status", "active");
@@ -225,24 +226,22 @@ export default function MyGroup() {
       </View>
 
       {/* School */}
-      {group?.schools && (
-        <FadeIn>
-          <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }, Shadows?.sm as object]}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="school-outline" size={15} color={c.textMuted} />
-              <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold, marginBottom: 0 }]}>{group.schools.name}</Text>
-            </View>
-            <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{group.schools.address}</Text>
-            <PressableScale
-              onPress={() => openDirections(group.schools.address, group.schools.lat, group.schools.lng)}
-              style={styles.dirBtn}
-            >
-              <Ionicons name="navigate-outline" size={13} color={c.dawn} />
-              <Text style={[styles.dirBtnText, { color: c.dawn, fontFamily: Fonts.bodySemiBold }]}>Get directions</Text>
-            </PressableScale>
+      <FadeIn>
+        <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }, Shadows?.sm as object]}>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="school-outline" size={15} color={c.textMuted} />
+            <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold, marginBottom: 0 }]}>{SCHOOL.name}</Text>
           </View>
-        </FadeIn>
-      )}
+          <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>{SCHOOL.address}</Text>
+          <PressableScale
+            onPress={() => openDirections(SCHOOL.address, SCHOOL.lat, SCHOOL.lng)}
+            style={styles.dirBtn}
+          >
+            <Ionicons name="navigate-outline" size={13} color={c.dawn} />
+            <Text style={[styles.dirBtnText, { color: c.dawn, fontFamily: Fonts.bodySemiBold }]}>Get directions</Text>
+          </PressableScale>
+        </View>
+      </FadeIn>
 
       {/* Route all (parent) */}
       {userRole === "parent" && members.length > 1 && (

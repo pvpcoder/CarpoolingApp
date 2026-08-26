@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import { useTheme, Fonts, ThemeTokens } from "../lib/theme";
 import { PrimaryButton, PressableScale, BackButton } from "../components/UI";
 
 type Role = "student" | "parent" | null;
-type School = { id: string; name: string; address: string | null; email_domain: string | null };
 
 function Field({
   label,
@@ -72,34 +71,15 @@ export default function SignupScreen() {
   const [phone, setPhone] = useState("");
   const [childEmail, setChildEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [schools, setSchools] = useState<School[]>([]);
-  const [schoolsLoading, setSchoolsLoading] = useState(true);
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("schools").select("id, name, address, email_domain").order("name");
-      setSchools(data || []);
-      if (data && data.length === 1) setSelectedSchool(data[0]);
-      setSchoolsLoading(false);
-    })();
-  }, []);
 
   const resetForm = () => {
     setName(""); setEmail(""); setPassword("");
     setGrade(""); setPhone(""); setChildEmail("");
-    if (schools.length !== 1) setSelectedSchool(null);
   };
 
-  const emailDomain = selectedSchool?.email_domain || "pdsb.net";
-
   const handleStudentSignup = async () => {
-    if (!selectedSchool) {
-      Alert.alert("Choose a school", "Select your school to continue.");
-      return;
-    }
-    if (!email.trim().toLowerCase().endsWith(`@${emailDomain}`)) {
-      Alert.alert("Invalid email", `Use your @${emailDomain} school email to sign up.`);
+    if (!email.trim().toLowerCase().endsWith("@pdsb.net")) {
+      Alert.alert("Invalid email", "Use your @pdsb.net school email to sign up.");
       return;
     }
     if (!name || !password || !grade) {
@@ -117,7 +97,7 @@ export default function SignupScreen() {
         email: email.trim().toLowerCase(),
         password,
         options: {
-          data: { role: "student", name: name.trim(), grade: parseInt(grade), school_id: selectedSchool.id },
+          data: { role: "student", name: name.trim(), grade: parseInt(grade) },
         },
       });
 
@@ -259,46 +239,6 @@ export default function SignupScreen() {
     );
   }
 
-  // ── School selection (students only, when there's more than one) ──
-  if (role === "student" && !selectedSchool) {
-    return (
-      <View style={[styles.root, { backgroundColor: c.paper }]}>
-        <View style={styles.inner}>
-          <BackButton onPress={() => setRole(null)} />
-
-          <View style={styles.heading}>
-            <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>Your school</Text>
-            <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>Which school do you attend?</Text>
-          </View>
-
-          {schoolsLoading ? (
-            <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>Loading schools…</Text>
-          ) : schools.length === 0 ? (
-            <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>No schools are set up yet. Contact support.</Text>
-          ) : (
-            <View style={styles.roleList}>
-              {schools.map((s) => (
-                <PressableScale
-                  key={s.id}
-                  onPress={() => setSelectedSchool(s)}
-                  style={[styles.roleRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
-                >
-                  <View style={styles.roleText}>
-                    <Text style={[styles.roleTitle, { color: c.textPrimary, fontFamily: Fonts.bodySemiBold }]}>{s.name}</Text>
-                    {s.address && (
-                      <Text style={[styles.roleDesc, { color: c.textMuted, fontFamily: Fonts.body }]}>{s.address}</Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-                </PressableScale>
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  }
-
   // ── Shared form shell ──────────────────────────────────────
   const isStudent = role === "student";
 
@@ -312,14 +252,14 @@ export default function SignupScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <BackButton onPress={() => (isStudent && schools.length > 1 ? setSelectedSchool(null) : setRole(null))} />
+        <BackButton onPress={() => setRole(null)} />
 
         <View style={styles.heading}>
           <Text style={[styles.title, { color: c.textPrimary, fontFamily: Fonts.display }]}>
             {isStudent ? "Student account" : "Parent account"}
           </Text>
           <Text style={[styles.subtitle, { color: c.textMuted, fontFamily: Fonts.body }]}>
-            {isStudent ? `Use your @${emailDomain} school email` : "Link to your child's student account"}
+            {isStudent ? "Use your @pdsb.net school email" : "Link to your child's student account"}
           </Text>
         </View>
 
@@ -330,7 +270,7 @@ export default function SignupScreen() {
             label="EMAIL"
             value={email}
             onChangeText={setEmail}
-            placeholder={isStudent ? `123456@${emailDomain}` : "you@email.com"}
+            placeholder={isStudent ? "123456@pdsb.net" : "you@email.com"}
             keyboardType="email-address"
             autoCapitalize="none"
             c={c}
