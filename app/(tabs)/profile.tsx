@@ -201,14 +201,8 @@ export default function ProfileTab() {
                     try {
                       const user = await getValidUser();
                       if (!user) return;
-                      if (userRole === "student") {
-                        await supabase.from("group_members").delete().eq("student_id", user.id);
-                        await supabase.from("students").delete().eq("id", user.id);
-                      } else {
-                        await supabase.from("group_members").update({ parent_id: null }).match({ parent_id: user.id });
-                        await supabase.from("parent_availability").delete().eq("parent_id", user.id);
-                        await supabase.from("parents").delete().eq("id", user.id);
-                      }
+                      const { error } = await supabase.functions.invoke("delete-account");
+                      if (error) throw error;
                       await supabase.auth.signOut();
                       router.replace("/");
                     } catch {

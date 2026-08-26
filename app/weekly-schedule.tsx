@@ -146,6 +146,7 @@ export default function WeeklySchedule() {
       const slotsToInsert = parsed.slots.map((s: any) => ({ schedule_id: newSchedule.id, day_of_week: s.day_of_week, slot_type: s.slot_type, driver_parent_id: s.driver_parent_id || null, departure_time: s.departure_time, status: s.driver_parent_id ? "confirmed" : "needs_coverage" }));
       const { error: slotError } = await supabase.from("schedule_slots").insert(slotsToInsert);
       if (slotError) throw new Error(slotError.message);
+      await supabase.from("carpool_groups").update({ status: "active" }).eq("id", groupId).eq("status", "forming");
       setGenerating(false);
       setJustGenerated(true);
       track(currentUserId, "schedule_generated", { group_id: groupId, method: "ai" });
@@ -174,6 +175,7 @@ export default function WeeklySchedule() {
     if (oldSchedule) { await supabase.from("schedule_slots").delete().eq("schedule_id", oldSchedule.id); await supabase.from("weekly_schedules").delete().eq("id", oldSchedule.id); }
     const { data: newSchedule } = await supabase.from("weekly_schedules").insert({ group_id: groupId, week_start_date: weekStart, status: "published", generated_by: "manual" }).select("id").single();
     if (newSchedule) { await supabase.from("schedule_slots").insert(newSlots.map((s) => ({ ...s, schedule_id: newSchedule.id }))); }
+    await supabase.from("carpool_groups").update({ status: "active" }).eq("id", groupId).eq("status", "forming");
     setGenerating(false);
     setJustGenerated(true);
     track(currentUserId, "schedule_generated", { group_id: groupId, method: "basic" });
