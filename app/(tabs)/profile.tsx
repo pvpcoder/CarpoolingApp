@@ -15,6 +15,8 @@ import { supabase } from "../../lib/supabase";
 import { getValidUser, handleLogout } from "../../lib/helpers";
 import { registerForPushNotifications } from "../../lib/notifications";
 import { linkParentToChildByEmail } from "../../lib/parentLinking";
+import { getOrCreateCalendarFeedUrl, toWebcalUrl } from "../../lib/calendarFeed";
+import * as Clipboard from "expo-clipboard";
 import { useTheme, Fonts } from "../../lib/theme";
 import { LoadingScreen, FadeIn, Watermark, TitleRule, ListSection, ListRow, ToggleSwitch } from "../../components/UI";
 
@@ -36,6 +38,7 @@ export default function ProfileTab() {
   const [isLinkingChild, setIsLinkingChild] = useState(false);
   const [linkChildEmail, setLinkChildEmail] = useState("");
   const [linkingBusy, setLinkingBusy] = useState(false);
+  const [calendarBusy, setCalendarBusy] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -136,6 +139,31 @@ export default function ProfileTab() {
       setNotificationsEnabled(false);
     }
     setNotificationsBusy(false);
+  };
+
+  const handleAddToCalendar = async () => {
+    if (!userId || calendarBusy) return;
+    setCalendarBusy(true);
+    try {
+      const feedUrl = await getOrCreateCalendarFeedUrl(userId);
+      const webcalUrl = toWebcalUrl(feedUrl);
+      Alert.alert(
+        "Subscribe to your schedule",
+        "Add this feed to your phone's calendar app so it stays up to date automatically as new weeks are scheduled.",
+        [
+          { text: "Copy link", onPress: () => Clipboard.setStringAsync(feedUrl) },
+          {
+            text: "Open in Calendar",
+            onPress: () => Linking.openURL(webcalUrl).catch(() => Clipboard.setStringAsync(feedUrl).then(() => Alert.alert("Link copied", "Paste it into your calendar app's \"Add subscription calendar\" option."))),
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert("Couldn't create calendar link", err?.message || "Please try again.");
+    } finally {
+      setCalendarBusy(false);
+    }
   };
 
   const confirmLogout = () => {
@@ -323,6 +351,7 @@ export default function ProfileTab() {
             <Text style={[styles.listRowLabelStandin, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Push notifications</Text>
             <ToggleSwitch value={notificationsEnabled} onValueChange={handleToggleNotifications} />
           </View>
+          <ListRow label="Subscribe to calendar" onPress={handleAddToCalendar} />
         </ListSection>
 
         {/* About — a quiet unlabeled footer list, not a third identical section */}
