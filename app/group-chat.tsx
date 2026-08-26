@@ -16,7 +16,7 @@ import { supabase } from "../lib/supabase";
 import { getValidUser, handleLogout } from "../lib/helpers";
 import { notifyGroupMembers } from "../lib/notifications";
 import { useTheme, Fonts } from "../lib/theme";
-import { LoadingScreen } from "../components/UI";
+import { LoadingScreen, FadeIn } from "../components/UI";
 
 export default function GroupChat() {
   const router = useRouter();
@@ -156,7 +156,7 @@ export default function GroupChat() {
           messages.map((msg: any) => {
             const isMe = msg.sender_id === currentUserId;
             return (
-              <View key={msg.id} style={[styles.row, isMe && styles.rowMe]}>
+              <FadeIn key={msg.id} duration={220} distance={6} style={[styles.row, isMe && styles.rowMe]}>
                 <View style={[styles.bubble, { backgroundColor: isMe ? c.dawn : c.paperElevated, borderColor: c.line }, isMe ? styles.bubbleMe : styles.bubbleOther]}>
                   {!isMe && (
                     <View style={styles.senderRow}>
@@ -167,7 +167,7 @@ export default function GroupChat() {
                   <Text style={[styles.msgText, { color: isMe ? "#FFFFFF" : c.textPrimary, fontFamily: Fonts.body }]}>{msg.message}</Text>
                   <Text style={[styles.msgTime, { color: isMe ? "rgba(255,255,255,0.5)" : c.textMuted, fontFamily: Fonts.mono }]}>{formatTime(msg.created_at)}</Text>
                 </View>
-              </View>
+              </FadeIn>
             );
           })
         )}

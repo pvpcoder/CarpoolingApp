@@ -269,6 +269,17 @@ export default function MyGroup() {
         </PressableScale>
       )}
 
+      {/* Weekly exceptions (student) */}
+      {userRole === "student" && (
+        <PressableScale
+          onPress={() => router.push(`/student-schedule?groupId=${groupId}`)}
+          style={[styles.linkRow, { backgroundColor: c.paperElevated, borderColor: c.line }]}
+        >
+          <Text style={[styles.linkText, { color: c.textPrimary, fontFamily: Fonts.bodyMedium }]}>Late pickups & no-ride days</Text>
+          <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+        </PressableScale>
+      )}
+
       {/* Families */}
       <View style={[styles.memberList, { borderColor: c.line, marginTop: 4 }]}>
         {members.map((member: any, i: number) => (
