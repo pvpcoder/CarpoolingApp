@@ -93,7 +93,7 @@ export default function MyGroup() {
             if (!user) return;
             deletedGroups.add(groupId as string);
             if (userRole === "student") {
-              await supabase.from("group_members").update({ status: "left" }).eq("group_id", groupId).eq("student_id", user.id);
+              await supabase.from("group_members").update({ status: "inactive" }).eq("group_id", groupId).eq("student_id", user.id);
             } else {
               // Parents don't get their own row — they share the family's row
               // with the student. Null parent_id instead of marking the row
@@ -135,8 +135,8 @@ export default function MyGroup() {
     setDeleting(true);
     try {
       deletedGroups.add(groupId as string);
-      await supabase.from("group_members").update({ status: "left" }).eq("group_id", groupId);
-      await supabase.from("carpool_groups").update({ status: "deleted" }).eq("id", groupId);
+      await supabase.from("group_members").update({ status: "inactive" }).eq("group_id", groupId);
+      await supabase.from("carpool_groups").update({ status: "archived" }).eq("id", groupId);
       try {
         await supabase.from("group_messages").delete().eq("group_id", groupId);
         await supabase.from("group_invites").delete().eq("group_id", groupId);

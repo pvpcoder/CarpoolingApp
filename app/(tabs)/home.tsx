@@ -138,7 +138,7 @@ export default function HomeTab() {
 
     for (const membership of memberships || []) {
       const group = (membership as any).carpool_groups;
-      if (!group || group.status === "deleted") continue;
+      if (!group || group.status === "deleted" || group.status === "archived") continue;
       if (localDeleted.includes(group.id)) continue;
 
       const { data: members } = await supabase
@@ -254,7 +254,7 @@ export default function HomeTab() {
 
       for (const membership of memberships || []) {
         const group = (membership as any).carpool_groups;
-        if (!group || group.status === "deleted") continue;
+        if (!group || group.status === "deleted" || group.status === "archived") continue;
         if (localDeleted.includes(group.id)) continue;
 
         const { data: existingMember } = await supabase
