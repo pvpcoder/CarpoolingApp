@@ -1,7 +1,7 @@
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useCallback } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Alert } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
@@ -83,7 +83,10 @@ function RootLayout() {
             phone: meta.phone,
           });
           if (meta.child_email) {
-            await linkParentToChildByEmail(userId, meta.child_email);
+            const linkResult = await linkParentToChildByEmail(userId, meta.child_email);
+            if (!linkResult.success) {
+              Alert.alert("Couldn't link child", `${linkResult.error} You can try again from Profile > Link a child.`);
+            }
           }
         }
         track(userId, "signup_completed", { role: meta.role });

@@ -81,7 +81,10 @@ export default function LoginScreen() {
         });
         if (profileError) { setLoading(false); Alert.alert("Error", "Couldn't set up your profile. Please contact support."); return; }
         if (meta.child_email) {
-          await linkParentToChildByEmail(userId!, meta.child_email);
+          const linkResult = await linkParentToChildByEmail(userId!, meta.child_email);
+          if (!linkResult.success) {
+            Alert.alert("Couldn't link child", `${linkResult.error} You can try again from Profile > Link a child.`);
+          }
         }
         track(userId, "signup_completed", { role: "parent" });
         setLoading(false);

@@ -138,20 +138,12 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      if (childEmail) {
-        const { data: student } = await supabase
-          .from("students")
-          .select("id")
-          .eq("email", childEmail.trim().toLowerCase())
-          .single();
-
-        if (!student) {
-          setLoading(false);
-          Alert.alert("Student not found", "No student found with that email. Make sure your child signs up first with their school email.");
-          return;
-        }
-      }
-
+      // Can't validate childEmail here: this runs before signUp(), so the
+      // client has no session yet, and students_read requires an
+      // authenticated role - any lookup here is silently blocked by RLS
+      // regardless of whether the student exists. The real link happens
+      // later (once a session exists) in _layout.tsx / index.tsx, or the
+      // parent can always link from Profile afterward if it doesn't match.
       const { error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
