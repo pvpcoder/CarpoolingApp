@@ -101,6 +101,21 @@ function RootLayout() {
   }, []);
 
   useEffect(() => {
+    // A stored session can outlive the account it belongs to (the account
+    // was deleted, or the refresh token just expired after being offline
+    // for a long time). Supabase's SDK tries to auto-refresh it on its own,
+    // before any screen's code runs, and emits SIGNED_OUT when that fails -
+    // without this listener that error surfaces as a raw uncaught
+    // AuthApiError instead of just bouncing back to the login screen.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        router.replace("/");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const routeFromNotification = (data: any) => {
       if (!data) return;
       if (data.type === "message" && data.groupId) {
