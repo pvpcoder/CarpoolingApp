@@ -33,7 +33,8 @@ export function computeBasicSchedule(
   days: string[],
   availability: AvailabilityRow[],
   exceptions: ExceptionRow[],
-  members: MemberRow[]
+  members: MemberRow[],
+  consolidateLatePickups: boolean = false
 ): ScheduleSlot[] {
   const availMap: Record<string, { morning: string[]; afternoon: string[] }> = {};
   days.forEach((d) => { availMap[d] = { morning: [], afternoon: [] }; });
@@ -56,6 +57,37 @@ export function computeBasicSchedule(
       newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: null, departure_time: "07:30:00", status: "needs_coverage" });
     }
 
+    const lateExceptions = exceptions.filter((e) => e.day_of_week === day && e.exception_type === "late_pickup");
+    const optOutExceptions = exceptions.filter((e) => e.day_of_week === day && e.exception_type === "needs_normal_pickup");
+
+    if (consolidateLatePickups && lateExceptions.length > 0) {
+      // Group prefers one shared trip. Opt-out families still get their
+      // own normal-time slot (self-serve — their own parent drives it,
+      // same forced-driver pattern as the single-late-student case below).
+      optOutExceptions.forEach((opt) => {
+        const family = members.find((m) => m.student_id === opt.student_id);
+        const forcedParentId = family?.parent_id || null;
+        if (forcedParentId) {
+          assignCount[forcedParentId] = (assignCount[forcedParentId] || 0) + 1;
+          newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: forcedParentId, departure_time: "14:45:00", status: "confirmed" });
+        } else {
+          const fallback = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
+          if (fallback.length > 0) {
+            assignCount[fallback[0]] = (assignCount[fallback[0]] || 0) + 1;
+            newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: fallback[0], departure_time: "14:45:00", status: "confirmed" });
+          }
+        }
+      });
+
+      // Everyone else shares one late trip, fairly assigned.
+      const late = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
+      if (late.length > 0) {
+        assignCount[late[0]] = (assignCount[late[0]] || 0) + 1;
+        newSlots.push({ day_of_week: day, slot_type: "late_afternoon", driver_parent_id: late[0], departure_time: lateExceptions[0].custom_pickup_time || "16:30:00", status: "confirmed" });
+      }
+      return;
+    }
+
     const pm = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
     if (pm.length > 0) {
       assignCount[pm[0]] = (assignCount[pm[0]] || 0) + 1;
@@ -64,7 +96,6 @@ export function computeBasicSchedule(
       newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: null, departure_time: "14:45:00", status: "needs_coverage" });
     }
 
-    const lateExceptions = exceptions.filter((e) => e.day_of_week === day && e.exception_type === "late_pickup");
     if (lateExceptions.length === 1) {
       // Single kid with late pickup — their own parent must drive, regardless of fairness
       const family = members.find((m) => m.student_id === lateExceptions[0].student_id);

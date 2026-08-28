@@ -114,7 +114,31 @@ export default function StudentSchedule() {
                   No ride
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pill, { backgroundColor: exceptions[day].type === "needs_normal_pickup" ? c.dawnFaded : c.paper, borderColor: exceptions[day].type === "needs_normal_pickup" ? c.dawn : c.line }]}
+                onPress={() => setDayType(day, "needs_normal_pickup")}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pillText, { color: exceptions[day].type === "needs_normal_pickup" ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>
+                  Normal pickup
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {exceptions[day].type === "needs_normal_pickup" && (
+              <>
+                <Text style={[styles.helperText, { color: c.textMuted, fontFamily: Fonts.body }]}>
+                  Only matters if your group combines late pickups — this keeps your regular 2:45 PM pickup on this day instead of waiting for the shared late trip.
+                </Text>
+                <TextInput
+                  style={[styles.detailInput, { backgroundColor: c.paper, color: c.textPrimary, borderColor: c.line, fontFamily: Fonts.body, marginTop: 10 }]}
+                  placeholder="Reason (optional)"
+                  placeholderTextColor={c.textMuted}
+                  value={exceptions[day].reason}
+                  onChangeText={(r) => setDayReason(day, r)}
+                />
+              </>
+            )}
 
             {exceptions[day].type === "late_pickup" && (
               <View style={styles.detailGroup}>
@@ -206,5 +230,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
+  },
+  helperText: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 10,
   },
 });

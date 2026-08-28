@@ -122,4 +122,57 @@ describe("computeBasicSchedule", () => {
     const slots = computeBasicSchedule(["Mon"], [], exceptions, members);
     expect(slots.filter((s) => s.slot_type === "late_afternoon")).toHaveLength(0);
   });
+
+  describe("consolidateLatePickups", () => {
+    it("collapses a single late_pickup exception into one fairly-assigned late_afternoon slot, no separate afternoon slot", () => {
+      const availability: AvailabilityRow[] = [
+        { parent_id: "p1", day_of_week: "Mon", can_drive_morning: false, can_drive_afternoon: true },
+        { parent_id: "p2", day_of_week: "Mon", can_drive_morning: false, can_drive_afternoon: true },
+      ];
+      const exceptions: ExceptionRow[] = [
+        { student_id: "s1", day_of_week: "Mon", exception_type: "late_pickup", custom_pickup_time: "16:15:00" },
+      ];
+      // s1's own parent is p1, but with consolidation on, fairness applies instead of forcing p1
+      const members = [member("s1", "p1"), member("s2", "p2")];
+      const slots = computeBasicSchedule(["Mon"], availability, exceptions, members, true);
+
+      expect(slots.filter((s) => s.slot_type === "afternoon")).toHaveLength(0);
+      const late = slots.filter((s) => s.slot_type === "late_afternoon");
+      expect(late).toHaveLength(1);
+      expect(late[0]).toMatchObject({ departure_time: "16:15:00", status: "confirmed" });
+    });
+
+    it("gives a needs_normal_pickup student their own normal-time slot with their own parent, while everyone else shares the late trip", () => {
+      const availability: AvailabilityRow[] = [
+        { parent_id: "p1", day_of_week: "Mon", can_drive_morning: false, can_drive_afternoon: true },
+        { parent_id: "p2", day_of_week: "Mon", can_drive_morning: false, can_drive_afternoon: true },
+      ];
+      const exceptions: ExceptionRow[] = [
+        { student_id: "s1", day_of_week: "Mon", exception_type: "late_pickup" },
+        { student_id: "s2", day_of_week: "Mon", exception_type: "needs_normal_pickup" },
+      ];
+      const members = [member("s1", "p1"), member("s2", "p2")];
+      const slots = computeBasicSchedule(["Mon"], availability, exceptions, members, true);
+
+      const afternoon = slots.filter((s) => s.slot_type === "afternoon");
+      expect(afternoon).toHaveLength(1);
+      expect(afternoon[0]).toMatchObject({ driver_parent_id: "p2", departure_time: "14:45:00", status: "confirmed" });
+
+      const late = slots.filter((s) => s.slot_type === "late_afternoon");
+      expect(late).toHaveLength(1);
+    });
+
+    it("leaves the default (unset) three-way split unchanged when consolidateLatePickups is not passed", () => {
+      const availability: AvailabilityRow[] = [
+        { parent_id: "p1", day_of_week: "Mon", can_drive_morning: false, can_drive_afternoon: true },
+      ];
+      const exceptions: ExceptionRow[] = [
+        { student_id: "s1", day_of_week: "Mon", exception_type: "late_pickup" },
+      ];
+      const members = [member("s1", "p1")];
+      const slots = computeBasicSchedule(["Mon"], availability, exceptions, members);
+      expect(slots.filter((s) => s.slot_type === "afternoon")).toHaveLength(1);
+      expect(slots.filter((s) => s.slot_type === "late_afternoon")).toHaveLength(1);
+    });
+  });
 });

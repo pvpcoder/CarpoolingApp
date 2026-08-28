@@ -17,7 +17,7 @@ import { getValidUser } from "../lib/helpers";
 import { deletedGroups } from "../lib/deletedGroups";
 import { SCHOOL } from "../lib/config";
 import { useTheme, Fonts, Shadows } from "../lib/theme";
-import { PrimaryButton, SecondaryButton, DangerButton, PressableScale, BackButton, FadeIn, LoadingScreen, Watermark, TitleRule } from "../components/UI";
+import { PrimaryButton, SecondaryButton, DangerButton, PressableScale, BackButton, FadeIn, LoadingScreen, Watermark, TitleRule, ToggleSwitch } from "../components/UI";
 
 const openDirections = (address: string, lat?: number, lng?: number) => {
   let url: string;
@@ -54,6 +54,8 @@ export default function MyGroup() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [consolidateLatePickups, setConsolidateLatePickups] = useState(false);
+  const [savingConsolidate, setSavingConsolidate] = useState(false);
 
   useEffect(() => { loadGroup(); }, []);
 
@@ -73,8 +75,9 @@ export default function MyGroup() {
       setIsAdmin((memberships || []).some((m: any) => m.role === "admin"));
     }
 
-    const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at").eq("id", groupId).single();
+    const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at, consolidate_late_pickups").eq("id", groupId).single();
     setGroup(groupData);
+    setConsolidateLatePickups(!!groupData?.consolidate_late_pickups);
 
     const { data: memberData } = await supabase.from("group_members").select("id, role, student_id, joined_at, students ( name, grade, saved_pickup_address, saved_pickup_lat, saved_pickup_lng ), parents ( name, phone, email )").eq("group_id", groupId).eq("status", "active");
     setMembers(memberData || []);
@@ -129,6 +132,18 @@ export default function MyGroup() {
     if (error) { Alert.alert("Error", "Couldn't rename the group."); return; }
     setGroup((prev: any) => ({ ...prev, name: editName.trim() }));
     setIsEditingName(false);
+  };
+
+  const handleToggleConsolidate = async (next: boolean) => {
+    if (savingConsolidate) return;
+    setConsolidateLatePickups(next);
+    setSavingConsolidate(true);
+    const { error } = await supabase.from("carpool_groups").update({ consolidate_late_pickups: next }).eq("id", groupId);
+    setSavingConsolidate(false);
+    if (error) {
+      setConsolidateLatePickups(!next);
+      Alert.alert("Error", "Couldn't update this setting.");
+    }
   };
 
   const handleDeleteGroup = async () => {
@@ -242,6 +257,23 @@ export default function MyGroup() {
           </PressableScale>
         </View>
       </FadeIn>
+
+      {/* Late pickup consolidation setting (admin only) */}
+      {isAdmin && (
+        <FadeIn>
+          <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }, Shadows?.sm as object]}>
+            <View style={styles.settingsRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold, marginBottom: 2 }]}>Combine late pickups</Text>
+                <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+                  When only one student needs a late pickup, one parent drives everyone together instead of two separate trips. Families can still opt out on a specific day from their weekly schedule screen.
+                </Text>
+              </View>
+              <ToggleSwitch value={consolidateLatePickups} onValueChange={handleToggleConsolidate} />
+            </View>
+          </View>
+        </FadeIn>
+      )}
 
       {/* Route all (parent) */}
       {userRole === "parent" && members.length > 1 && (
@@ -469,6 +501,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     marginBottom: 3,
+  },
+  settingsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   cardTitle: {
     fontSize: 16,
