@@ -28,6 +28,10 @@ export default function CreateGroup() {
   const c = useTheme();
 
   const [groupName, setGroupName] = useState("");
+  const [morningTime, setMorningTime] = useState("07:30");
+  const [afternoonTime, setAfternoonTime] = useState("14:45");
+  const [morningFocused, setMorningFocused] = useState(false);
+  const [afternoonFocused, setAfternoonFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [studentData, setStudentData] = useState<any>(null);
@@ -44,11 +48,20 @@ export default function CreateGroup() {
 
   const handleCreate = async () => {
     if (!groupName.trim()) { Alert.alert("Missing name", "Please enter a group name."); return; }
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(morningTime.trim()) || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(afternoonTime.trim())) {
+      Alert.alert("Invalid time", "Enter times as HH:MM, e.g. 07:30 and 14:45.");
+      return;
+    }
     if (!studentData) return;
     setLoading(true);
 
     const { data: group, error: groupError } = await supabase.from("carpool_groups").insert({
-      name: groupName.trim(), school_id: studentData.school_id, status: "forming", created_by: studentData.id,
+      name: groupName.trim(),
+      school_id: studentData.school_id,
+      status: "forming",
+      created_by: studentData.id,
+      morning_departure_time: `${morningTime.trim()}:00`,
+      afternoon_pickup_time: `${afternoonTime.trim()}:00`,
     }).select("id").single();
 
     if (groupError) { setLoading(false); Alert.alert("Error", groupError.message); return; }
@@ -107,6 +120,40 @@ export default function CreateGroup() {
           </View>
         </FadeIn>
 
+        {/* Pickup/dropoff times */}
+        <FadeIn delay={60}>
+          <View style={styles.timeRow}>
+            <View style={[styles.field, styles.timeField, { borderColor: morningFocused ? c.dawn : c.line }]}>
+              <Text style={[styles.fieldLabel, { color: morningFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>MORNING DROPOFF</Text>
+              <TextInput
+                style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+                placeholder="07:30"
+                placeholderTextColor={c.textMuted}
+                value={morningTime}
+                onChangeText={setMorningTime}
+                onFocus={() => setMorningFocused(true)}
+                onBlur={() => setMorningFocused(false)}
+                keyboardType="numbers-and-punctuation"
+                autoCorrect={false}
+              />
+            </View>
+            <View style={[styles.field, styles.timeField, { borderColor: afternoonFocused ? c.dawn : c.line }]}>
+              <Text style={[styles.fieldLabel, { color: afternoonFocused ? c.dawn : c.textMuted, fontFamily: Fonts.bodySemiBold }]}>AFTERNOON PICKUP</Text>
+              <TextInput
+                style={[styles.fieldInput, { color: c.textPrimary, fontFamily: Fonts.body }]}
+                placeholder="14:45"
+                placeholderTextColor={c.textMuted}
+                value={afternoonTime}
+                onChangeText={setAfternoonTime}
+                onFocus={() => setAfternoonFocused(true)}
+                onBlur={() => setAfternoonFocused(false)}
+                keyboardType="numbers-and-punctuation"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+        </FadeIn>
+
         {/* How it works */}
         <FadeIn delay={80}>
           <View style={[styles.stepsCard, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
@@ -154,6 +201,13 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 13,
     marginBottom: 28,
+  },
+  timeRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  timeField: {
+    flex: 1,
   },
   fieldLabel: {
     fontSize: 10,

@@ -25,6 +25,8 @@ export default function Availability() {
   const [saving, setSaving] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
+  const [morningTime, setMorningTime] = useState("07:30:00");
+  const [afternoonTime, setAfternoonTime] = useState("14:45:00");
   const [schedule, setSchedule] = useState<Record<string, { morning: boolean; afternoon: boolean }>>({
     Mon: { morning: false, afternoon: false }, Tue: { morning: false, afternoon: false },
     Wed: { morning: false, afternoon: false }, Thu: { morning: false, afternoon: false },
@@ -37,6 +39,9 @@ export default function Availability() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setParentId(user.id);
+    const { data: groupRow } = await supabase.from("carpool_groups").select("morning_departure_time, afternoon_pickup_time").eq("id", groupId).single();
+    if (groupRow?.morning_departure_time) setMorningTime(groupRow.morning_departure_time);
+    if (groupRow?.afternoon_pickup_time) setAfternoonTime(groupRow.afternoon_pickup_time);
     const { data: existing } = await supabase.from("parent_availability").select("day_of_week, can_drive_morning, can_drive_afternoon, is_recurring").eq("parent_id", user.id).eq("group_id", groupId);
     if (existing && existing.length > 0) {
       const loaded = { ...schedule };
@@ -45,6 +50,14 @@ export default function Availability() {
       setIsRecurring(!!existing[0].is_recurring);
     }
     setLoading(false);
+  };
+
+  const formatClock = (t: string) => {
+    const [h, m] = t.split(":");
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${displayHour}:${m} ${ampm}`;
   };
 
   const toggle = (day: string, slot: "morning" | "afternoon") => {
@@ -56,7 +69,7 @@ export default function Availability() {
     if (!parentId) return;
     setSaving(true);
     await supabase.from("parent_availability").delete().eq("parent_id", parentId).eq("group_id", groupId);
-    const rows = DAYS.map((day) => ({ parent_id: parentId, group_id: groupId, day_of_week: day, can_drive_morning: schedule[day].morning, can_drive_afternoon: schedule[day].afternoon, morning_departure_time: "07:30:00", afternoon_pickup_time: "14:45:00", is_recurring: isRecurring }));
+    const rows = DAYS.map((day) => ({ parent_id: parentId, group_id: groupId, day_of_week: day, can_drive_morning: schedule[day].morning, can_drive_afternoon: schedule[day].afternoon, morning_departure_time: morningTime, afternoon_pickup_time: afternoonTime, is_recurring: isRecurring }));
     const { error } = await supabase.from("parent_availability").insert(rows);
     setSaving(false);
     if (error) { Alert.alert("Error", error.message); return; }
@@ -91,9 +104,11 @@ export default function Availability() {
           <View style={styles.dayCol} />
           <View style={styles.slotHeader}>
             <Text style={[styles.slotHeaderText, { color: c.dawn, fontFamily: Fonts.bodySemiBold }]}>MORNING</Text>
+            <Text style={[styles.slotHeaderTime, { color: c.textMuted, fontFamily: Fonts.mono }]}>{formatClock(morningTime)}</Text>
           </View>
           <View style={styles.slotHeader}>
             <Text style={[styles.slotHeaderText, { color: c.dusk, fontFamily: Fonts.bodySemiBold }]}>AFTERNOON</Text>
+            <Text style={[styles.slotHeaderTime, { color: c.textMuted, fontFamily: Fonts.mono }]}>{formatClock(afternoonTime)}</Text>
           </View>
         </View>
 
@@ -194,6 +209,10 @@ const styles = StyleSheet.create({
   slotHeaderText: {
     fontSize: 9,
     letterSpacing: 0.8,
+  },
+  slotHeaderTime: {
+    fontSize: 10,
+    marginTop: 2,
   },
   gridRow: {
     flexDirection: "row",

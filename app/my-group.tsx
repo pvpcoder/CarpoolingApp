@@ -56,6 +56,10 @@ export default function MyGroup() {
   const [savingName, setSavingName] = useState(false);
   const [consolidateLatePickups, setConsolidateLatePickups] = useState(false);
   const [savingConsolidate, setSavingConsolidate] = useState(false);
+  const [isEditingTimes, setIsEditingTimes] = useState(false);
+  const [editMorningTime, setEditMorningTime] = useState("07:30");
+  const [editAfternoonTime, setEditAfternoonTime] = useState("14:45");
+  const [savingTimes, setSavingTimes] = useState(false);
 
   useEffect(() => { loadGroup(); }, []);
 
@@ -75,9 +79,11 @@ export default function MyGroup() {
       setIsAdmin((memberships || []).some((m: any) => m.role === "admin"));
     }
 
-    const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at, consolidate_late_pickups").eq("id", groupId).single();
+    const { data: groupData } = await supabase.from("carpool_groups").select("id, name, status, max_members, created_at, consolidate_late_pickups, morning_departure_time, afternoon_pickup_time").eq("id", groupId).single();
     setGroup(groupData);
     setConsolidateLatePickups(!!groupData?.consolidate_late_pickups);
+    if (groupData?.morning_departure_time) setEditMorningTime(groupData.morning_departure_time.slice(0, 5));
+    if (groupData?.afternoon_pickup_time) setEditAfternoonTime(groupData.afternoon_pickup_time.slice(0, 5));
 
     const { data: memberData } = await supabase.from("group_members").select("id, role, student_id, joined_at, students ( name, grade, saved_pickup_address, saved_pickup_lat, saved_pickup_lng ), parents ( name, phone, email )").eq("group_id", groupId).eq("status", "active");
     setMembers(memberData || []);
@@ -144,6 +150,22 @@ export default function MyGroup() {
       setConsolidateLatePickups(!next);
       Alert.alert("Error", "Couldn't update this setting.");
     }
+  };
+
+  const handleSaveTimes = async () => {
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(editMorningTime.trim()) || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(editAfternoonTime.trim())) {
+      Alert.alert("Invalid time", "Enter times as HH:MM, e.g. 07:30 and 14:45.");
+      return;
+    }
+    setSavingTimes(true);
+    const { error } = await supabase.from("carpool_groups").update({
+      morning_departure_time: `${editMorningTime.trim()}:00`,
+      afternoon_pickup_time: `${editAfternoonTime.trim()}:00`,
+    }).eq("id", groupId);
+    setSavingTimes(false);
+    if (error) { Alert.alert("Error", "Couldn't update the times."); return; }
+    setGroup((prev: any) => ({ ...prev, morning_departure_time: `${editMorningTime.trim()}:00`, afternoon_pickup_time: `${editAfternoonTime.trim()}:00` }));
+    setIsEditingTimes(false);
   };
 
   const handleDeleteGroup = async () => {
@@ -271,6 +293,51 @@ export default function MyGroup() {
               </View>
               <ToggleSwitch value={consolidateLatePickups} onValueChange={handleToggleConsolidate} />
             </View>
+          </View>
+        </FadeIn>
+      )}
+
+      {/* Pickup/dropoff times (admin only) */}
+      {isAdmin && (
+        <FadeIn>
+          <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }, Shadows?.sm as object]}>
+            <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold, marginBottom: 2 }]}>Pickup times</Text>
+            {isEditingTimes ? (
+              <View style={styles.editTimesRow}>
+                <TextInput
+                  style={[styles.editTimeInput, { color: c.textPrimary, borderColor: c.dawn, fontFamily: Fonts.bodyBold }]}
+                  value={editMorningTime}
+                  onChangeText={setEditMorningTime}
+                  placeholder="07:30"
+                  placeholderTextColor={c.textMuted}
+                  keyboardType="numbers-and-punctuation"
+                  autoFocus
+                />
+                <TextInput
+                  style={[styles.editTimeInput, { color: c.textPrimary, borderColor: c.dawn, fontFamily: Fonts.bodyBold }]}
+                  value={editAfternoonTime}
+                  onChangeText={setEditAfternoonTime}
+                  placeholder="14:45"
+                  placeholderTextColor={c.textMuted}
+                  keyboardType="numbers-and-punctuation"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveTimes}
+                />
+                <Pressable onPress={handleSaveTimes} disabled={savingTimes} style={[styles.editNameSave, { backgroundColor: c.dawn }]}>
+                  <Text style={[styles.editNameSaveText, { fontFamily: Fonts.bodyBold }]}>{savingTimes ? "…" : "Save"}</Text>
+                </Pressable>
+                <Pressable onPress={() => setIsEditingTimes(false)} hitSlop={12} style={{ padding: 8 }}>
+                  <Ionicons name="close" size={18} color={c.textMuted} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => setIsEditingTimes(true)} style={styles.settingsRow}>
+                <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body, flex: 1 }]}>
+                  {group?.morning_departure_time?.slice(0, 5) || "07:30"} morning · {group?.afternoon_pickup_time?.slice(0, 5) || "14:45"} afternoon
+                </Text>
+                <Ionicons name="pencil-outline" size={16} color={c.textMuted} />
+              </Pressable>
+            )}
           </View>
         </FadeIn>
       )}
@@ -456,6 +523,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 10,
+  },
+  editTimesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  editTimeInput: {
+    flex: 1,
+    fontSize: 15,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   editNameInput: {
     flex: 1,

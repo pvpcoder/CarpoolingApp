@@ -34,7 +34,9 @@ export function computeBasicSchedule(
   availability: AvailabilityRow[],
   exceptions: ExceptionRow[],
   members: MemberRow[],
-  consolidateLatePickups: boolean = false
+  consolidateLatePickups: boolean = false,
+  morningTime: string = "07:30:00",
+  afternoonTime: string = "14:45:00"
 ): ScheduleSlot[] {
   const availMap: Record<string, { morning: string[]; afternoon: string[] }> = {};
   days.forEach((d) => { availMap[d] = { morning: [], afternoon: [] }; });
@@ -52,9 +54,9 @@ export function computeBasicSchedule(
     const am = [...availMap[day].morning].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
     if (am.length > 0) {
       assignCount[am[0]] = (assignCount[am[0]] || 0) + 1;
-      newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: am[0], departure_time: "07:30:00", status: "confirmed" });
+      newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: am[0], departure_time: morningTime, status: "confirmed" });
     } else {
-      newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: null, departure_time: "07:30:00", status: "needs_coverage" });
+      newSlots.push({ day_of_week: day, slot_type: "morning", driver_parent_id: null, departure_time: morningTime, status: "needs_coverage" });
     }
 
     const lateExceptions = exceptions.filter((e) => e.day_of_week === day && e.exception_type === "late_pickup");
@@ -69,12 +71,12 @@ export function computeBasicSchedule(
         const forcedParentId = family?.parent_id || null;
         if (forcedParentId) {
           assignCount[forcedParentId] = (assignCount[forcedParentId] || 0) + 1;
-          newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: forcedParentId, departure_time: "14:45:00", status: "confirmed" });
+          newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: forcedParentId, departure_time: afternoonTime, status: "confirmed" });
         } else {
           const fallback = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
           if (fallback.length > 0) {
             assignCount[fallback[0]] = (assignCount[fallback[0]] || 0) + 1;
-            newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: fallback[0], departure_time: "14:45:00", status: "confirmed" });
+            newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: fallback[0], departure_time: afternoonTime, status: "confirmed" });
           }
         }
       });
@@ -91,9 +93,9 @@ export function computeBasicSchedule(
     const pm = [...availMap[day].afternoon].sort((a, b) => (assignCount[a] || 0) - (assignCount[b] || 0));
     if (pm.length > 0) {
       assignCount[pm[0]] = (assignCount[pm[0]] || 0) + 1;
-      newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: pm[0], departure_time: "14:45:00", status: "confirmed" });
+      newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: pm[0], departure_time: afternoonTime, status: "confirmed" });
     } else {
-      newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: null, departure_time: "14:45:00", status: "needs_coverage" });
+      newSlots.push({ day_of_week: day, slot_type: "afternoon", driver_parent_id: null, departure_time: afternoonTime, status: "needs_coverage" });
     }
 
     if (lateExceptions.length === 1) {
