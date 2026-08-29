@@ -41,6 +41,7 @@ export default function HomeTab() {
   const [pickupAddress, setPickupAddress] = useState<string | null>(null);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [pendingParentRequests, setPendingParentRequests] = useState<any[]>([]);
   const [schedulesByGroup, setSchedulesByGroup] = useState<Record<string, any[]>>({});
   const [parentNames, setParentNames] = useState<Record<string, string>>({});
   const [todaySlot, setTodaySlot] = useState<any>(null);
@@ -228,13 +229,22 @@ export default function HomeTab() {
       .eq("status", "pending");
 
     setPendingInvites(invites || []);
+
+    const { data: parentRequests } = await supabase
+      .from("parent_student_links")
+      .select("parent_id, parents ( name )")
+      .eq("student_id", student.id)
+      .eq("status", "pending");
+
+    setPendingParentRequests(parentRequests || []);
   };
 
   const loadParentData = async (parent: any) => {
     const { data: links } = await supabase
       .from("parent_student_links")
       .select("students ( id, name )")
-      .eq("parent_id", parent.id);
+      .eq("parent_id", parent.id)
+      .eq("status", "approved");
 
     const children = (links || [])
       .map((l: any) => l.students)
@@ -377,6 +387,37 @@ export default function HomeTab() {
         }
         track(user.id, "group_joined", { group_id: groupId });
         Alert.alert("Joined!", "You're now part of the carpool group.");
+      }
+      loadData();
+    } catch {
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    }
+  };
+
+  const handleParentRequestResponse = async (parentId: string, accept: boolean) => {
+    try {
+      const user = await getValidUser();
+      if (!user) {
+        handleLogout(router);
+        return;
+      }
+      if (accept) {
+        const { error } = await supabase
+          .from("parent_student_links")
+          .update({ status: "approved" })
+          .eq("parent_id", parentId)
+          .eq("student_id", user.id);
+        if (error) {
+          Alert.alert("Error", "Couldn't approve the request: " + error.message);
+          return;
+        }
+        Alert.alert("Approved", "They can now see your carpool group.");
+      } else {
+        await supabase
+          .from("parent_student_links")
+          .delete()
+          .eq("parent_id", parentId)
+          .eq("student_id", user.id);
       }
       loadData();
     } catch {
@@ -553,6 +594,39 @@ export default function HomeTab() {
                   </PressableScale>
                   <Pressable
                     onPress={() => handleInviteResponse(invite.id, invite.group_id, false)}
+                    hitSlop={12}
+                  >
+                    <Text style={[styles.declineText, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Decline</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </FadeIn>
+        ))}
+
+        {/* ── Pending parent link requests (student) ── */}
+        {pendingParentRequests.map((req: any, idx: number) => (
+          <FadeIn key={req.parent_id} delay={Math.min(idx, 6) * 40}>
+            <View style={[styles.card, { backgroundColor: c.paperElevated, borderColor: c.line }]}>
+              <View style={styles.inviteRow}>
+                <View style={styles.inviteInfo}>
+                  <Text style={[styles.cardLabel, { color: c.dawn, fontFamily: Fonts.bodyBold }]}>PARENT REQUEST</Text>
+                  <Text style={[styles.cardTitle, { color: c.textPrimary, fontFamily: Fonts.bodyBold }]}>
+                    {req.parents?.name || "Someone"}
+                  </Text>
+                  <Text style={[styles.cardSub, { color: c.textSecondary, fontFamily: Fonts.body }]}>
+                    wants to link as your parent/driver
+                  </Text>
+                </View>
+                <View style={styles.inviteActions}>
+                  <PressableScale
+                    onPress={() => handleParentRequestResponse(req.parent_id, true)}
+                    style={[styles.joinBtn, { backgroundColor: c.dawn }]}
+                  >
+                    <Text style={[styles.joinText, { fontFamily: Fonts.bodySemiBold }]}>Approve</Text>
+                  </PressableScale>
+                  <Pressable
+                    onPress={() => handleParentRequestResponse(req.parent_id, false)}
                     hitSlop={12}
                   >
                     <Text style={[styles.declineText, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Decline</Text>

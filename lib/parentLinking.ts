@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { sendPushNotification } from "./notifications";
 
 // Looks up a student by their school email and links them to a parent
 // account via parent_student_links. Shared by the two independent places a
@@ -8,7 +9,7 @@ import { supabase } from "./supabase";
 export async function linkParentToChildByEmail(
   parentId: string,
   childEmail: string
-): Promise<{ success: boolean; studentName?: string; error?: string }> {
+): Promise<{ success: boolean; studentName?: string; error?: string; pending?: boolean }> {
   const email = childEmail.trim().toLowerCase();
   if (!email) return { success: false, error: "Enter your child's school email." };
 
@@ -27,14 +28,22 @@ export async function linkParentToChildByEmail(
 
   const { error } = await supabase
     .from("parent_student_links")
-    .insert({ parent_id: parentId, student_id: student.id });
+    .insert({ parent_id: parentId, student_id: student.id, status: "pending" });
 
   if (error) {
     if (error.code === "23505") {
-      return { success: false, error: "You're already linked to this child." };
+      return { success: false, error: "You've already requested (or are already linked) to this child." };
     }
     return { success: false, error: error.message };
   }
 
-  return { success: true, studentName: student.name };
+  const { data: parent } = await supabase.from("parents").select("name").eq("id", parentId).maybeSingle();
+  sendPushNotification(
+    [student.id],
+    "Parent link request",
+    `${parent?.name || "A parent"} wants to link as your parent/driver. Open the app to approve.`,
+    { type: "parent_link_request" }
+  );
+
+  return { success: true, studentName: student.name, pending: true };
 }

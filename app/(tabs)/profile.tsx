@@ -80,7 +80,8 @@ export default function ProfileTab() {
           const { data: links } = await supabase
             .from("parent_student_links")
             .select("students ( id, name )")
-            .eq("parent_id", user.id);
+            .eq("parent_id", user.id)
+            .eq("status", "approved");
           setLinkedChildren((links || []).map((l: any) => l.students).filter(Boolean));
         }
       }
@@ -111,7 +112,7 @@ export default function ProfileTab() {
     setLinkChildEmail("");
     setIsLinkingChild(false);
     track(userId, "child_linked");
-    Alert.alert("Linked", `${result.studentName || "Student"} is now linked to your account.`);
+    Alert.alert("Request sent", `Ask ${result.studentName || "your child"} to approve the request from their Home tab.`);
     loadSettings();
   };
 

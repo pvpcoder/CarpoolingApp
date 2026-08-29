@@ -125,7 +125,7 @@ function RootLayout() {
         router.push(`/group-chat?groupId=${data.groupId}`);
       } else if (data.type === "swap" && data.groupId) {
         router.push(`/weekly-schedule?groupId=${data.groupId}`);
-      } else if (data.type === "invite") {
+      } else if (data.type === "invite" || data.type === "parent_link_request") {
         router.push("/(tabs)/home");
       }
     };
