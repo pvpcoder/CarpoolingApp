@@ -470,6 +470,13 @@ export default function MyGroup() {
           title={group?.status === "active" ? "View weekly schedule" : "Generate schedule"}
           onPress={() => router.push(`/weekly-schedule?groupId=${groupId}`)}
         />
+        {userRole === "parent" && (
+          <SecondaryButton
+            title="Edit my availability"
+            icon="calendar-outline"
+            onPress={() => router.push(`/availability?groupId=${groupId}`)}
+          />
+        )}
         <SecondaryButton
           title="Group chat"
           icon="chatbubble-ellipses-outline"
