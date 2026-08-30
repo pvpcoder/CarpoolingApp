@@ -223,6 +223,31 @@ export default function WeeklySchedule() {
     ]);
   };
 
+  const handleClaimSlot = async (slot: any) => {
+    if (!currentUserId) return;
+    Alert.alert("Drive this slot", "You'll be assigned as the driver for this slot.", [
+      { text: "Cancel" },
+      { text: "I'll drive it", onPress: async () => {
+        const { data, error } = await supabase
+          .from("schedule_slots")
+          .update({ driver_parent_id: currentUserId, status: "confirmed" })
+          .eq("id", slot.id)
+          .is("driver_parent_id", null)
+          .select("id");
+        if (error) { Alert.alert("Error", error.message); return; }
+        if (!data || data.length === 0) {
+          Alert.alert("Too late", "Another parent already claimed this slot.");
+          loadSchedule();
+          return;
+        }
+        track(currentUserId, "slot_claimed", { group_id: groupId, slot_id: slot.id });
+        notifyGroupMembers(groupId as string, currentUserId!, "Slot Covered", `${parentMap[currentUserId!] || "A parent"} is now driving a slot that needed a driver.`, "swap");
+        Alert.alert("Thanks!", "You've been assigned as the driver for this slot.");
+        loadSchedule();
+      }},
+    ]);
+  };
+
   const handleCoverSwap = async (swapId: string) => {
     if (!currentUserId) return;
     Alert.alert("Cover this slot", "You'll be assigned as the driver for this slot.", [
@@ -465,6 +490,12 @@ export default function WeeklySchedule() {
                       return (
                         <TouchableOpacity key={`swap-${slot.id}`} onPress={() => handleRequestSwap(slot.id)} activeOpacity={0.7} style={{ paddingTop: 6 }}>
                           <Text style={[styles.cantDrive, { color: c.textMuted, fontFamily: Fonts.bodyMedium }]}>Can't drive this slot?</Text>
+                        </TouchableOpacity>
+                      );
+                    } else if (isParent && slot.status === "needs_coverage" && !slot.driver_parent_id) {
+                      return (
+                        <TouchableOpacity key={`claim-${slot.id}`} style={[styles.coverBtn, { borderColor: c.rust }]} onPress={() => handleClaimSlot(slot)} activeOpacity={0.7}>
+                          <Text style={[styles.coverBtnText, { color: c.rust, fontFamily: Fonts.bodySemiBold }]}>I'll drive {getSlotLabel(slot.slot_type)} on {slot.day_of_week}</Text>
                         </TouchableOpacity>
                       );
                     }
